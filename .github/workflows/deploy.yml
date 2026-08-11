@@ -39,10 +39,20 @@ jobs:
 
       - name: Verify GitHub Secrets Environment
         env:
+          TRADING_MODE: ${{ secrets.TRADING_MODE }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TARGET_TELEGRAM_CHANNEL: ${{ secrets.TARGET_TELEGRAM_CHANNEL }}
+          AUTO_EXECUTE_ORDER: ${{ secrets.AUTO_EXECUTE_ORDER }}
+          POLLING_INTERVAL_MS: ${{ secrets.POLLING_INTERVAL_MS }}
           ANGEL_API_KEY: ${{ secrets.ANGEL_API_KEY }}
           ANGEL_CLIENT_CODE: ${{ secrets.ANGEL_CLIENT_CODE }}
           ANGEL_PIN: ${{ secrets.ANGEL_PIN }}
           ANGEL_TOTP_SECRET: ${{ secrets.ANGEL_TOTP_SECRET }}
+          ACCOUNT_CAPITAL: ${{ secrets.ACCOUNT_CAPITAL }}
+          RISK_PER_TRADE: ${{ secrets.RISK_PER_TRADE }}
+          ATR_MULTIPLIER: ${{ secrets.ATR_MULTIPLIER }}
+          ATR_PERIOD: ${{ secrets.ATR_PERIOD }}
+          FUNDAMENTALS_API_KEY: ${{ secrets.FUNDAMENTALS_API_KEY }}
+          FUNDAMENTALS_API_URL: ${{ secrets.FUNDAMENTALS_API_URL }}
         run: |
           echo "✅ GitHub Secrets successfully injected into deployment pipeline."
