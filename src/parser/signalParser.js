@@ -108,16 +108,14 @@ class SignalParser {
       }
     }
 
-    // 3. Pulse Rating Extractor e.g. Pulse Rating : Excellent / Good / Excellent Results
-    const pulseRatingMatch = upperText.match(/(?:PULSE\s*RATING|RATING|RESULTS?)\s*[:=-]?\s*(EXCELLENT|VERY\s*GOOD|GOOD|FAIR|POOR|VERY\s*POOR)|(EXCELLENT|VERY\s*GOOD|GOOD)\s*RESULTS?/i);
+    // 3. Pulse Rating Extractor e.g. Pulse Rating : Excellent / Good / Poor / Fair
+    const pulseRatingMatch = upperText.match(/(?:PULSE\s*RATING|RATING|RESULTS?)\s*[:=-]?\s*(EXCELLENT|VERY\s*GOOD|GOOD|FAIR|NEUTRAL|POOR|VERY\s*POOR|BAD)|(EXCELLENT|VERY\s*GOOD|GOOD|POOR)\s*RESULTS?/i);
     if (pulseRatingMatch) {
       cardRating = (pulseRatingMatch[1] || pulseRatingMatch[2]).toUpperCase();
-      if (!action) {
-        if (cardRating.includes('EXCELLENT') || cardRating.includes('GOOD')) {
-          action = 'BUY';
-        } else if (cardRating.includes('POOR')) {
-          action = 'AVOID';
-        }
+      if (cardRating.includes('EXCELLENT') || cardRating.includes('GOOD')) {
+        action = 'BUY';
+      } else if (cardRating.includes('POOR') || cardRating.includes('BAD')) {
+        action = 'AVOID';
       }
     }
 

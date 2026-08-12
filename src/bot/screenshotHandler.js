@@ -145,7 +145,7 @@ async function handleScreenshot(bot, msg) {
       atr
     );
 
-    // 8. Calculate Position Sizing
+    // Position Sizing
     const position = riskEngine.calculatePositionSize(
       effectiveEntry,
       stopLoss,
@@ -153,10 +153,42 @@ async function handleScreenshot(bot, msg) {
       config.risk.riskPerTrade
     );
 
-    // Evaluate Rating Rules: EXCELLENT vs GOOD vs POOR
+    // Evaluate Exact Rating Rules: EXCELLENT vs GOOD vs POOR
+    const upperText = ocrText.toUpperCase();
+
     const isExcellent =
       (signal.cardRating && signal.cardRating.includes('EXCELLENT')) ||
-      (ocrText.toUpperCase().includes('EXCELLENT'));
+      (upperText.includes('PULSE RATING : EXCELLENT') || upperText.includes('EXCELLENT RESULTS'));
+
+    const isPoor =
+      (signal.cardRating && (signal.cardRating.includes('POOR') || signal.cardRating.includes('BAD'))) ||
+      (upperText.includes('PULSE RATING : POOR') || upperText.includes('POOR RESULTS') || upperText.includes('PULSE RATING : VERY POOR'));
+
+    const isGood =
+      !isExcellent && !isPoor &&
+      ((signal.cardRating && (signal.cardRating.includes('GOOD') || signal.cardRating.includes('VERY GOOD'))) ||
+       (upperText.includes('PULSE RATING : GOOD') || upperText.includes('GOOD RESULTS') || upperText.includes('PULSE RATING : VERY GOOD')));
+
+    const modeBadge = config.tradingMode === 'PAPER' ? '📝 [PAPER MODE]' : '⚡ [LIVE MODE]';
+
+    // Handle POOR Rating: Abort trade immediately & notify user
+    if (isPoor) {
+      console.warn(`[ScreenshotHandler] POOR Rating detected for ${signal.symbol}. Aborting order placement.`);
+      const poorNotice =
+        `🔴 *RESULT RATING:* \`POOR ⚠️\` ${modeBadge}\n\n` +
+        `*Stock:* ${signal.symbol}\n` +
+        `*Entry Price:* ₹${effectiveEntry}\n` +
+        `🏆 *Pulse Rating:* \`POOR ⚠️\`\n\n` +
+        `⛔ *Automated Order Placement Aborted.*\n` +
+        `Earnings results do not meet growth criteria. Trade has been stopped to protect capital.`;
+
+      for (const { targetId, messageId } of processingMsgs) {
+        try {
+          await bot.editMessageText(poorNotice, { chat_id: targetId, message_id: messageId, parse_mode: 'Markdown' });
+        } catch (_) {}
+      }
+      return;
+    }
 
     let fundamentals = { isAvailable: false, score: null, rating: 'Skipped for Instant Execution', valuation: 'Fair' };
     let orderResult = null;
@@ -230,8 +262,6 @@ async function handleScreenshot(bot, msg) {
       warningText = `\n⚠️ *Warnings:*\n` + decision.warnings.map(w => `- ${w}`).join('\n') + `\n`;
     }
 
-    const modeBadge = config.tradingMode === 'PAPER' ? '📝 [PAPER MODE]' : '⚡ [LIVE MODE]';
-
     let outputMessage = '';
     let replyMarkup = undefined;
 
@@ -257,9 +287,10 @@ async function handleScreenshot(bot, msg) {
       }
     } else {
       // GOOD / NEUTRAL -> Require User Confirmation Click
+      const displayRatingStr = isGood ? 'GOOD 👍' : (signal.cardRating || 'NEUTRAL ⚖️');
       const valRating = fundamentals.valuation || 'FAIRLY VALUED ⚖️';
       outputMessage =
-        `📢 *RESULT RATING:* \`GOOD 👍\` ${modeBadge}\n\n` +
+        `📢 *RESULT RATING:* \`${displayRatingStr}\` ${modeBadge}\n\n` +
         `*Stock:* ${signal.symbol}\n` +
         `*Entry Price:* ₹${effectiveEntry} | *LTP:* ${currentLtpText}\n` +
         `💎 *Valuation:* \`${valRating}\`\n` +
