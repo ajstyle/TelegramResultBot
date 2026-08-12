@@ -32,14 +32,17 @@ class PdfParserEngine {
             responseType: 'arraybuffer',
             timeout: 15000,
             headers: {
-              'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              'Accept': 'application/pdf,application/octet-stream,text/html,*/*',
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+              'Accept': 'application/pdf,application/octet-stream,*/*',
               'Referer': targetUrl.includes('bseindia') ? 'https://www.bseindia.com/' : 'https://www.nseindia.com/',
             },
           });
-          if (res.data && res.data.length > 0) {
-            pdfBuffer = Buffer.from(res.data);
-            break;
+          if (res.data && res.data.length > 10) {
+            const buf = Buffer.from(res.data);
+            if (buf.toString('utf-8', 0, 5) === '%PDF-') {
+              pdfBuffer = buf;
+              break;
+            }
           }
         } catch (err) {
           // Try next URL fallback

@@ -13,10 +13,6 @@ class AnnouncementFilter {
       'audited results',
       'outcome of board meeting',
       'earnings',
-      'q1',
-      'q2',
-      'q3',
-      'q4',
       'q1 results',
       'q2 results',
       'q3 results',
@@ -25,8 +21,6 @@ class AnnouncementFilter {
       'annual results',
       'profit and loss',
       'balance sheet',
-      'investor presentation',
-      'earnings presentation',
       'regulation 33',
       'reg 33',
       'reg. 33',
@@ -46,6 +40,13 @@ class AnnouncementFilter {
       'compliance certificate',
       'newspaper publication',
       'newspaper advertisement',
+      'investor presentation',
+      'earnings presentation',
+      'analyst presentation',
+      'press release',
+      'media release',
+      'audio recording',
+      'transcript',
     ];
   }
 
@@ -58,13 +59,13 @@ class AnnouncementFilter {
     const textToMatch = `${item.title || ''} ${item.subject || ''} ${item.pdfUrl || ''}`.toLowerCase();
 
     // 1. Check for explicit exclusions
-    for (const keyword of this.exclusionKeywords) {
-      if (textToMatch.includes(keyword)) {
+    for (const exclusion of this.exclusionKeywords) {
+      if (textToMatch.includes(exclusion)) {
         return false;
       }
     }
 
-    // 2. Check for primary inclusion keywords
+    // 2. Check for inclusion keywords
     for (const keyword of this.inclusionKeywords) {
       if (textToMatch.includes(keyword)) {
         return true;

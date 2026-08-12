@@ -8,15 +8,15 @@ describe('Announcement Keyword Filter Unit Tests', () => {
     };
 
     const item2 = {
-      title: 'TCS Q3 Earnings Presentation and Financial Highlights',
-      subject: 'Investor Presentation',
+      title: 'TCS Q3 Standalone and Consolidated Financial Results',
+      subject: 'Financial Results Regulation 33',
     };
 
     expect(announcementFilter.isEarningsAnnouncement(item1)).toBe(true);
     expect(announcementFilter.isEarningsAnnouncement(item2)).toBe(true);
   });
 
-  test('Filters out non-earnings compliance noise (shareholding pattern, insider trading, trading window)', () => {
+  test('Filters out non-earnings compliance noise (shareholding pattern, insider trading, trading window, investor presentation)', () => {
     const noiseItem1 = {
       title: 'Shareholding Pattern for the quarter ended December 31',
       subject: 'Compliance Filing',
@@ -28,12 +28,18 @@ describe('Announcement Keyword Filter Unit Tests', () => {
     };
 
     const noiseItem3 = {
-      title: 'Intimation of Loss of Share Certificate',
-      subject: 'Shareholder Services',
+      title: 'Loss of Share Certificate Notice',
+      subject: 'Reg 39(3)',
+    };
+
+    const noiseItem4 = {
+      title: 'Bata India Ltd - Announcement under Regulation 30 - Investor Presentation',
+      subject: 'Investor Presentation',
     };
 
     expect(announcementFilter.isEarningsAnnouncement(noiseItem1)).toBe(false);
     expect(announcementFilter.isEarningsAnnouncement(noiseItem2)).toBe(false);
     expect(announcementFilter.isEarningsAnnouncement(noiseItem3)).toBe(false);
+    expect(announcementFilter.isEarningsAnnouncement(noiseItem4)).toBe(false);
   });
 });
