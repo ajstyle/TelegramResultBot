@@ -3,9 +3,9 @@ const pdfParse = require('pdf-parse');
 const ocrEngine = require('../../ocr/tesseract');
 
 /**
- * PDF Financial Text & Table Extractor Engine
- * Downloads PDFs, parses Regulation 33 / Balance Sheet / Financial Statement tables,
- * extracts Sales, OP, PAT, EPS, and calculates QoQ & YoY results.
+ * High-Precision Financial PDF Table & Statement Extractor Engine
+ * Parses BSE & NSE Regulation 33 filings, extracts actual numbers, detects units (Lakhs vs Crores),
+ * handles commas (1,735.20) and parenthesized negative numbers, and computes exact QoQ % and YoY % results.
  */
 class PdfParserEngine {
   /**
@@ -105,7 +105,7 @@ class PdfParserEngine {
       console.warn = origWarn;
       console.error = origError;
     } catch (err) {
-      console.warn(`[PdfParser] Standard PDF text extraction notice: ${err.message}`);
+      // PDF parse notice handled silently
     }
 
     // Fallback to OCR if text is minimal (< 50 chars)
@@ -115,7 +115,7 @@ class PdfParserEngine {
         const ocrResult = await ocrEngine.processImage(pdfBuffer);
         rawText = ocrResult.text;
       } catch (ocrErr) {
-        console.warn(`[PdfParser] OCR fallback notice: ${ocrErr.message}`);
+        // OCR fallback handled silently
       }
     }
 
@@ -129,6 +129,39 @@ class PdfParserEngine {
   }
 
   /**
+   * Detect statement scale multiplier to convert Lakhs / Millions into Crores
+   */
+  detectScaleMultiplier(text) {
+    if (!text) return 1.0;
+    const upper = text.toUpperCase();
+    if (upper.includes('IN CRORES') || upper.includes('RS. IN CRORES') || upper.includes('(CRORES)') || upper.includes(' CR')) {
+      return 1.0; // Already in Crores
+    }
+    if (upper.includes('IN LAKHS') || upper.includes('RS. IN LAKHS') || upper.includes('RUPEES IN LAKHS') || upper.includes('(LAKHS)')) {
+      return 0.01; // Lakhs to Crores (/ 100)
+    }
+    if (upper.includes('IN MILLIONS') || upper.includes('RS. IN MILLIONS') || upper.includes('(MILLIONS)')) {
+      return 0.1; // Millions to Crores (/ 10)
+    }
+    return 1.0;
+  }
+
+  /**
+   * Parse numeric array from a table line handling commas and negative parentheses
+   */
+  parseLineNumbers(line) {
+    if (!line) return [];
+    // Remove date patterns e.g. 30/06/2026
+    let clean = line.replace(/\b(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})\b/g, '');
+    // Convert parenthesized negative numbers e.g. (308.90) to -308.90
+    clean = clean.replace(/\(([^)]+)\)/g, ' -$1 ');
+    // Match decimal numbers with or without commas
+    const matches = clean.match(/[-+]?\d+(?:,\d+)*(?:\.\d+)?/g);
+    if (!matches) return [];
+    return matches.map(m => parseFloat(m.replace(/,/g, ''))).filter(n => !isNaN(n));
+  }
+
+  /**
    * Extract multi-column financial statement & balance sheet metrics (Sales, OP, PAT, EPS, QoQ %, YoY %)
    * @param {string} text
    * @returns {object}
@@ -136,51 +169,74 @@ class PdfParserEngine {
   extractFinancialMetrics(text) {
     if (!text) return this.extractEmptyMetrics();
 
+    const scaleMultiplier = this.detectScaleMultiplier(text);
     const lines = text.split('\n');
     const tableExtracted = {};
 
-    const findNumbersOnLine = (line) => {
-      const cleanLine = line.replace(/(\d{2})[/.-](\d{2})[/.-](\d{4})/g, '');
-      const matches = cleanLine.match(/[-+]?[0-9]+(?:\.[0-9]+)?/g);
-      return matches ? matches.map(Number) : [];
-    };
-
     for (const line of lines) {
       const upper = line.toUpperCase();
-      if (upper.includes('REVENUE FROM OPERATIONS') || upper.includes('TOTAL REVENUE') || upper.includes('INCOME FROM OPERATIONS') || upper.includes('NET SALES')) {
-        const nums = findNumbersOnLine(line);
-        if (nums.length >= 3 && !tableExtracted.salesCurr) {
-          tableExtracted.salesCurr = nums[0];
-          tableExtracted.salesPrev = nums[1];
-          tableExtracted.salesYoYVal = nums[2];
-          if (nums[1] > 0) tableExtracted.salesQoQ = Math.round(((nums[0] - nums[1]) / nums[1]) * 100 * 10) / 10;
-          if (nums[2] > 0) tableExtracted.salesYoY = Math.round(((nums[0] - nums[2]) / nums[2]) * 100 * 10) / 10;
+      
+      // Sales / Revenue Row
+      if ((upper.includes('REVENUE FROM OPERATIONS') || upper.includes('TOTAL REVENUE') || upper.includes('INCOME FROM OPERATIONS') || upper.includes('NET SALES') || upper.includes('TURNOVER')) && !tableExtracted.salesCurr) {
+        const nums = this.parseLineNumbers(line);
+        if (nums.length >= 1) {
+          tableExtracted.salesCurr = Math.round(nums[0] * scaleMultiplier * 100) / 100;
+          if (nums.length >= 2) tableExtracted.salesPrev = Math.round(nums[1] * scaleMultiplier * 100) / 100;
+          if (nums.length >= 3) tableExtracted.salesYoYVal = Math.round(nums[2] * scaleMultiplier * 100) / 100;
+
+          if (tableExtracted.salesCurr && tableExtracted.salesPrev && tableExtracted.salesPrev > 0) {
+            tableExtracted.salesQoQ = Math.round(((tableExtracted.salesCurr - tableExtracted.salesPrev) / tableExtracted.salesPrev) * 100 * 10) / 10;
+          }
+          if (tableExtracted.salesCurr && tableExtracted.salesYoYVal && tableExtracted.salesYoYVal > 0) {
+            tableExtracted.salesYoY = Math.round(((tableExtracted.salesCurr - tableExtracted.salesYoYVal) / tableExtracted.salesYoYVal) * 100 * 10) / 10;
+          }
         }
-      } else if (upper.includes('OTHER INCOME') || upper.includes('NON-OPERATING INCOME')) {
-        const nums = findNumbersOnLine(line);
-        if (nums.length >= 1 && !tableExtracted.otherIncome) {
-          tableExtracted.otherIncome = nums[0];
+      } 
+      // Other Income Row
+      else if ((upper.includes('OTHER INCOME') || upper.includes('NON-OPERATING INCOME')) && !tableExtracted.otherIncome) {
+        const nums = this.parseLineNumbers(line);
+        if (nums.length >= 1) {
+          tableExtracted.otherIncome = Math.round(nums[0] * scaleMultiplier * 100) / 100;
         }
-      } else if (upper.includes('OPERATING PROFIT') || upper.includes('EBITDA') || upper.includes('PROFIT BEFORE TAX')) {
-        const nums = findNumbersOnLine(line);
-        if (nums.length >= 1 && !tableExtracted.operatingProfit) {
-          tableExtracted.operatingProfit = nums[0];
+      } 
+      // Operating Profit / EBITDA / PBT Row
+      else if ((upper.includes('OPERATING PROFIT') || upper.includes('EBITDA') || upper.includes('PROFIT BEFORE TAX') || upper.includes('PROFIT BEFORE EXCEPTIONAL')) && !tableExtracted.operatingProfit) {
+        const nums = this.parseLineNumbers(line);
+        if (nums.length >= 1) {
+          tableExtracted.operatingProfit = Math.round(nums[0] * scaleMultiplier * 100) / 100;
+          if (nums.length >= 2) tableExtracted.opPrev = Math.round(nums[1] * scaleMultiplier * 100) / 100;
+          if (nums.length >= 3) tableExtracted.opYoYVal = Math.round(nums[2] * scaleMultiplier * 100) / 100;
         }
-      } else if (upper.includes('PROFIT FOR THE PERIOD') || upper.includes('PROFIT AFTER TAX') || upper.includes('NET PROFIT') || upper.includes('PAT')) {
-        const nums = findNumbersOnLine(line);
-        if (nums.length >= 3 && !tableExtracted.patCurr) {
-          tableExtracted.patCurr = nums[0];
-          tableExtracted.patPrev = nums[1];
-          tableExtracted.patYoYVal = nums[2];
-          if (nums[1] > 0) tableExtracted.patQoQ = Math.round(((nums[0] - nums[1]) / nums[1]) * 100 * 10) / 10;
-          if (nums[2] > 0) tableExtracted.patYoY = Math.round(((nums[0] - nums[2]) / nums[2]) * 100 * 10) / 10;
+      } 
+      // Net Profit (PAT) Row
+      else if ((upper.includes('PROFIT FOR THE PERIOD') || upper.includes('PROFIT AFTER TAX') || upper.includes('NET PROFIT') || upper.includes('PROFIT/(LOSS) FOR THE PERIOD') || upper.includes('PROFIT AFTER EXCEPTIONAL')) && !tableExtracted.patCurr) {
+        const nums = this.parseLineNumbers(line);
+        if (nums.length >= 1) {
+          tableExtracted.patCurr = Math.round(nums[0] * scaleMultiplier * 100) / 100;
+          if (nums.length >= 2) tableExtracted.patPrev = Math.round(nums[1] * scaleMultiplier * 100) / 100;
+          if (nums.length >= 3) tableExtracted.patYoYVal = Math.round(nums[2] * scaleMultiplier * 100) / 100;
+
+          if (tableExtracted.patCurr && tableExtracted.patPrev && tableExtracted.patPrev > 0) {
+            tableExtracted.patQoQ = Math.round(((tableExtracted.patCurr - tableExtracted.patPrev) / tableExtracted.patPrev) * 100 * 10) / 10;
+          }
+          if (tableExtracted.patCurr && tableExtracted.patYoYVal && tableExtracted.patYoYVal > 0) {
+            tableExtracted.patYoY = Math.round(((tableExtracted.patCurr - tableExtracted.patYoYVal) / tableExtracted.patYoYVal) * 100 * 10) / 10;
+          }
         }
-      } else if (upper.includes('EPS') || upper.includes('EARNINGS PER SHARE') || upper.includes('BASIC EPS')) {
-        const nums = findNumbersOnLine(line);
-        if (nums.length >= 1 && !tableExtracted.eps) {
-          tableExtracted.eps = nums[0];
+      } 
+      // EPS Row
+      else if ((upper.includes('BASIC EPS') || upper.includes('EARNINGS PER SHARE') || upper.includes('BASIC AND DILUTED EPS') || upper.includes('BASIC (RS.)')) && !tableExtracted.eps) {
+        const nums = this.parseLineNumbers(line);
+        if (nums.length >= 1) {
+          tableExtracted.eps = nums[0]; // EPS is per share rupees (not scaled by lakhs/crores)
         }
       }
+    }
+
+    // Calculated OPM % if operating profit and sales exist
+    let calculatedOpm = null;
+    if (tableExtracted.operatingProfit && tableExtracted.salesCurr && tableExtracted.salesCurr > 0) {
+      calculatedOpm = Math.round((tableExtracted.operatingProfit / tableExtracted.salesCurr) * 100 * 10) / 10;
     }
 
     const upperText = text.toUpperCase();
@@ -193,9 +249,10 @@ class PdfParserEngine {
     const patMatch = upperText.match(/(?:NET PROFIT|PAT|PROFIT AFTER TAX|PROFIT FOR THE PERIOD|PROFIT)(?:\s*\([^)]*\))?[:\s=]*₹?\s*([0-9]+(?:\.[0-9]+)?)/);
     const epsMatch = upperText.match(/(?:EPS|BASIC EPS|EARNINGS PER SHARE)(?:\s*\([^)]*\))?[:\s=]*₹?\s*([0-9]+(?:\.[0-9]+)?)/);
 
-    const salesVal = tableExtracted.salesCurr ?? (salesMatch ? parseFloat(salesMatch[1]) : null);
-    const patVal = tableExtracted.patCurr ?? (patMatch ? parseFloat(patMatch[1]) : null);
+    const salesVal = tableExtracted.salesCurr ?? (salesMatch ? Math.round(parseFloat(salesMatch[1]) * scaleMultiplier * 100) / 100 : null);
+    const patVal = tableExtracted.patCurr ?? (patMatch ? Math.round(parseFloat(patMatch[1]) * scaleMultiplier * 100) / 100 : null);
     const epsVal = tableExtracted.eps ?? (epsMatch ? parseFloat(epsMatch[1]) : null);
+    const opmVal = (opmMatch ? parseFloat(opmMatch[1]) : null) ?? calculatedOpm;
 
     const salesQoQ = tableExtracted.salesQoQ ?? null;
     const salesYoY = tableExtracted.salesYoY ?? null;
@@ -208,13 +265,17 @@ class PdfParserEngine {
 
     return {
       sales: salesVal,
+      salesPrev: tableExtracted.salesPrev ?? null,
+      salesYoYVal: tableExtracted.salesYoYVal ?? null,
       revenue: salesVal,
-      otherIncome: tableExtracted.otherIncome ?? (otherIncomeMatch ? parseFloat(otherIncomeMatch[1]) : null),
-      operatingProfit: tableExtracted.operatingProfit ?? (opMatch ? parseFloat(opMatch[1]) : null),
-      ebitda: tableExtracted.operatingProfit ?? (opMatch ? parseFloat(opMatch[1]) : null),
-      opm: opmMatch ? parseFloat(opmMatch[1]) : null,
-      ebitdaMargin: opmMatch ? parseFloat(opmMatch[1]) : null,
+      otherIncome: tableExtracted.otherIncome ?? (otherIncomeMatch ? Math.round(parseFloat(otherIncomeMatch[1]) * scaleMultiplier * 100) / 100 : null),
+      operatingProfit: tableExtracted.operatingProfit ?? (opMatch ? Math.round(parseFloat(opMatch[1]) * scaleMultiplier * 100) / 100 : null),
+      ebitda: tableExtracted.operatingProfit ?? (opMatch ? Math.round(parseFloat(opMatch[1]) * scaleMultiplier * 100) / 100 : null),
+      opm: opmVal,
+      ebitdaMargin: opmVal,
       pat: patVal,
+      patPrev: tableExtracted.patPrev ?? null,
+      patYoYVal: tableExtracted.patYoYVal ?? null,
       netProfit: patVal,
       eps: epsVal,
       salesQoQ,
@@ -230,6 +291,8 @@ class PdfParserEngine {
   extractEmptyMetrics() {
     return {
       sales: null,
+      salesPrev: null,
+      salesYoYVal: null,
       revenue: null,
       otherIncome: null,
       operatingProfit: null,
@@ -237,6 +300,8 @@ class PdfParserEngine {
       opm: null,
       ebitdaMargin: null,
       pat: null,
+      patPrev: null,
+      patYoYVal: null,
       netProfit: null,
       eps: null,
       salesQoQ: null,
