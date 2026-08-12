@@ -96,11 +96,6 @@ class FundamentalsProvider {
       companyCategory: 'MID CAP 📈',
       valuationRating: 'FAIRLY VALUED ⚖️',
     };
-      operatingMargin: 18.0,
-      freeCashFlow: 5000,
-      sectorPe: 21.0,
-      valuationRating: 'Fair',
-    };
   }
 }
 
