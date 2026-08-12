@@ -246,7 +246,11 @@ class AngelOneService {
       }
       return [];
     } catch (error) {
-      console.warn(`[AngelOne] Historical candles fetch failed: ${error.message}`);
+      if (error.message && (error.message.includes('403') || error.message.includes('401'))) {
+        console.warn(`[AngelOne] Notice: Historical API access inactive (Enable 'Historical Data API' in your Angel One SmartAPI App Dashboard). System using 2% Volatility Fallback for Stop Loss calculation.`);
+      } else {
+        console.warn(`[AngelOne] Historical candles fetch notice: ${error.message}`);
+      }
       return [];
     }
   }
