@@ -316,18 +316,26 @@ class AngelOneService {
           message: response.data.message || 'Order placed successfully',
         };
       } else {
+        let msg = response.data?.message || 'Order placement failed at broker level';
+        if (msg.includes('not a registered IP') || response.data?.errorCode === 'AG7002') {
+          msg = `IP Restriction Notice (AG7002): Go to smartapi.angelbroking.com -> Edit App -> Clear/Remove Static IP field so cloud orders can pass through.`;
+        }
         return {
           success: false,
           orderId: null,
-          message: response.data?.message || 'Order placement failed at broker level',
+          message: msg,
         };
       }
     } catch (error) {
-      console.error(`[AngelOne] Order placement error: ${error.response?.data?.message || error.message}`);
+      let errMsg = error.response?.data?.message || error.message;
+      if (errMsg.includes('not a registered IP') || error.response?.data?.errorCode === 'AG7002') {
+        errMsg = `IP Restriction Notice (AG7002): Go to smartapi.angelbroking.com -> Edit App -> Clear/Remove Static IP field so cloud orders can pass through.`;
+      }
+      console.error(`[AngelOne] Order placement error: ${errMsg}`);
       return {
         success: false,
         orderId: null,
-        message: error.response?.data?.message || error.message,
+        message: errMsg,
       };
     }
   }
