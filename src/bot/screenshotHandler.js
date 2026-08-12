@@ -118,17 +118,8 @@ async function handleScreenshot(bot, msg) {
 
     const effectiveEntry = signal.entry || ltp || 100;
 
-    // 7. Historical Candles & ATR Calculation
-    let candles = [];
-    if (scripInfo.symboltoken !== '0') {
-      try {
-        candles = await angelOne.getHistoricalCandles(scripInfo.exchange, scripInfo.symboltoken, 30);
-      } catch (err) {
-        console.warn(`[ScreenshotHandler] Candle fetch notice for ${signal.symbol}: ${err.message}`);
-      }
-    }
-
-    const atr = riskEngine.calculateATR(candles, config.risk.atrPeriod);
+    // Instant 2% Volatility SL calculation (Bypasses slow 30-candle historical network fetch for 0.2-sec speed)
+    const atr = (effectiveEntry * 0.02) / (config.risk.atrMultiplier || 2);
     const { stopLoss, atrUsed, isCalculated } = riskEngine.calculateStopLoss(
       signal.action,
       effectiveEntry,
