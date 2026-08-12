@@ -90,20 +90,42 @@ class BseNseMonitorService {
   start(pollingIntervalMs = 3000) {
     if (this.intervalId) return;
 
-    console.log(`[BseNseMonitor] Ingestion loop started (Polling interval: ${pollingIntervalMs}ms)...`);
+    console.log(`[BseNseMonitor] 24/7 Resilient Ingestion loop started (Polling interval: ${pollingIntervalMs}ms)...`);
     this.pollAnnouncements();
     this.intervalId = setInterval(() => this.pollAnnouncements(), pollingIntervalMs);
+
+    // Watchdog keep-alive timer to guarantee 24/7 continuous polling on Render Cloud
+    if (!this.watchdogId) {
+      this.watchdogId = setInterval(() => {
+        const timeSinceLastPoll = Date.now() - (this.lastPollTimestamp || Date.now());
+        if (timeSinceLastPoll > 20000 || !this.intervalId) {
+          console.warn(`[BseNseMonitor Watchdog] Polling loop stalled (${Math.round(timeSinceLastPoll / 1000)}s since last poll). Auto-restarting ingestion loop...`);
+          this.isPolling = false;
+          if (this.intervalId) clearInterval(this.intervalId);
+          this.intervalId = setInterval(() => this.pollAnnouncements(), pollingIntervalMs);
+          this.pollAnnouncements();
+        }
+      }, 15000);
+    }
   }
 
   stop() {
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
-      console.log('[BseNseMonitor] Ingestion loop stopped.');
     }
+    if (this.watchdogId) {
+      clearInterval(this.watchdogId);
+      this.watchdogId = null;
+    }
+    console.log('[BseNseMonitor] Ingestion loop stopped.');
   }
 
   async pollAnnouncements() {
+    if (this.isPolling) return;
+    this.isPolling = true;
+    this.lastPollTimestamp = Date.now();
+
     try {
       const [nseAnnouncements, bseAnnouncements] = await Promise.all([
         nseAdapter.fetchAnnouncements().catch(() => []),
@@ -112,26 +134,12 @@ class BseNseMonitorService {
 
       const allAnnouncements = [...nseAnnouncements, ...bseAnnouncements];
 
-      if (this.isInitialRun) {
-        for (const item of allAnnouncements) {
-          if (item.announcementId) {
-            this.processedAnnouncementIds.add(item.announcementId);
-          }
-        }
-        this.isInitialRun = false;
-        return;
-      }
-
       for (const item of allAnnouncements) {
         if (!item.announcementId || this.processedAnnouncementIds.has(item.announcementId)) {
           continue;
         }
 
         this.processedAnnouncementIds.add(item.announcementId);
-
-        if (!this.isRecentAnnouncement(item.date)) {
-          continue;
-        }
 
         if (announcementFilter.isEarningsAnnouncement(item)) {
           console.log(`[BseNseMonitor] Live earnings announcement detected: [${item.source}] ${item.symbol} - ${item.title}`);
@@ -140,6 +148,8 @@ class BseNseMonitorService {
       }
     } catch (error) {
       console.error(`[BseNseMonitor] Error during ingestion poll: ${error.message}`);
+    } finally {
+      this.isPolling = false;
     }
   }
 
@@ -168,7 +178,7 @@ class BseNseMonitorService {
         scripInfo = { exchange: 'NSE', tradingsymbol: item.symbol, symboltoken: '0' };
       }
 
-      const entryPrice = ltp || (pdfAnalysis.metrics.sales ? 500 : 100);
+      const entryPrice = ltp || fundamentals.cmp || 500;
 
       const atr = (entryPrice * 0.02) / (config.risk.atrMultiplier || 2);
       const { stopLoss, atrUsed } = riskEngine.calculateStopLoss('BUY', entryPrice, null, atr);
