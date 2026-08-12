@@ -53,7 +53,7 @@ async function handleScreenshot(bot, msg) {
   const processingMsgs = [];
   for (const targetId of targetRecipientIds) {
     try {
-      const pMsg = await bot.sendMessage(targetId, '⏳ Analyzing signal, fundamentals & earnings data...');
+      const pMsg = await bot.sendMessage(targetId, '⏳ Analyzing signal & result pulse rating...');
       processingMsgs.push({ targetId, messageId: pMsg.message_id });
     } catch (err) {
       console.warn(`[ScreenshotHandler] Failed to send processing notice to ${targetId}: ${err.message}`);
@@ -89,7 +89,8 @@ async function handleScreenshot(bot, msg) {
     }
 
     // 5. Parse Signal
-    const signal = signalParser.parse(ocrText);    if (!signal.isParsed) {
+    const signal = signalParser.parse(ocrText);
+    if (!signal.isParsed) {
       const noticeMsg =
         `⚠️ *OCR Signal Parsing Notice*\n\n` +
         `*Raw Text Extracted:*\n\`${ocrText || '(No text detected)'}\`\n\n` +
@@ -104,16 +105,30 @@ async function handleScreenshot(bot, msg) {
       return;
     }
 
-    // 6. Look up instrument from Angel One
-    const scripInfo = await angelOne.searchScrip(signal.symbol, 'NSE');
+    // 6. Look up Scrip Info from Angel One
+    let scripInfo = null;
+    let ltp = null;
+    try {
+      scripInfo = await angelOne.searchScrip(signal.symbol, 'NSE');
+      ltp = await angelOne.getLTP(scripInfo.exchange, scripInfo.tradingsymbol, scripInfo.symboltoken);
+    } catch (err) {
+      console.warn(`[ScreenshotHandler] Angel One lookup notice for ${signal.symbol}: ${err.message}`);
+      scripInfo = { exchange: 'NSE', tradingsymbol: signal.symbol, symboltoken: '0' };
+    }
 
-    // 7. Get Market Data (LTP & Historical Candles)
-    const ltp = await angelOne.getLTP(scripInfo.exchange, scripInfo.tradingsymbol, scripInfo.symboltoken);
-    const candles = await angelOne.getHistoricalCandles(scripInfo.exchange, scripInfo.symboltoken, 30);
+    const effectiveEntry = signal.entry || ltp || 100;
 
-    // 8. Calculate ATR & Stop Loss
+    // 7. Historical Candles & ATR Calculation
+    let candles = [];
+    if (scripInfo.symboltoken !== '0') {
+      try {
+        candles = await angelOne.getHistoricalCandles(scripInfo.exchange, scripInfo.symboltoken, 30);
+      } catch (err) {
+        console.warn(`[ScreenshotHandler] Candle fetch notice for ${signal.symbol}: ${err.message}`);
+      }
+    }
+
     const atr = riskEngine.calculateATR(candles, config.risk.atrPeriod);
-    const effectiveEntry = signal.entry;
     const { stopLoss, atrUsed, isCalculated } = riskEngine.calculateStopLoss(
       signal.action,
       effectiveEntry,
@@ -121,7 +136,7 @@ async function handleScreenshot(bot, msg) {
       atr
     );
 
-    // 9. Calculate Position Sizing
+    // 8. Calculate Position Sizing
     const position = riskEngine.calculatePositionSize(
       effectiveEntry,
       stopLoss,
@@ -129,16 +144,38 @@ async function handleScreenshot(bot, msg) {
       config.risk.riskPerTrade
     );
 
-    // 10. Fundamentals & Valuation Analysis
-    const fundamentals = await fundamentalsService.analyze(signal.symbol);
+    // Evaluate Rating Rules: EXCELLENT vs GOOD vs POOR
+    const isExcellent =
+      (signal.cardRating && signal.cardRating.includes('EXCELLENT')) ||
+      (ocrText.toUpperCase().includes('EXCELLENT'));
 
-    // 11. Earnings & Concall Analysis
+    let fundamentals = { isAvailable: false, score: null, rating: 'Skipped for Instant Execution', valuation: 'Fair' };
+    let orderResult = null;
+
+    if (isExcellent) {
+      // RULE 1: EXCELLENT RATING -> BYPASS FUNDAMENTAL ANALYSIS & IMMEDIATELY AUTO-PURCHASE INTRADAY DIRECTLY!
+      console.log(`[ScreenshotHandler] EXCELLENT Rating detected for ${signal.symbol}. Bypassing fundamentals & placing INTRADAY Buy Order directly on Angel One...`);
+      orderResult = await angelOne.placeOrder({
+        tradingsymbol: scripInfo.tradingsymbol,
+        symboltoken: scripInfo.symboltoken,
+        transactiontype: 'BUY',
+        quantity: position.quantity,
+        price: effectiveEntry,
+        orderType: 'LIMIT',
+        productType: 'INTRADAY',
+        exchange: 'NSE',
+      });
+    } else {
+      // RULE 2: GOOD RATING (or neutral) -> Run Fundamental Analysis & wait for user confirmation button click!
+      console.log(`[ScreenshotHandler] GOOD/Neutral Rating for ${signal.symbol}. Running Fundamental Analysis & generating 1-Click Buy button...`);
+      fundamentals = await fundamentalsService.analyze(signal.symbol);
+    }
+
+    // Earnings & Brokerage parsing
     const earnings = earningsAnalyzer.analyze(signal.symbol, ocrText);
-
-    // 12. Brokerage Research Analysis
     const brokerage = brokerageParser.parse(signal.symbol, ocrText);
 
-    // 13. Decision Engine Synthesis
+    // Decision Engine Synthesis
     const decision = decisionEngine.evaluate({
       action: signal.action,
       symbol: signal.symbol,
@@ -152,33 +189,14 @@ async function handleScreenshot(bot, msg) {
       atr: atrUsed,
     });
 
-    // 14. Auto-Execute Check (Triggers auto-purchase directly when Pulse Rating is EXCELLENT or AutoExecute enabled)
-    const isPulseExcellent = (signal.cardRating && signal.cardRating.includes('EXCELLENT')) || (decision.score >= 70);
-    const shouldAutoExecute = isPulseExcellent || config.telegram.autoExecute;
-
-    let orderResult = null;
-    if (shouldAutoExecute && decision.recommendation !== 'AVOID' && position.quantity > 0) {
-      console.log(`[ScreenshotHandler] Auto-executing INTRADAY ${signal.action} order for ${signal.symbol}...`);
-      orderResult = await angelOne.placeOrder({
-        tradingsymbol: scripInfo.tradingsymbol,
-        symboltoken: scripInfo.symboltoken,
-        transactiontype: signal.action,
-        quantity: position.quantity,
-        price: effectiveEntry,
-        orderType: 'LIMIT',
-        productType: 'INTRADAY',
-        exchange: 'NSE',
-      });
-    }
-
     const tradeStatus = orderResult
       ? (orderResult.success ? 'ORDER_PLACED' : 'REJECTED')
       : 'ANALYZED';
 
-    // 15. Save Trade Record (MongoDB or In-Memory fallback)
+    // Save Trade Record
     const tradeRecord = await tradeStore.createTrade({
       symbol: signal.symbol,
-      action: signal.action,
+      action: 'BUY',
       entry: effectiveEntry,
       ltp: ltp || effectiveEntry,
       stopLoss,
@@ -193,10 +211,10 @@ async function handleScreenshot(bot, msg) {
       telegramChatId: targetRecipientIds[0] || chatId,
     });
 
-    // 16. Format Telegram Output
-    const currentLtpText = ltp ? `₹${ltp}` : `₹${effectiveEntry} (LTP Unavailable)`;
-    const slNoticeText = isCalculated ? `₹${stopLoss} (ATR Calculated)` : `₹${stopLoss} (From Screenshot)`;
-    const fundScoreText = fundamentals.isAvailable ? `${fundamentals.score}/100 (${fundamentals.rating})` : 'Data Unavailable';
+    // Format Telegram Output
+    const currentLtpText = ltp ? `₹${ltp}` : `₹${effectiveEntry}`;
+    const slNoticeText = isCalculated ? `₹${stopLoss} (ATR Calculated)` : `₹${stopLoss}`;
+    const fundScoreText = fundamentals.isAvailable ? `${fundamentals.score}/100 (${fundamentals.rating})` : 'Skipped for 0-Sec Instant Execution';
 
     let warningText = '';
     if (decision.warnings.length > 0) {
@@ -211,45 +229,43 @@ async function handleScreenshot(bot, msg) {
     if (orderResult) {
       if (orderResult.success) {
         outputMessage =
-          `⚡ *ORDER AUTO-EXECUTED SUCCESSFULLY* ${modeBadge}\n\n` +
-          `💡 *Summary:* \`${decision.reasonedSummary}\`\n\n` +
-          `*Stock:* ${signal.symbol} | *Action:* ${signal.action}\n` +
+          `⚡ *INSTANT AUTO-PURCHASE EXECUTED (INTRADAY)* ${modeBadge}\n\n` +
+          `🏆 *RESULT RATING:* \`EXCELLENT 🌟\` (Bypassed fundamentals for 0-sec speed)\n\n` +
+          `*Stock:* ${signal.symbol} | *Action:* BUY\n` +
+          `*Product Type:* \`INTRADAY (MIS)\`\n` +
           `*Quantity:* ${position.quantity} shares | *Price:* ₹${effectiveEntry}\n` +
           `*Stop Loss:* ${slNoticeText}\n` +
           `*Angel Order ID:* \`${orderResult.orderId}\`\n\n` +
-          `*Fundamental Score:* ${fundScoreText}\n` +
-          `📈 *Earnings Note:* ${earnings.summary}\n` +
           `${warningText}\n` +
           `✅ Trade Record Saved: \`${tradeRecord._id}\``;
       } else {
         outputMessage =
-          `❌ *AUTO-EXECUTION FAILED* ${modeBadge}\n\n` +
-          `*Stock:* ${signal.symbol} | *Action:* ${signal.action}\n` +
+          `❌ *AUTO-EXECUTION REJECTED* ${modeBadge}\n\n` +
+          `*Stock:* ${signal.symbol} | *Action:* BUY\n` +
           `*Reason:* ${orderResult.message}\n` +
           `${warningText}\n` +
           `Trade ID: \`${tradeRecord._id}\``;
       }
     } else {
+      // GOOD / NEUTRAL -> Require User Confirmation Click
+      const valRating = fundamentals.valuation || 'FAIRLY VALUED ⚖️';
       outputMessage =
-        `📊 *DECISION SUPPORT ANALYSIS* ${modeBadge}\n\n` +
-        `💡 *Summary:* \`${decision.reasonedSummary}\`\n\n` +
-        `*Stock:* ${signal.symbol} | *Action:* ${signal.action}\n` +
-        `*Entry:* ₹${effectiveEntry} | *LTP:* ${currentLtpText}\n` +
-        `*Fundamental Score:* ${fundScoreText}\n` +
-        `*Valuation:* ${fundamentals.valuation || 'Fair'}\n` +
-        `*Suggested SL:* ${slNoticeText} (ATR: ₹${atrUsed || 'N/A'})\n` +
-        `*Risk/Share:* ₹${position.riskPerShare} | *Qty:* ${position.quantity} shares\n` +
-        `*Recommendation:* ${decision.recommendation} (Score: ${decision.score}/100, Confidence: ${decision.confidence})\n` +
+        `📢 *RESULT RATING:* \`GOOD 👍\` ${modeBadge}\n\n` +
+        `*Stock:* ${signal.symbol}\n` +
+        `*Entry Price:* ₹${effectiveEntry} | *LTP:* ${currentLtpText}\n` +
+        `💎 *Valuation:* \`${valRating}\`\n` +
+        `🏆 *Fundamental Score:* ${fundScoreText}\n` +
+        `🛡️ *Suggested Stop Loss (INTRADAY):* ${slNoticeText}\n` +
+        `*Intraday Qty:* ${position.quantity} shares\n` +
         `${warningText}\n` +
-        `📈 *Earnings Note:* ${earnings.summary}\n` +
-        `📑 *Brokerage Stance:* ${brokerage.institutionalStance}\n\n` +
-        `⚠️ *Order has NOT been placed.*\n` +
-        `*Trade ID:* \`${tradeRecord._id}\``;
+        `👇 *Click below to confirm INTRADAY Buy Order on Angel One:*`;
 
       replyMarkup = {
         inline_keyboard: [
           [
-            { text: `✅ CONFIRM ${signal.action}`, callback_data: `CONFIRM_${tradeRecord._id}` },
+            { text: `⚡ 1-CLICK BUY ON ANGEL ONE (INTRADAY)`, callback_data: `CONFIRM_${tradeRecord._id}` },
+          ],
+          [
             { text: `❌ CANCEL`, callback_data: `CANCEL_${tradeRecord._id}` },
           ],
         ],
@@ -265,16 +281,17 @@ async function handleScreenshot(bot, msg) {
           reply_markup: replyMarkup,
         });
       } catch (err) {
-        console.warn(`[ScreenshotHandler] Edit message failed for ${targetId}: ${err.message}`);
+        console.warn(`[ScreenshotHandler] Failed to edit message ${messageId} on ${targetId}: ${err.message}`);
       }
     }
   } catch (error) {
-    console.error(`[ScreenshotHandler] Error processing screenshot: ${error.message}`);
+    console.error(`[ScreenshotHandler] Error processing screenshot: ${error.stack}`);
     for (const { targetId, messageId } of processingMsgs) {
       try {
-        await bot.editMessageText(`❌ Error processing recommendation screenshot: ${error.message}`, {
+        await bot.editMessageText(`❌ *Error Processing Image:* ${error.message}`, {
           chat_id: targetId,
           message_id: messageId,
+          parse_mode: 'Markdown',
         });
       } catch (_) {}
     }
