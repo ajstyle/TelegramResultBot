@@ -105,7 +105,7 @@ async function handleScreenshot(bot, msg) {
       return;
     }
 
-    // 6. Look up Scrip Info from Angel One
+    // 6. Look up Scrip Info from Angel One & Perform First-Step Cautionary Check
     let scripInfo = null;
     let ltp = null;
     try {
@@ -114,6 +114,25 @@ async function handleScreenshot(bot, msg) {
     } catch (err) {
       console.warn(`[ScreenshotHandler] Angel One lookup notice for ${signal.symbol}: ${err.message}`);
       scripInfo = { exchange: 'NSE', tradingsymbol: signal.symbol, symboltoken: '0' };
+    }
+
+    // FIRST STEP: Check if stock is listed under Cautionary / Surveillance Framework (GSM/ASM/Trade-for-Trade)
+    if (angelOne.isCautionaryStock(signal.symbol, scripInfo)) {
+      console.warn(`[ScreenshotHandler] Cautionary stock detected: ${signal.symbol}. Aborting order placement.`);
+      const cautionaryNotice =
+        `⚠️ *CAUTIONARY LISTING DETECTED - TRADE ABORTED*\n\n` +
+        `*Stock:* ${signal.symbol}\n` +
+        `*Category:* \`Exchange Surveillance Measure (GSM/ASM/Trade-for-Trade)\`\n\n` +
+        `⛔ *Automated order placement stopped immediately to protect your account.*\n` +
+        `SEBI & Angel One restrict automated API orders for stocks under cautionary listings.\n\n` +
+        `💡 *Manual Trade:* If you still wish to buy ${signal.symbol}, please place the order manually in your Angel One mobile app.`;
+
+      for (const { targetId, messageId } of processingMsgs) {
+        try {
+          await bot.editMessageText(cautionaryNotice, { chat_id: targetId, message_id: messageId, parse_mode: 'Markdown' });
+        } catch (_) {}
+      }
+      return;
     }
 
     const effectiveEntry = signal.entry || ltp || 100;

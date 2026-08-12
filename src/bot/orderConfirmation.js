@@ -102,10 +102,33 @@ async function handleOrderConfirmation(bot, callbackQuery) {
       return;
     }
 
-    await safeAnswerCallback(bot, callbackId, { text: '⏳ Executing order...' });
-
-    // 5. Look up symbol token dynamically from Angel One
+    // 5. Look up symbol token dynamically from Angel One & Check Cautionary Status FIRST
     const scripInfo = await angelOne.searchScrip(trade.symbol, 'NSE');
+
+    if (angelOne.isCautionaryStock(trade.symbol, scripInfo)) {
+      trade.status = 'REJECTED';
+      await trade.save();
+
+      await safeAnswerCallback(bot, callbackId, {
+        text: '⚠️ Cautionary Listing Detected! Order placement stopped.',
+        show_alert: true,
+      });
+
+      const cautionaryNotice =
+        `⚠️ *CAUTIONARY LISTING DETECTED - TRADE ABORTED*\n\n` +
+        `*Stock:* ${trade.symbol}\n` +
+        `*Category:* \`Exchange Surveillance Measure (GSM/ASM/Trade-for-Trade)\`\n\n` +
+        `⛔ *Automated order placement stopped immediately to protect your account.*\n` +
+        `SEBI & Angel One restrict automated API orders for stocks under cautionary listings.\n\n` +
+        `💡 *Manual Trade:* If you still wish to buy ${trade.symbol}, please place the order manually in your Angel One mobile app.`;
+
+      await bot.editMessageText(cautionaryNotice, {
+        chat_id: chatId,
+        message_id: message.message_id,
+        parse_mode: 'Markdown',
+      });
+      return;
+    }
 
     // 6. Place Order with Angel One (INTRADAY)
     const orderResult = await angelOne.placeOrder({

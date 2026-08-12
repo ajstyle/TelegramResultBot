@@ -158,6 +158,7 @@ class AngelOneService {
           symboltoken: selected.symboltoken,
           tradingsymbol: selected.tradingsymbol,
           exchange: selected.exchange || exchange,
+          series: selected.series || '',
         };
         this.scripCache.set(cacheKey, scripResult);
         return scripResult;
@@ -166,6 +167,28 @@ class AngelOneService {
 
     this.scripCache.set(cacheKey, defaultScrip);
     return defaultScrip;
+  }
+
+  /**
+   * Check if a stock is listed under Cautionary / Surveillance Framework (GSM/ASM/Trade-for-Trade)
+   */
+  isCautionaryStock(symbol, scripInfo = {}) {
+    if (!symbol) return false;
+    const cleanSym = symbol.toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+    if (scripInfo && scripInfo.series) {
+      const series = scripInfo.series.toUpperCase();
+      if (['BE', 'BZ', 'ST', 'SM', 'GSM', 'ASM', 'ESM'].includes(series)) {
+        return true;
+      }
+    }
+
+    const cautionarySymbols = new Set(['PANAMAPET', 'PANAMAPETEQ']);
+    if (cautionarySymbols.has(cleanSym)) {
+      return true;
+    }
+
+    return false;
   }
 
   /**
