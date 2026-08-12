@@ -4,11 +4,12 @@ const angelOne = require('../services/angelOne');
 const fundamentalsService = require('../services/fundamentals');
 const riskEngine = require('../services/riskEngine');
 const tradeStore = require('../services/tradeStore');
+const cardGenerator = require('../services/cardGenerator');
 const config = require('../config');
 
 /**
  * Ultra-Fast Minimalist Signal & Photo Handler
- * Formats Telegram messages dynamically into the Infographic Report Card Table layout.
+ * Generates and sends visual SVG Report Cards in Telegram matching earningspulse.ai cards.
  */
 async function handleScreenshot(bot, msg) {
   const chatId = msg.chat.id.toString();
@@ -50,7 +51,7 @@ async function handleScreenshot(bot, msg) {
   const processingMsgs = [];
   for (const targetId of targetRecipientIds) {
     try {
-      const pMsg = await bot.sendMessage(targetId, '⏳ Processing signal & generating report card...');
+      const pMsg = await bot.sendMessage(targetId, '⏳ Processing signal & generating visual report card...');
       processingMsgs.push({ targetId, messageId: pMsg.message_id });
     } catch (err) {
       console.warn(`[ScreenshotHandler] Failed to send processing notice to ${targetId}: ${err.message}`);
@@ -215,11 +216,31 @@ async function handleScreenshot(bot, msg) {
     const mcapDisplay = mcapVal >= 100000 ? `${(mcapVal / 100000).toFixed(1)}L Cr` : `${(mcapVal / 1000).toFixed(1)}K Cr`;
     const peDisplay = signal.cardPe || fundamentals.metrics?.pe || '15.2';
 
-    const salesQoQStr = fundamentals.metrics?.salesGrowthQoQ ? `+${fundamentals.metrics.salesGrowthQoQ}%` : '+111%';
-    const salesYoYStr = fundamentals.metrics?.salesGrowthYoY ? `+${fundamentals.metrics.salesGrowthYoY}%` : '+150%';
-    const patQoQStr = fundamentals.metrics?.profitGrowthQoQ ? `+${fundamentals.metrics.profitGrowthQoQ}%` : '+334%';
-    const patYoYStr = fundamentals.metrics?.profitGrowthYoY ? `+${fundamentals.metrics.profitGrowthYoY}%` : '+625%';
-    const opmStr = fundamentals.metrics?.operatingMargin ? `${fundamentals.metrics.operatingMargin}%` : '22.4%';
+    const salesQoQStr = fundamentals.metrics?.salesGrowthQoQ ? `${fundamentals.metrics.salesGrowthQoQ}` : '111';
+    const salesYoYStr = fundamentals.metrics?.salesGrowthYoY ? `${fundamentals.metrics.salesGrowthYoY}` : '150';
+    const patQoQStr = fundamentals.metrics?.profitGrowthQoQ ? `${fundamentals.metrics.profitGrowthQoQ}` : '334';
+    const patYoYStr = fundamentals.metrics?.profitGrowthYoY ? `${fundamentals.metrics.profitGrowthYoY}` : '625';
+    const opmStr = fundamentals.metrics?.operatingMargin ? `${fundamentals.metrics.operatingMargin}` : '22.4';
+
+    // Generate Visual SVG Image Card Buffer
+    const cardSvgBuf = cardGenerator.generateSvgCard({
+      symbolName: signal.symbol,
+      symbol: signal.symbol,
+      subtitle: 'NSE / BSE Listed Company',
+      rating: pulseRatingStr,
+      salesQoQ: salesQoQStr,
+      salesYoY: salesYoYStr,
+      salesCurr: '1,735',
+      salesPrev: '823',
+      salesYoYVal: '693',
+      opm: opmStr,
+      patQoQ: patQoQStr,
+      patYoY: patYoYStr,
+      cmp: cmpDisplay,
+      category: capCategory,
+      mcap: mcapDisplay,
+      pe: peDisplay,
+    });
 
     let outputMessage = '';
     let replyMarkup = undefined;
@@ -230,16 +251,6 @@ async function handleScreenshot(bot, msg) {
           `🏢 *${signal.symbol}*  [ ${hashtagSymbol} ]\n` +
           `📢 *OFFICIAL EARNINGS REPORT CARD* ${modeBadge}\n\n` +
           `⚡ *Pulse Rating :* \`${pulseRatingStr}\` | 💎 *Valuation:* \`${valuationDisplay}\`\n\n` +
-          `\`\`\`text\n` +
-          `Metric   QoQ     YoY     Jun'26  Mar'26  Jun'25\n` +
-          `-----------------------------------------------\n` +
-          `Sales    ${salesQoQStr.padStart(6)}  ${salesYoYStr.padStart(6)}  1,735   823     693\n` +
-          `Oth.Inc  -       -       4       3       4\n` +
-          `OP       +325%   +607%   388     91      55\n` +
-          `OPM (%)  +1125   +1443   ${opmStr.padStart(6)}  11.1%   7.9%\n` +
-          `PAT      ${patQoQStr.padStart(6)}  ${patYoYStr.padStart(6)}  309     71      43\n` +
-          `EPS      +333%   +630%   51.1    11.8    7.0\n` +
-          `\`\`\`\n\n` +
           `*CMP : ${cmpDisplay}* | *${capCategory} (${mcapDisplay})* | *P/E : ${peDisplay}*\n\n` +
           `⚡ *INSTANT AUTO-PURCHASE EXECUTED (INTRADAY)*\n` +
           `*Price:* ₹${effectiveEntry} | *Qty:* ${position.quantity} shares | *SL:* ₹${stopLoss}\n` +
@@ -255,16 +266,6 @@ async function handleScreenshot(bot, msg) {
         `🏢 *${signal.symbol}*  [ ${hashtagSymbol} ]\n` +
         `📢 *OFFICIAL EARNINGS REPORT CARD* ${modeBadge}\n\n` +
         `⚡ *Pulse Rating :* \`${pulseRatingStr}\` | 💎 *Valuation:* \`${valuationDisplay}\`\n\n` +
-        `\`\`\`text\n` +
-        `Metric   QoQ     YoY     Jun'26  Mar'26  Jun'25\n` +
-        `-----------------------------------------------\n` +
-        `Sales    ${salesQoQStr.padStart(6)}  ${salesYoYStr.padStart(6)}  1,735   823     693\n` +
-        `Oth.Inc  -       -       4       3       4\n` +
-        `OP       +325%   +607%   388     91      55\n` +
-        `OPM (%)  +1125   +1443   ${opmStr.padStart(6)}  11.1%   7.9%\n` +
-        `PAT      ${patQoQStr.padStart(6)}  ${patYoYStr.padStart(6)}  309     71      43\n` +
-        `EPS      +333%   +630%   51.1    11.8    7.0\n` +
-        `\`\`\`\n\n` +
         `*CMP : ${cmpDisplay}* | *${capCategory} (${mcapDisplay})* | *P/E : ${peDisplay}*\n\n` +
         `⚡ *Intraday Trade Details:*\n` +
         `*Price:* ₹${effectiveEntry} | *Qty:* ${position.quantity} shares | *SL:* ₹${stopLoss}\n\n` +
@@ -282,16 +283,27 @@ async function handleScreenshot(bot, msg) {
       };
     }
 
+    // Delete processing message and dispatch Visual SVG Card + Trade Buttons
     for (const { targetId, messageId } of processingMsgs) {
       try {
-        await bot.editMessageText(outputMessage, {
-          chat_id: targetId,
-          message_id: messageId,
-          parse_mode: 'Markdown',
-          reply_markup: replyMarkup,
-        });
+        await bot.deleteMessage(targetId, messageId);
+      } catch (_) {}
+    }
+
+    for (const targetId of targetRecipientIds) {
+      try {
+        await bot.sendDocument(
+          targetId,
+          cardSvgBuf,
+          {
+            caption: outputMessage,
+            parse_mode: 'Markdown',
+            reply_markup: replyMarkup,
+          },
+          { filename: `${signal.symbol}_report_card.svg`, contentType: 'image/svg+xml' }
+        );
       } catch (err) {
-        console.warn(`[ScreenshotHandler] Failed to edit message ${messageId} on ${targetId}: ${err.message}`);
+        await bot.sendMessage(targetId, outputMessage, { parse_mode: 'Markdown', reply_markup: replyMarkup });
       }
     }
   } catch (error) {
