@@ -19,12 +19,15 @@ function initTelegramBot() {
     : config.telegram.botToken;
   console.log(`[TelegramBot] Initializing bot with token: ${maskedToken}`);
 
-  // Configure polling interval (5000ms = 5 seconds)
+  // Configure polling interval (5000ms = 5 seconds) with drop_pending_updates: true
   const bot = new TelegramBot(config.telegram.botToken, {
     polling: {
       interval: config.telegram.pollingInterval || 5000,
       autoStart: true,
-      params: { timeout: 10 },
+      params: {
+        timeout: 10,
+        drop_pending_updates: true,
+      },
     },
   });
 
@@ -35,7 +38,18 @@ function initTelegramBot() {
     console.log(`[TelegramBot] Target Channel Filtering Active: "${config.telegram.targetChannel.toUpperCase()}"`);
   }
 
+  const botStartTimeSec = Math.floor(Date.now() / 1000);
+
+  const isStaleMessage = msg => {
+    if (!msg || !msg.date) return false;
+    const nowSec = Math.floor(Date.now() / 1000);
+    // Ignore messages sent before bot started or older than 120 seconds
+    return (msg.date < botStartTimeSec - 30) || ((nowSec - msg.date) > 120);
+  };
+
   const isTargetChannelMessage = msg => {
+    if (isStaleMessage(msg)) return false;
+
     // Always allow private direct messages to the bot
     if (msg && msg.chat && msg.chat.type === 'private') return true;
 
