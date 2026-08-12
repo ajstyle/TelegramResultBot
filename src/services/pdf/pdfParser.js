@@ -151,21 +151,32 @@ class PdfParserEngine {
     const patQoQMatch = upper.match(/(?:PAT|PROFIT)\s*QOQ[:\s=]*([+-]?[0-9]+(?:\.[0-9]+)?)\s*%/);
     const patYoYMatch = upper.match(/(?:PAT|PROFIT)\s*YOY[:\s=]*([+-]?[0-9]+(?:\.[0-9]+)?)\s*%/);
 
+    const salesVal = salesMatch ? parseFloat(salesMatch[1]) : null;
+    const patVal = patMatch ? parseFloat(patMatch[1]) : null;
+    const epsVal = epsMatch ? parseFloat(epsMatch[1]) : null;
+
+    const salesTTM = salesVal !== null ? Math.round(salesVal * 4 * 100) / 100 : null;
+    const patTTM = patVal !== null ? Math.round(patVal * 4 * 100) / 100 : null;
+    const epsTTM = epsVal !== null ? Math.round(epsVal * 4 * 100) / 100 : null;
+
     return {
-      sales: salesMatch ? parseFloat(salesMatch[1]) : null,
-      revenue: salesMatch ? parseFloat(salesMatch[1]) : null,
+      sales: salesVal,
+      revenue: salesVal,
       otherIncome: otherIncomeMatch ? parseFloat(otherIncomeMatch[1]) : null,
       operatingProfit: opMatch ? parseFloat(opMatch[1]) : null,
       ebitda: opMatch ? parseFloat(opMatch[1]) : null,
       opm: opmMatch ? parseFloat(opmMatch[1]) : null,
       ebitdaMargin: opmMatch ? parseFloat(opmMatch[1]) : null,
-      pat: patMatch ? parseFloat(patMatch[1]) : null,
-      netProfit: patMatch ? parseFloat(patMatch[1]) : null,
-      eps: epsMatch ? parseFloat(epsMatch[1]) : null,
+      pat: patVal,
+      netProfit: patVal,
+      eps: epsVal,
       salesQoQ: salesQoQMatch ? parseFloat(salesQoQMatch[1]) : null,
       salesYoY: salesYoYMatch ? parseFloat(salesYoYMatch[1]) : null,
       patQoQ: patQoQMatch ? parseFloat(patQoQMatch[1]) : null,
       patYoY: patYoYMatch ? parseFloat(patYoYMatch[1]) : null,
+      salesTTM,
+      patTTM,
+      epsTTM,
     };
   }
 
@@ -185,6 +196,9 @@ class PdfParserEngine {
       salesYoY: null,
       patQoQ: null,
       patYoY: null,
+      salesTTM: null,
+      patTTM: null,
+      epsTTM: null,
     };
   }
 }
