@@ -138,7 +138,7 @@ class AngelOneService {
           exchange,
           searchscrip: formattedSymbol,
         },
-        { headers: this.getHeaders(), timeout: 10000 }
+        { headers: this.getHeaders(), timeout: 15000 }
       );
 
       if (response.data && response.data.status && Array.isArray(response.data.data) && response.data.data.length > 0) {
@@ -190,7 +190,7 @@ class AngelOneService {
       const response = await axios.post(
         `${config.angelOne.baseUrl}/rest/secure/angelbroking/order/v1/getLtpData`,
         { exchange, tradingsymbol, symboltoken },
-        { headers: this.getHeaders(), timeout: 10000 }
+        { headers: this.getHeaders(), timeout: 15000 }
       );
 
       if (response.data && response.data.status && response.data.data) {
@@ -233,7 +233,7 @@ class AngelOneService {
           fromdate: formatDate(fromDate),
           todate: formatDate(toDate),
         },
-        { headers: this.getHeaders(), timeout: 10000 }
+        { headers: this.getHeaders(), timeout: 15000 }
       );
 
       if (response.data && response.data.status && Array.isArray(response.data.data)) {
@@ -293,11 +293,23 @@ class AngelOneService {
 
       console.log(`[AngelOne] Submitting LIVE order to Angel One: ${transactiontype} ${quantity} ${tradingsymbol} @ ₹${price}...`);
 
-      const response = await axios.post(
-        `${config.angelOne.baseUrl}/rest/secure/angelbroking/order/v1/placeOrder`,
-        payload,
-        { headers: this.getHeaders(), timeout: 10000 }
-      );
+      let response;
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          response = await axios.post(
+            `${config.angelOne.baseUrl}/rest/secure/angelbroking/order/v1/placeOrder`,
+            payload,
+            { headers: this.getHeaders(), timeout: 15000 }
+          );
+          break;
+        } catch (err) {
+          if (attempt === 2 || (!err.message.includes('timeout') && err.code !== 'ECONNABORTED')) {
+            throw err;
+          }
+          console.warn(`[AngelOne] Order submission attempt ${attempt} timed out. Retrying in 1000ms...`);
+          await new Promise(res => setTimeout(res, 1000));
+        }
+      }
 
       console.log(`[AngelOne] Order API Response:`, JSON.stringify(response.data));
 
