@@ -1,5 +1,7 @@
 const express = require('express');
 const cors = require('cors');
+const http = require('http');
+const https = require('https');
 const config = require('./config');
 const { connectDB } = require('./db');
 const tradeStore = require('./services/tradeStore');
@@ -11,6 +13,15 @@ const app = express();
 
 app.use(express.json());
 app.use(cors());
+
+// Global Exception & Rejection Guard to prevent process termination on Render Cloud
+process.on('unhandledRejection', (reason) => {
+  console.warn('[Server Guard] Caught unhandled promise rejection:', reason ? (reason.message || reason) : 'Unknown rejection');
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('[Server Guard] Caught uncaught exception:', err ? err.message : 'Unknown exception');
+});
 
 // --- REST API ENDPOINTS ---
 
@@ -103,107 +114,26 @@ app.post('/api/trades/:id/confirm', async (req, res) => {
   }
 });
 
-/**
- * POST /api/trades/:id/cancel
- * Cancel a trade record
- */
-app.post('/api/trades/:id/cancel', async (req, res) => {
-  try {
-    const trade = await tradeStore.findById(req.params.id);
-    if (!trade) {
-      return res.status(404).json({ success: false, message: 'Trade record not found' });
-    }
+// --- SERVER INITIALIZATION & RENDER KEEP-ALIVE ---
 
-    if (trade.angelOrderId && trade.status === 'ORDER_PLACED') {
-      await angelOne.cancelOrder(trade.angelOrderId);
-    }
+function startRenderSelfPing(port) {
+  // Self-ping local & external Render URL every 3 minutes (180,000ms) to prevent container sleep
+  setInterval(() => {
+    try {
+      http.get(`http://localhost:${port}/health`, (res) => {
+        // Keeps local HTTP server active
+      }).on('error', () => {});
 
-    trade.status = 'CANCELLED';
-    await trade.save();
-
-    res.json({ success: true, message: 'Trade cancelled', data: trade });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-/**
- * GET /api/trades/:id/status
- * Get order status from broker
- */
-app.get('/api/trades/:id/status', async (req, res) => {
-  try {
-    const trade = await tradeStore.findById(req.params.id);
-    if (!trade) {
-      return res.status(404).json({ success: false, message: 'Trade record not found' });
-    }
-
-    if (!trade.angelOrderId) {
-      return res.json({ success: true, status: trade.status, brokerStatus: null });
-    }
-
-    const brokerStatus = await angelOne.getOrderStatus(trade.angelOrderId);
-    res.json({
-      success: true,
-      tradeId: trade._id,
-      status: trade.status,
-      angelOrderId: trade.angelOrderId,
-      brokerStatus,
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-/**
- * GET /api/announcements
- * Fetch live corporate announcements from NSE/BSE & Telegram
- */
-app.get('/api/announcements', (req, res) => {
-  const limit = parseInt(req.query.limit || '50', 10);
-  const announcements = bseNseMonitor.getRecentAnnouncements(limit);
-  res.json({ success: true, count: announcements.length, data: announcements });
-});
-
-/**
- * GET /api/dashboard
- * Performance Dashboard Summary
- */
-app.get('/api/dashboard', async (req, res) => {
-  try {
-    const trades = await tradeStore.find(1000);
-    const totalTrades = trades.length;
-    const executedTrades = trades.filter(t => t.status === 'ORDER_PLACED' || t.status === 'COMPLETED').length;
-    const rejectedTrades = trades.filter(t => t.status === 'REJECTED' || t.status === 'CANCELLED').length;
-
-    const avgDecisionScore = totalTrades > 0
-      ? Math.round(trades.reduce((sum, t) => sum + (t.decision?.score || 0), 0) / totalTrades)
-      : 0;
-
-    const avgFundamentalScore = totalTrades > 0
-      ? Math.round(trades.reduce((sum, t) => sum + (t.fundamentals?.score || 0), 0) / totalTrades)
-      : 0;
-
-    res.json({
-      success: true,
-      data: {
-        tradingMode: config.tradingMode,
-        accountCapital: config.risk.accountCapital,
-        totalTrades,
-        executedTrades,
-        rejectedTrades,
-        avgDecisionScore,
-        avgFundamentalScore,
-        autoExecuteEnabled: config.telegram.autoExecute,
-        targetChannel: config.telegram.targetChannel || 'ALL',
-      },
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-// --- SERVER INITIALIZATION ---
+      const externalUrl = process.env.RENDER_EXTERNAL_URL;
+      if (externalUrl && externalUrl.startsWith('http')) {
+        const client = externalUrl.startsWith('https') ? https : http;
+        client.get(`${externalUrl}/health`, (res) => {
+          // Keeps Render public URL active 24/7
+        }).on('error', () => {});
+      }
+    } catch (_) {}
+  }, 180000);
+}
 
 async function startServer() {
   const warnings = config.validate();
@@ -234,7 +164,7 @@ async function startServer() {
   // Connect MongoDB
   await connectDB();
 
-  // Start Telegram Listener
+  // Start Telegram Listener & Ingestion Engine
   if (config.nodeEnv !== 'test') {
     initTelegramBot();
     bseNseMonitor.start();
@@ -243,6 +173,10 @@ async function startServer() {
   // Start Express HTTP Server
   const server = app.listen(config.port, () => {
     console.log(`[Express] HTTP Server running on http://localhost:${config.port}`);
+    if (config.nodeEnv !== 'test') {
+      startRenderSelfPing(config.port);
+      console.log(`[Render Keep-Alive] Self-Ping pinging /health every 3 mins to prevent container sleep.`);
+    }
   });
 
   const gracefulShutdown = signal => {
