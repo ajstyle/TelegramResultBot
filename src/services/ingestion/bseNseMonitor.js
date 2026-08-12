@@ -267,7 +267,7 @@ class BseNseMonitorService {
           (item.pdfUrl ? `📄 *Filing PDF:* [Download Official Filing PDF](${item.pdfUrl})\n` : '') +
           `${buyButtonNotice}`;
 
-        const cardSvgBuf = cardGenerator.generateSvgCard({
+        const cardPngBuf = cardGenerator.generatePngCard({
           symbolName: item.symbol,
           symbol: item.symbol,
           subtitle: `${item.source} Listed Company`,
@@ -293,15 +293,15 @@ class BseNseMonitorService {
 
         for (const chatId of targetChats) {
           try {
-            await this.bot.sendDocument(
+            await this.bot.sendPhoto(
               chatId,
-              cardSvgBuf,
+              cardPngBuf,
               {
                 caption: telegramMsg,
                 parse_mode: 'Markdown',
                 reply_markup: replyMarkup,
               },
-              { filename: `${item.symbol}_report_card.svg`, contentType: 'image/svg+xml' }
+              { filename: `${item.symbol}_report_card.png`, contentType: 'image/png' }
             );
           } catch (e) {
             await this.bot.sendMessage(chatId, telegramMsg, {

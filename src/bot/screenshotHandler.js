@@ -222,8 +222,8 @@ async function handleScreenshot(bot, msg) {
     const patYoYStr = fundamentals.metrics?.profitGrowthYoY ? `${fundamentals.metrics.profitGrowthYoY}` : '625';
     const opmStr = fundamentals.metrics?.operatingMargin ? `${fundamentals.metrics.operatingMargin}` : '22.4';
 
-    // Generate Visual SVG Image Card Buffer
-    const cardSvgBuf = cardGenerator.generateSvgCard({
+    // Generate Visual PNG Photo Image Card Buffer
+    const cardPngBuf = cardGenerator.generatePngCard({
       symbolName: signal.symbol,
       symbol: signal.symbol,
       subtitle: 'NSE / BSE Listed Company',
@@ -283,7 +283,7 @@ async function handleScreenshot(bot, msg) {
       };
     }
 
-    // Delete processing message and dispatch Visual SVG Card + Trade Buttons
+    // Delete processing message and dispatch Visual PNG Photo Card + Trade Buttons
     for (const { targetId, messageId } of processingMsgs) {
       try {
         await bot.deleteMessage(targetId, messageId);
@@ -292,15 +292,15 @@ async function handleScreenshot(bot, msg) {
 
     for (const targetId of targetRecipientIds) {
       try {
-        await bot.sendDocument(
+        await bot.sendPhoto(
           targetId,
-          cardSvgBuf,
+          cardPngBuf,
           {
             caption: outputMessage,
             parse_mode: 'Markdown',
             reply_markup: replyMarkup,
           },
-          { filename: `${signal.symbol}_report_card.svg`, contentType: 'image/svg+xml' }
+          { filename: `${signal.symbol}_report_card.png`, contentType: 'image/png' }
         );
       } catch (err) {
         await bot.sendMessage(targetId, outputMessage, { parse_mode: 'Markdown', reply_markup: replyMarkup });

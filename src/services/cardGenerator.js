@@ -1,8 +1,29 @@
+const { Resvg } = require('@resvg/resvg-js');
+
 /**
- * Visual SVG Report Card Generator
- * Generates visual SVG Image Cards matching earningspulse.ai card layout
+ * Visual PNG & SVG Report Card Generator
+ * Generates visual Image Cards matching earningspulse.ai card layout
  */
 class CardGenerator {
+  /**
+   * Generate PNG Buffer for stock earnings report card photo
+   * @param {object} data
+   * @returns {Buffer}
+   */
+  generatePngCard(data) {
+    const svgBuffer = this.generateSvgCard(data);
+    try {
+      const resvg = new Resvg(svgBuffer.toString('utf-8'), {
+        fitTo: { mode: 'width', value: 800 },
+      });
+      const pngData = resvg.render();
+      return pngData.asPng();
+    } catch (e) {
+      console.error('[CardGenerator] Resvg PNG rendering error:', e.message);
+      return svgBuffer;
+    }
+  }
+
   /**
    * Generate SVG Buffer for stock earnings report card
    * @param {object} data
@@ -40,7 +61,7 @@ class CardGenerator {
       .footer { font-family: system-ui, -apple-system, sans-serif; font-size: 16px; font-weight: bold; fill: #1f2937; }
     </style>
 
-    <rect width="800" height="850" rx="24" fill="#ffffff" stroke="#e5e7eb" stroke-width="2"/>
+    <rect width="800" height="850" rx="24" fill="#ffffff" stroke="#e5e7eb" stroke-width="3"/>
 
     <text x="60" y="60" class="title">${symbolName}</text>
     <rect x="340" y="38" width="120" height="30" rx="8" fill="#f3f4f6" stroke="#d1d5db"/>
