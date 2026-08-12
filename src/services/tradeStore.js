@@ -1,8 +1,55 @@
+const fs = require('fs');
+const path = require('path');
 const Trade = require('../models/Trade');
 const mongoose = require('mongoose');
 
+const cacheFilePath = path.join(__dirname, '../../trades_backup.json');
+
 // In-Memory Fallback Map when MongoDB is not running
 const inMemoryTrades = new Map();
+
+// Load disk backup on startup
+try {
+  if (fs.existsSync(cacheFilePath)) {
+    const raw = fs.readFileSync(cacheFilePath, 'utf8');
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      for (const item of parsed) {
+        if (item && item._id) {
+          inMemoryTrades.set(item._id.toString(), {
+            ...item,
+            save: async function () {
+              this.updatedAt = new Date();
+              inMemoryTrades.set(this._id.toString(), this);
+              saveDiskCache();
+              return this;
+            },
+          });
+        }
+      }
+      console.log(`[TradeStore] Loaded ${inMemoryTrades.size} persisted trade records from disk backup.`);
+    }
+  }
+} catch (_) {}
+
+function saveDiskCache() {
+  try {
+    const arr = Array.from(inMemoryTrades.values()).map(t => ({
+      _id: t._id,
+      symbol: t.symbol,
+      action: t.action,
+      entry: t.entry,
+      ltp: t.ltp,
+      stopLoss: t.stopLoss,
+      quantity: t.quantity,
+      status: t.status,
+      angelOrderId: t.angelOrderId,
+      createdAt: t.createdAt,
+      updatedAt: t.updatedAt,
+    }));
+    fs.writeFileSync(cacheFilePath, JSON.stringify(arr, null, 2), 'utf8');
+  } catch (_) {}
+}
 
 class TradeStore {
   /**
@@ -15,7 +62,18 @@ class TradeStore {
       try {
         createdTrade = await Trade.create(data);
         if (createdTrade) {
-          inMemoryTrades.set(createdTrade._id.toString(), createdTrade);
+          const tradeObj = {
+            ...createdTrade.toObject(),
+            save: async function () {
+              try {
+                return await Trade.findByIdAndUpdate(this._id, this, { new: true });
+              } catch (_) {
+                return this;
+              }
+            },
+          };
+          inMemoryTrades.set(createdTrade._id.toString(), tradeObj);
+          saveDiskCache();
           return createdTrade;
         }
       } catch (err) {
@@ -33,10 +91,12 @@ class TradeStore {
       save: async function () {
         this.updatedAt = new Date();
         inMemoryTrades.set(id, this);
+        saveDiskCache();
         return this;
       },
     };
     inMemoryTrades.set(id, memTrade);
+    saveDiskCache();
     return memTrade;
   }
 
@@ -56,6 +116,7 @@ class TradeStore {
         const trade = await Trade.findById(strId);
         if (trade) {
           inMemoryTrades.set(strId, trade);
+          saveDiskCache();
           return trade;
         }
       } catch (err) {
