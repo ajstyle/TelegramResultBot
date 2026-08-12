@@ -21,12 +21,15 @@ class BseAdapter {
 
   async fetchAnnouncements() {
     try {
-      const response = await axios.get('https://api.bseindia.com/BseIndiaAPI/api/AnnSubCategoryData/w?categoryId=-1&subCategoryId=-1&strType=C', {
+      const response = await axios.get(`https://api.bseindia.com/BseIndiaAPI/api/AnnSubCategoryData/w?categoryId=-1&subCategoryId=-1&strType=C&_t=${Date.now()}`, {
         headers: {
           'User-Agent': this.userAgents[0],
           'Accept': 'application/json',
           'Origin': 'https://www.bseindia.com',
           'Referer': 'https://www.bseindia.com/',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
         },
         timeout: 5000,
       });

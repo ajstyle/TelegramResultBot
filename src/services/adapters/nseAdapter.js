@@ -26,11 +26,14 @@ class NseAdapter {
 
   async fetchAnnouncements() {
     try {
-      const response = await axios.get('https://www.nseindia.com/api/corporate-announcements?index=equities', {
+      const response = await axios.get(`https://www.nseindia.com/api/corporate-announcements?index=equities&_t=${Date.now()}`, {
         headers: {
           'User-Agent': this.getRandomUserAgent(),
           'Accept': 'application/json, text/plain, */*',
           'Referer': 'https://www.nseindia.com/companies-listing/corporate-filings-announcements',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
         },
         timeout: 5000,
       });

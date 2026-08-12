@@ -13,7 +13,7 @@ const tradeStore = require('../tradeStore');
 const config = require('../../config');
 
 class BseNseMonitor {
-  constructor(intervalMs = 10000) {
+  constructor(intervalMs = 3000) {
     this.intervalMs = intervalMs;
     this.isPolling = false;
     this.timer = null;
