@@ -3,6 +3,17 @@ const angelOne = require('../services/angelOne');
 const config = require('../config');
 
 /**
+ * Safely answer Telegram Callback Query without throwing on expired query IDs
+ */
+async function safeAnswerCallback(bot, callbackId, options = {}) {
+  try {
+    await bot.answerCallbackQuery(callbackId, options);
+  } catch (_) {
+    // Gracefully catch expired query timeouts
+  }
+}
+
+/**
  * Handle trade execution confirmation from Telegram Callback Query
  * @param {object} bot TelegramBot instance
  * @param {object} callbackQuery Telegram callback query event
@@ -19,7 +30,7 @@ async function handleOrderConfirmation(bot, callbackQuery) {
     config.telegram.authorizedChatIds.includes(userId);
 
   if (!isAuthorized) {
-    await bot.answerCallbackQuery(callbackId, {
+    await safeAnswerCallback(bot, callbackId, {
       text: '⛔ Unauthorized! Your Telegram user/chat ID is not in AUTHORIZED_TELEGRAM_CHAT_IDS.',
       show_alert: true,
     });
@@ -35,14 +46,14 @@ async function handleOrderConfirmation(bot, callbackQuery) {
         trade.status = 'CANCELLED';
         await trade.save();
       }
-      await bot.answerCallbackQuery(callbackId, { text: 'Trade cancelled.' });
+      await safeAnswerCallback(bot, callbackId, { text: 'Trade cancelled.' });
       await bot.editMessageText(`❌ *TRADE CANCELLED*\n\nTrade ID \`${tradeId}\` was cancelled by user.`, {
         chat_id: chatId,
         message_id: message.message_id,
         parse_mode: 'Markdown',
       });
     } catch (err) {
-      await bot.answerCallbackQuery(callbackId, { text: `Error: ${err.message}`, show_alert: true });
+      await safeAnswerCallback(bot, callbackId, { text: `Error: ${err.message}`, show_alert: true });
     }
     return;
   }
@@ -58,7 +69,7 @@ async function handleOrderConfirmation(bot, callbackQuery) {
     const trade = await tradeStore.findById(tradeId);
 
     if (!trade) {
-      await bot.answerCallbackQuery(callbackId, {
+      await safeAnswerCallback(bot, callbackId, {
         text: '❌ Trade record not found in MongoDB.',
         show_alert: true,
       });
@@ -67,7 +78,7 @@ async function handleOrderConfirmation(bot, callbackQuery) {
 
     // 3. Duplicate execution check
     if (trade.status !== 'ANALYZED') {
-      await bot.answerCallbackQuery(callbackId, {
+      await safeAnswerCallback(bot, callbackId, {
         text: `⚠️ Cannot place order. Trade status is already '${trade.status}'.`,
         show_alert: true,
       });
@@ -76,7 +87,7 @@ async function handleOrderConfirmation(bot, callbackQuery) {
 
     // 4. Pre-flight parameter checks
     if (!trade.quantity || trade.quantity <= 0) {
-      await bot.answerCallbackQuery(callbackId, {
+      await safeAnswerCallback(bot, callbackId, {
         text: '❌ Invalid order quantity (0). Order placement aborted.',
         show_alert: true,
       });
@@ -84,14 +95,14 @@ async function handleOrderConfirmation(bot, callbackQuery) {
     }
 
     if (!trade.entry || !trade.stopLoss) {
-      await bot.answerCallbackQuery(callbackId, {
+      await safeAnswerCallback(bot, callbackId, {
         text: '❌ Missing Entry or Stop Loss values. Order placement aborted.',
         show_alert: true,
       });
       return;
     }
 
-    await bot.answerCallbackQuery(callbackId, { text: '⏳ Executing order...' });
+    await safeAnswerCallback(bot, callbackId, { text: '⏳ Executing order...' });
 
     // 5. Look up symbol token dynamically from Angel One
     const scripInfo = await angelOne.searchScrip(trade.symbol, 'NSE');
@@ -149,7 +160,7 @@ async function handleOrderConfirmation(bot, callbackQuery) {
     }
   } catch (error) {
     console.error(`[OrderConfirmation] Error processing trade confirmation: ${error.message}`);
-    await bot.answerCallbackQuery(callbackId, {
+    await safeAnswerCallback(bot, callbackId, {
       text: `Error: ${error.message}`,
       show_alert: true,
     });
