@@ -60,8 +60,23 @@ class PdfParserEngine {
     let isScanned = false;
 
     try {
+      const originalWarn = console.warn;
+      const originalError = console.error;
+
+      console.warn = (...args) => {
+        if (typeof args[0] === 'string' && args[0].includes('font private use area')) return;
+        originalWarn.apply(console, args);
+      };
+      console.error = (...args) => {
+        if (typeof args[0] === 'string' && args[0].includes('font private use area')) return;
+        originalError.apply(console, args);
+      };
+
       const parsedData = await pdfParse(pdfBuffer);
       rawText = parsedData.text ? parsedData.text.trim() : '';
+
+      console.warn = originalWarn;
+      console.error = originalError;
     } catch (err) {
       console.warn(`[PdfParser] Standard PDF text extraction failed: ${err.message}`);
     }
