@@ -2,6 +2,7 @@ const https = require('https');
 
 /**
  * Pluggable Modular BSE Announcement Adapter
+ * Filters corporate announcements for tradable equity scrips and handles PDF URL resolution.
  */
 class BseAdapter {
   constructor() {
@@ -22,6 +23,22 @@ class BseAdapter {
       }
     }
     return null;
+  }
+
+  /**
+   * Filter out non-tradable debt/debenture instruments
+   */
+  isEquityScrip(scripCode, title = '') {
+    if (!scripCode) return true;
+    const scripStr = scripCode.toString();
+    if (scripStr.startsWith('73') || scripStr.startsWith('71') || scripStr.startsWith('72')) {
+      return false;
+    }
+    const t = title.toLowerCase();
+    if (t.includes('debenture') || t.includes('commercial paper') || t.includes('ncd') || t.includes('subordinated debt')) {
+      return false;
+    }
+    return true;
   }
 
   fetchAnnouncements() {
@@ -47,24 +64,31 @@ class BseAdapter {
           try {
             const list = JSON.parse(data);
             if (Array.isArray(list)) {
-              const announcements = list.map((item) => {
-                const newsIdStr = item.Newsid || item.NEWSID || item.NEWS_ID || '';
-                const scripMatch = newsIdStr.match(/scrip_CD=(\d+)/i);
-                const scripCode = scripMatch ? scripMatch[1] : (item.SCRIP_CD || item.SLONGNAME || 'BSE_STOCK');
-                const symbolCandidate = item.SLONGNAME || item.SHORT_NAME || scripCode;
+              const announcements = list
+                .filter((item) => {
+                  const newsIdStr = item.Newsid || item.NEWSID || item.NEWS_ID || '';
+                  const scripMatch = newsIdStr.match(/scrip_CD=(\d+)/i);
+                  const scripCode = scripMatch ? scripMatch[1] : (item.SCRIP_CD || item.SLONGNAME || '');
+                  return this.isEquityScrip(scripCode, item.Subject || item.NEWSSUB || item.HEADLINE || '');
+                })
+                .map((item) => {
+                  const newsIdStr = item.Newsid || item.NEWSID || item.NEWS_ID || '';
+                  const scripMatch = newsIdStr.match(/scrip_CD=(\d+)/i);
+                  const scripCode = scripMatch ? scripMatch[1] : (item.SCRIP_CD || item.SLONGNAME || 'BSE_STOCK');
+                  const symbolCandidate = item.SLONGNAME || item.SHORT_NAME || scripCode;
 
-                const cleanNewsId = newsIdStr.split('&')[0] || `${Date.now()}_${Math.random()}`;
+                  const cleanNewsId = newsIdStr.split('&')[0] || `${Date.now()}_${Math.random()}`;
 
-                return {
-                  source: 'BSE',
-                  symbol: symbolCandidate,
-                  title: item.Subject || item.NEWSSUB || item.HEADLINE || 'Corporate Announcement',
-                  subject: item.Subject || item.HEADLINE || '',
-                  pdfUrl: this.formatPdfUrl(item.ATTACHMENTNAME || item.AttachmentName, newsIdStr),
-                  announcementId: `BSE_${cleanNewsId}`,
-                  date: item.NEWS_DT || item.News_dt || new Date().toISOString(),
-                };
-              });
+                  return {
+                    source: 'BSE',
+                    symbol: symbolCandidate,
+                    title: item.Subject || item.NEWSSUB || item.HEADLINE || 'Corporate Announcement',
+                    subject: item.Subject || item.HEADLINE || '',
+                    pdfUrl: this.formatPdfUrl(item.ATTACHMENTNAME || item.AttachmentName, newsIdStr),
+                    announcementId: `BSE_${cleanNewsId}`,
+                    date: item.NEWS_DT || item.News_dt || new Date().toISOString(),
+                  };
+                });
               return resolve(announcements);
             }
           } catch (_) {}

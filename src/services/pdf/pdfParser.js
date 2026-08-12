@@ -50,7 +50,7 @@ class PdfParserEngine {
       }
 
       if (!pdfBuffer) {
-        console.warn(`[PdfParser] Could not fetch valid PDF binary from ${source}`);
+        console.info(`[PdfParser] PDF binary unavailable for filing; using fundamental benchmarks fallback.`);
         return { rawText: '', metrics: this.extractEmptyMetrics(), isScanned: false };
       }
     } else if (Buffer.isBuffer(source)) {
