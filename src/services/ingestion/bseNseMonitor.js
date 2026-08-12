@@ -257,7 +257,7 @@ class BseNseMonitorService {
 
         const opCurr = Math.round(sCurr * (opmVal / 100));
         const opPrev = Math.round(sPrev * ((opmVal * 0.9) / 100));
-        const opYoY = Math.round(sYoY * ((opmVal * 0.8) / 100));
+        const opYoYVal = Math.round(sYoY * ((opmVal * 0.8) / 100));
 
         const pCurr = Math.round(opCurr * 0.72);
         const pPrev = Math.round(pCurr / (1 + Math.max(0.1, patGrowthQoQ) / 100));
@@ -269,7 +269,7 @@ class BseNseMonitorService {
         const eYoY = Math.max(0.1, pYoY / sharesCount).toFixed(1);
 
         const opQoQ = Math.round(((opCurr - opPrev) / Math.max(1, opPrev)) * 100);
-        const opYoY = Math.round(((opCurr - opYoY) / Math.max(1, opYoY)) * 100);
+        const opYoY = Math.round(((opCurr - opYoYVal) / Math.max(1, opYoYVal)) * 100);
         const epQoQ = Math.round(((parseFloat(eCurr) - parseFloat(ePrev)) / Math.max(0.1, parseFloat(ePrev))) * 100);
         const epYoY = Math.round(((parseFloat(eCurr) - parseFloat(eYoY)) / Math.max(0.1, parseFloat(eYoY))) * 100);
 
@@ -289,7 +289,7 @@ class BseNseMonitorService {
           `-----------------------------------------------\n` +
           `Sales    ${salesQoQStr.padStart(6)}  ${salesYoYStr.padStart(6)}  ${sCurr.toLocaleString('en-IN').padStart(6)}  ${sPrev.toLocaleString('en-IN').padStart(6)}  ${sYoY.toLocaleString('en-IN').padStart(6)}\n` +
           `Oth.Inc  -       -       ${Math.max(1, Math.round(sCurr * 0.005)).toString().padStart(6)}  ${Math.max(1, Math.round(sPrev * 0.005)).toString().padStart(6)}  ${Math.max(1, Math.round(sYoY * 0.005)).toString().padStart(6)}\n` +
-          `OP       ${opQoQ >= 0 ? '+' : ''}${opQoQ}%   ${opYoY >= 0 ? '+' : ''}${opYoY}%   ${opCurr.toLocaleString('en-IN').padStart(6)}  ${opPrev.toLocaleString('en-IN').padStart(6)}  ${opYoY.toLocaleString('en-IN').padStart(6)}\n` +
+          `OP       ${opQoQ >= 0 ? '+' : ''}${opQoQ}%   ${opYoY >= 0 ? '+' : ''}${opYoY}%   ${opCurr.toLocaleString('en-IN').padStart(6)}  ${opPrev.toLocaleString('en-IN').padStart(6)}  ${opYoYVal.toLocaleString('en-IN').padStart(6)}\n` +
           `OPM (%)  +${Math.round((opmVal - opmVal * 0.9) * 10)}   +${Math.round((opmVal - opmVal * 0.8) * 10)}   ${opmStr.padStart(6)}  ${(opmVal * 0.9).toFixed(1)}%   ${(opmVal * 0.8).toFixed(1)}%\n` +
           `PAT      ${patQoQStr.padStart(6)}  ${patYoYStr.padStart(6)}  ${pCurr.toLocaleString('en-IN').padStart(6)}  ${pPrev.toLocaleString('en-IN').padStart(6)}  ${pYoY.toLocaleString('en-IN').padStart(6)}\n` +
           `EPS      ${epQoQ >= 0 ? '+' : ''}${epQoQ}%   ${epYoY >= 0 ? '+' : ''}${epYoY}%   ${eCurr.padStart(6)}  ${ePrev.padStart(6)}  ${eYoY.padStart(6)}\n` +
