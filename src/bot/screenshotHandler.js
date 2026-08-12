@@ -77,10 +77,11 @@ async function handleScreenshot(bot, msg) {
       const imageBuffer = Buffer.concat(chunks);
 
       const ocrResult = await ocrEngine.processImage(imageBuffer);
-      ocrText = ocrResult.text;
+      const captionText = msg.caption || msg.text || '';
+      ocrText = `${captionText}\n${ocrResult.text}`.trim();
       ocrConfidence = ocrResult.confidence;
 
-      console.log(`[ScreenshotHandler] OCR Extracted Text: "${ocrText}" (Confidence: ${ocrConfidence}%)`);
+      console.log(`[ScreenshotHandler] Combined Caption + OCR Text: "${ocrText}" (Confidence: ${ocrConfidence}%)`);
     } else if (msg.text || msg.caption) {
       ocrText = msg.text || msg.caption;
       ocrConfidence = 100;

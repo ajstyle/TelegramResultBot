@@ -141,4 +141,23 @@ describe('Signal Parser Unit Tests', () => {
     expect(result.entry).toBe(14250.0);
     expect(result.cardRating).toBe('EXCELLENT');
   });
+
+  test('Parses hashtag caption text: #PANAMAPET - 🏆🔥 Excellent Results - 43 seconds ago with image OCR CMP', () => {
+    const captionAndOcrInput = `
+      #PANAMAPET - 🏆🔥 Excellent Results - 43 seconds ago
+      Metric QoQ YoY Jun'26 Mar'26 Jun'25
+      Sales 111% 150% 1,735 823 693
+      OP 325% 607% 388 91 55
+      PAT 334% 625% 309 71 43
+      CMP : 563.8 | Small-Cap (3.3K Cr) | P/E 15.2
+    `;
+
+    const result = signalParser.parse(captionAndOcrInput);
+
+    expect(result.isParsed).toBe(true);
+    expect(result.action).toBe('BUY');
+    expect(result.symbol).toBe('PANAMAPET');
+    expect(result.entry).toBe(563.8);
+    expect(result.cardRating).toBe('EXCELLENT');
+  });
 });

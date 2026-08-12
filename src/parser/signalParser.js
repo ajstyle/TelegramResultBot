@@ -45,24 +45,33 @@ class SignalParser {
     let cardCategory = null;
     let cardPe = null;
 
+    // --- STEP 0: Hashtag Symbol Extractor e.g. #PANAMAPET or #TCS or #DIXON ---
+    const hashtagMatch = cleanText.match(/#([A-Z0-9_-]{2,15})/i);
+    const nonSymbolHashtags = ['RESULTS', 'EARNINGS', 'Q1', 'Q2', 'Q3', 'Q4', 'EXCELLENT', 'GOOD', 'POOR', 'BUY', 'SELL'];
+    if (hashtagMatch && !nonSymbolHashtags.includes(hashtagMatch[1].toUpperCase())) {
+      symbol = hashtagMatch[1].toUpperCase();
+    }
+
     // --- STEP A: Standard Text Signal Pattern Matching (e.g. BUY TCS @ 3520) ---
     let priceText = upperText;
     if (slMatch) priceText = priceText.replace(slMatch[0], '');
     if (targetMatch) priceText = priceText.replace(targetMatch[0], '');
 
     const actionPattern = '(?:BUY|SELL|LONG|SHORT)';
-    const mainMatch = priceText.match(
-      new RegExp(`${actionPattern}[:\\s]+([A-Z0-9\\.&-]+)(?:[\\s]+(?:@|ENTRY|AT|PRICE))?[:\\s]+([0-9]+(?:\\.[0-9]+)?)`)
-    );
+    if (!symbol) {
+      const mainMatch = priceText.match(
+        new RegExp(`${actionPattern}[:\\s]+([A-Z0-9\\.&-]+)(?:[\\s]+(?:@|ENTRY|AT|PRICE))?[:\\s]+([0-9]+(?:\\.[0-9]+)?)`)
+      );
 
-    if (mainMatch) {
-      symbol = mainMatch[1].replace(/[^A-Z0-9-]/g, '').trim();
-      entry = parseFloat(mainMatch[2]);
-    } else {
-      const fallbackMatch = priceText.match(new RegExp(`${actionPattern}[:\\s]+([A-Z0-9\\.&-]+)[\\s]+([0-9]+(?:\\.[0-9]+)?)`));
-      if (fallbackMatch) {
-        symbol = fallbackMatch[1].replace(/[^A-Z0-9-]/g, '').trim();
-        entry = parseFloat(fallbackMatch[2]);
+      if (mainMatch) {
+        symbol = mainMatch[1].replace(/[^A-Z0-9-]/g, '').trim();
+        entry = parseFloat(mainMatch[2]);
+      } else {
+        const fallbackMatch = priceText.match(new RegExp(`${actionPattern}[:\\s]+([A-Z0-9\\.&-]+)[\\s]+([0-9]+(?:\\.[0-9]+)?)`));
+        if (fallbackMatch) {
+          symbol = fallbackMatch[1].replace(/[^A-Z0-9-]/g, '').trim();
+          entry = parseFloat(fallbackMatch[2]);
+        }
       }
     }
 
@@ -99,10 +108,10 @@ class SignalParser {
       }
     }
 
-    // 3. Pulse Rating Extractor e.g. Pulse Rating : Excellent / Good
-    const pulseRatingMatch = upperText.match(/(?:PULSE\s*RATING|RATING)\s*[:=]?\s*(EXCELLENT|VERY\s*GOOD|GOOD|FAIR|POOR|VERY\s*POOR)/i);
+    // 3. Pulse Rating Extractor e.g. Pulse Rating : Excellent / Good / Excellent Results
+    const pulseRatingMatch = upperText.match(/(?:PULSE\s*RATING|RATING|RESULTS?)\s*[:=-]?\s*(EXCELLENT|VERY\s*GOOD|GOOD|FAIR|POOR|VERY\s*POOR)|(EXCELLENT|VERY\s*GOOD|GOOD)\s*RESULTS?/i);
     if (pulseRatingMatch) {
-      cardRating = pulseRatingMatch[1].toUpperCase();
+      cardRating = (pulseRatingMatch[1] || pulseRatingMatch[2]).toUpperCase();
       if (!action) {
         if (cardRating.includes('EXCELLENT') || cardRating.includes('GOOD')) {
           action = 'BUY';
