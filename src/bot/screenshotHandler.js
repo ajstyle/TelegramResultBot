@@ -274,9 +274,6 @@ async function handleScreenshot(bot, msg) {
         });
       } catch (_) {}
     }
-  }: chatId,
-      message_id: processingMsg.message_id,
-    });
   }
 }
 
