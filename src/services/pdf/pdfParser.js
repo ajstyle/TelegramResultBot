@@ -16,17 +16,37 @@ class PdfParserEngine {
     let pdfBuffer;
 
     if (typeof source === 'string' && source.startsWith('http')) {
-      try {
-        const res = await axios.get(source, {
-          responseType: 'arraybuffer',
-          timeout: 15000,
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-          },
-        });
-        pdfBuffer = Buffer.from(res.data);
-      } catch (err) {
-        console.warn(`[PdfParser] Failed to download PDF from URL: ${err.message}`);
+      const urlsToTry = [encodeURI(source)];
+
+      // Construct fallback URLs for NSE and BSE
+      if (source.includes('archives.nseindia.com/corporate/announcements/')) {
+        urlsToTry.push(encodeURI(source.replace('archives.nseindia.com/corporate/announcements/', 'www.nseindia.com/content/corporate/announcements/')));
+      } else if (source.includes('AttachLive')) {
+        urlsToTry.push(encodeURI(source.replace('AttachLive', 'AttachHis')));
+      }
+
+      for (const targetUrl of urlsToTry) {
+        try {
+          const res = await axios.get(targetUrl, {
+            responseType: 'arraybuffer',
+            timeout: 15000,
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Accept': 'application/pdf,application/octet-stream,text/html,*/*',
+              'Referer': targetUrl.includes('bseindia') ? 'https://www.bseindia.com/' : 'https://www.nseindia.com/',
+            },
+          });
+          if (res.data && res.data.length > 0) {
+            pdfBuffer = Buffer.from(res.data);
+            break;
+          }
+        } catch (err) {
+          // Try next URL fallback
+        }
+      }
+
+      if (!pdfBuffer) {
+        console.warn(`[PdfParser] Could not fetch valid PDF binary from ${source}`);
         return { rawText: '', metrics: this.extractEmptyMetrics(), isScanned: false };
       }
     } else if (Buffer.isBuffer(source)) {
