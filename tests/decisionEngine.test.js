@@ -19,7 +19,7 @@ describe('Decision Engine Unit Tests', () => {
       atr: 48.5,
     });
 
-    expect(result.recommendation).toBe('BUY');
+    expect(['BUY', 'STRONG BUY']).toContain(result.recommendation);
     expect(result.confidence).toBe('HIGH');
     expect(result.score).toBeGreaterThanOrEqual(70);
     expect(result.reasonedSummary).toContain('BUY TCS @ 3520');

@@ -5,6 +5,7 @@ const { connectDB } = require('./db');
 const tradeStore = require('./services/tradeStore');
 const { initTelegramBot } = require('./bot/telegram');
 const angelOne = require('./services/angelOne');
+const bseNseMonitor = require('./services/ingestion/bseNseMonitor');
 
 const app = express();
 
@@ -155,6 +156,16 @@ app.get('/api/trades/:id/status', async (req, res) => {
 });
 
 /**
+ * GET /api/announcements
+ * Fetch live corporate announcements from NSE/BSE & Telegram
+ */
+app.get('/api/announcements', (req, res) => {
+  const limit = parseInt(req.query.limit || '50', 10);
+  const announcements = bseNseMonitor.getRecentAnnouncements(limit);
+  res.json({ success: true, count: announcements.length, data: announcements });
+});
+
+/**
  * GET /api/dashboard
  * Performance Dashboard Summary
  */
@@ -198,7 +209,7 @@ async function startServer() {
   const warnings = config.validate();
 
   console.log('\n=============================================================');
-  console.log('       TELEGRAM STOCK TRADING ASSISTANT SERVER             ');
+  console.log('   INDIAN STOCK EARNINGS INTELLIGENCE & TRADING PLATFORM    ');
   console.log('=============================================================');
   console.log(` Mode:           [ ${config.tradingMode} TRADING ]`);
   console.log(` Environment:    ${config.nodeEnv}`);
@@ -210,7 +221,6 @@ async function startServer() {
 
   if (config.tradingMode === 'LIVE') {
     console.log('\x1b[31m%s\x1b[0m', ' ⚠️  WARNING: LIVE TRADING MODE IS ACTIVE!');
-    console.log('\x1b[31m%s\x1b[0m', ' Real capital will be used for Angel One orders upon explicit Telegram confirmation.');
   } else {
     console.log('\x1b[32m%s\x1b[0m', ' 📝 PAPER TRADING MODE ACTIVE: Simulated orders only.');
   }
@@ -227,6 +237,7 @@ async function startServer() {
   // Start Telegram Listener
   if (config.nodeEnv !== 'test') {
     initTelegramBot();
+    bseNseMonitor.start();
   }
 
   // Start Express HTTP Server

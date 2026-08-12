@@ -18,18 +18,47 @@ async function handleScreenshot(bot, msg) {
   const chatId = msg.chat.id.toString();
   const userId = msg.from ? msg.from.id.toString() : chatId;
 
+  const targetChannelName = (config.telegram.targetChannel || '').toLowerCase().replace(/^@/, '');
+  const chatUsername = (msg.chat.username || '').toLowerCase().replace(/^@/, '');
+  const chatTitle = (msg.chat.title || '').toLowerCase().replace(/^@/, '');
+  const fwdUsername = (msg.forward_from_chat?.username || '').toLowerCase().replace(/^@/, '');
+  const fwdTitle = (msg.forward_from_chat?.title || '').toLowerCase().replace(/^@/, '');
+
+  const isChannelMsg =
+    msg.chat.type === 'channel' ||
+    (targetChannelName && (
+      chatUsername.includes(targetChannelName) ||
+      chatTitle.includes(targetChannelName) ||
+      fwdUsername.includes(targetChannelName) ||
+      fwdTitle.includes(targetChannelName)
+    ));
+
   // 1. Authorization check
   const isAuthorized =
+    isChannelMsg ||
     config.telegram.authorizedChatIds.length === 0 ||
     config.telegram.authorizedChatIds.includes(chatId) ||
     config.telegram.authorizedChatIds.includes(userId);
 
   if (!isAuthorized) {
-    await bot.sendMessage(chatId, '⛔ Unauthorized! Your Telegram user/chat ID is not in AUTHORIZED_TELEGRAM_CHAT_IDS.');
+    console.warn(`[ScreenshotHandler] Unauthorized signal dropped from Chat ID: ${chatId}`);
     return;
   }
 
-  const processingMsg = await bot.sendMessage(chatId, '⏳ Analyzing signal, fundamentals & earnings data...');
+  // Determine recipient chats for processing & final output
+  const targetRecipientIds = isChannelMsg
+    ? (config.telegram.authorizedChatIds.length > 0 ? config.telegram.authorizedChatIds : [chatId])
+    : [chatId];
+
+  const processingMsgs = [];
+  for (const targetId of targetRecipientIds) {
+    try {
+      const pMsg = await bot.sendMessage(targetId, '⏳ Analyzing signal, fundamentals & earnings data...');
+      processingMsgs.push({ targetId, messageId: pMsg.message_id });
+    } catch (err) {
+      console.warn(`[ScreenshotHandler] Failed to send processing notice to ${targetId}: ${err.message}`);
+    }
+  }
 
   try {
     let ocrText = '';
@@ -59,16 +88,18 @@ async function handleScreenshot(bot, msg) {
     }
 
     // 5. Parse Signal
-    const signal = signalParser.parse(ocrText);
-
-    if (!signal.isParsed) {
-      await bot.editMessageText(
+    const signal = signalParser.parse(ocrText);    if (!signal.isParsed) {
+      const noticeMsg =
         `⚠️ *OCR Signal Parsing Notice*\n\n` +
         `*Raw Text Extracted:*\n\`${ocrText || '(No text detected)'}\`\n\n` +
         `*OCR Confidence:* ${Math.round(ocrConfidence)}%\n\n` +
-        `Could not automatically extract stock symbol or entry price. Please send text manually in format: \`BUY TCS @ 3520\``,
-        { chat_id: chatId, message_id: processingMsg.message_id, parse_mode: 'Markdown' }
-      );
+        `Could not automatically extract stock symbol or entry price. Please send text manually in format: \`BUY TCS @ 3520\``;
+
+      for (const { targetId, messageId } of processingMsgs) {
+        try {
+          await bot.editMessageText(noticeMsg, { chat_id: targetId, message_id: messageId, parse_mode: 'Markdown' });
+        } catch (_) {}
+      }
       return;
     }
 
@@ -120,9 +151,9 @@ async function handleScreenshot(bot, msg) {
       atr: atrUsed,
     });
 
-    // 12. Auto-Execute Check
+    // 14. Auto-Execute Check
     let orderResult = null;
-    if (config.telegram.autoExecute && decision.recommendation !== 'REJECT' && position.quantity > 0) {
+    if (config.telegram.autoExecute && decision.recommendation !== 'AVOID' && position.quantity > 0) {
       console.log(`[ScreenshotHandler] Auto-executing ${signal.action} order for ${signal.symbol}...`);
       orderResult = await angelOne.placeOrder({
         tradingsymbol: scripInfo.tradingsymbol,
@@ -140,7 +171,7 @@ async function handleScreenshot(bot, msg) {
       ? (orderResult.success ? 'ORDER_PLACED' : 'REJECTED')
       : 'ANALYZED';
 
-    // 13. Save Trade Record (MongoDB or In-Memory fallback)
+    // 15. Save Trade Record (MongoDB or In-Memory fallback)
     const tradeRecord = await tradeStore.createTrade({
       symbol: signal.symbol,
       action: signal.action,
@@ -154,11 +185,11 @@ async function handleScreenshot(bot, msg) {
       decision,
       status: tradeStatus,
       angelOrderId: orderResult?.orderId || null,
-      telegramMessageId: processingMsg.message_id,
-      telegramChatId: chatId,
+      telegramMessageId: processingMsgs[0]?.messageId || null,
+      telegramChatId: targetRecipientIds[0] || chatId,
     });
 
-    // 14. Format Telegram Output
+    // 16. Format Telegram Output
     const currentLtpText = ltp ? `₹${ltp}` : `₹${effectiveEntry} (LTP Unavailable)`;
     const slNoticeText = isCalculated ? `₹${stopLoss} (ATR Calculated)` : `₹${stopLoss} (From Screenshot)`;
     const fundScoreText = fundamentals.isAvailable ? `${fundamentals.score}/100 (${fundamentals.rating})` : 'Data Unavailable';
@@ -221,16 +252,29 @@ async function handleScreenshot(bot, msg) {
       };
     }
 
-    await bot.editMessageText(outputMessage, {
-      chat_id: chatId,
-      message_id: processingMsg.message_id,
-      parse_mode: 'Markdown',
-      reply_markup: replyMarkup,
-    });
+    for (const { targetId, messageId } of processingMsgs) {
+      try {
+        await bot.editMessageText(outputMessage, {
+          chat_id: targetId,
+          message_id: messageId,
+          parse_mode: 'Markdown',
+          reply_markup: replyMarkup,
+        });
+      } catch (err) {
+        console.warn(`[ScreenshotHandler] Edit message failed for ${targetId}: ${err.message}`);
+      }
+    }
   } catch (error) {
     console.error(`[ScreenshotHandler] Error processing screenshot: ${error.message}`);
-    await bot.editMessageText(`❌ Error processing recommendation screenshot: ${error.message}`, {
-      chat_id: chatId,
+    for (const { targetId, messageId } of processingMsgs) {
+      try {
+        await bot.editMessageText(`❌ Error processing recommendation screenshot: ${error.message}`, {
+          chat_id: targetId,
+          message_id: messageId,
+        });
+      } catch (_) {}
+    }
+  }: chatId,
       message_id: processingMsg.message_id,
     });
   }

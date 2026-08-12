@@ -1,7 +1,7 @@
 {
   "name": "telegram-trading-assistant",
   "version": "1.0.0",
-  "description": "Production-ready Telegram Stock Trading Assistant with Node.js, Express, MongoDB, Telegram Bot API, Tesseract OCR, Angel One SmartAPI, Risk Engine, and Fundamentals Engine",
+  "description": "Production-grade AI-Powered Indian Stock Earnings Intelligence & Semi-Automated Trading Platform with NSE/BSE 10s monitoring, PDF table & text extraction, AI financial analysis, cross-source deduplication, and multi-broker execution",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
@@ -17,7 +17,11 @@
     "ocr",
     "tesseract",
     "risk-engine",
-    "stock-analysis"
+    "stock-analysis",
+    "nse",
+    "bse",
+    "earnings-intelligence",
+    "pdf-extraction"
   ],
   "author": "",
   "license": "MIT",
@@ -29,6 +33,7 @@
     "mongoose": "^8.9.5",
     "node-telegram-bot-api": "^0.66.0",
     "otpauth": "^9.3.6",
+    "pdf-parse": "^1.1.1",
     "tesseract.js": "^5.1.1"
   },
   "devDependencies": {

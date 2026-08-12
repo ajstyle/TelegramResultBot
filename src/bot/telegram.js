@@ -3,6 +3,7 @@ const config = require('../config');
 const { handleScreenshot } = require('./screenshotHandler');
 const { handleOrderConfirmation } = require('./orderConfirmation');
 const signalParser = require('../parser/signalParser');
+const bseNseMonitor = require('../services/ingestion/bseNseMonitor');
 
 /**
  * Initialize Telegram Listener & Event Handlers
@@ -27,6 +28,8 @@ function initTelegramBot() {
     },
   });
 
+  bseNseMonitor.setBotInstance(bot);
+
   console.log(`[TelegramBot] Listener started with polling (Interval: ${config.telegram.pollingInterval || 5000}ms)...`);
   if (config.telegram.targetChannel) {
     console.log(`[TelegramBot] Target Channel Filtering Active: "${config.telegram.targetChannel.toUpperCase()}"`);
@@ -34,12 +37,12 @@ function initTelegramBot() {
 
   const isTargetChannelMessage = msg => {
     if (!config.telegram.targetChannel) return true;
-    const target = config.telegram.targetChannel.toLowerCase();
+    const target = config.telegram.targetChannel.toLowerCase().replace(/^@/, '');
 
-    const chatUsername = (msg.chat.username || '').toLowerCase();
-    const chatTitle = (msg.chat.title || '').toLowerCase();
-    const fwdUsername = (msg.forward_from_chat?.username || '').toLowerCase();
-    const fwdTitle = (msg.forward_from_chat?.title || '').toLowerCase();
+    const chatUsername = (msg.chat.username || '').toLowerCase().replace(/^@/, '');
+    const chatTitle = (msg.chat.title || '').toLowerCase().replace(/^@/, '');
+    const fwdUsername = (msg.forward_from_chat?.username || '').toLowerCase().replace(/^@/, '');
+    const fwdTitle = (msg.forward_from_chat?.title || '').toLowerCase().replace(/^@/, '');
 
     return (
       chatUsername.includes(target) ||
@@ -90,7 +93,7 @@ function initTelegramBot() {
     if (!isTargetChannelMessage(msg)) return;
     console.log(`[TelegramBot] Channel Post received from Channel: ${msg.chat.title || msg.chat.username || msg.chat.id}`);
     const textToParse = msg.text || msg.caption || '';
-    if (msg.photo || signalParser.parse(textToParse).isParsed) {
+    if (msg.photo || textToParse.length > 0) {
       await handleScreenshot(bot, msg);
     }
   });

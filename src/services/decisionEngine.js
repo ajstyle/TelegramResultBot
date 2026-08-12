@@ -122,9 +122,17 @@ class DecisionEngine {
       confidence = 'LOW';
     }
 
-    // Recommendation
+    // Recommendation Categories: STRONG BUY, BUY, HOLD, SELL, AVOID
     let recommendation = action;
-    if (finalScore < 40 || ocrConfidence < 40) {
+    if (ocrConfidence < 40 || finalScore < 40) {
+      recommendation = 'AVOID';
+    } else if (finalScore >= 85) {
+      recommendation = action === 'BUY' ? 'STRONG BUY' : 'STRONG SELL';
+    } else if (finalScore >= 60) {
+      recommendation = action;
+    } else if (finalScore >= 45) {
+      recommendation = 'HOLD';
+    } else {
       recommendation = 'AVOID';
     }
 
