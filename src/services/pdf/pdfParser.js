@@ -60,23 +60,40 @@ class PdfParserEngine {
     let isScanned = false;
 
     try {
-      const originalWarn = console.warn;
-      const originalError = console.error;
+      const origStdout = process.stdout.write;
+      const origStderr = process.stderr.write;
+      const origWarn = console.warn;
+      const origError = console.error;
+
+      const shouldFilter = (str) => typeof str === 'string' && str.includes('font private use area');
+
+      process.stdout.write = function (string, encoding, fd) {
+        if (shouldFilter(string)) return true;
+        return origStdout.apply(process.stdout, arguments);
+      };
+
+      process.stderr.write = function (string, encoding, fd) {
+        if (shouldFilter(string)) return true;
+        return origStderr.apply(process.stderr, arguments);
+      };
 
       console.warn = (...args) => {
-        if (typeof args[0] === 'string' && args[0].includes('font private use area')) return;
-        originalWarn.apply(console, args);
+        if (shouldFilter(args[0])) return;
+        origWarn.apply(console, args);
       };
+
       console.error = (...args) => {
-        if (typeof args[0] === 'string' && args[0].includes('font private use area')) return;
-        originalError.apply(console, args);
+        if (shouldFilter(args[0])) return;
+        origError.apply(console, args);
       };
 
       const parsedData = await pdfParse(pdfBuffer);
       rawText = parsedData.text ? parsedData.text.trim() : '';
 
-      console.warn = originalWarn;
-      console.error = originalError;
+      process.stdout.write = origStdout;
+      process.stderr.write = origStderr;
+      console.warn = origWarn;
+      console.error = origError;
     } catch (err) {
       console.warn(`[PdfParser] Standard PDF text extraction failed: ${err.message}`);
     }
