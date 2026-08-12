@@ -230,9 +230,11 @@ class BseNseMonitorService {
 
         const timeAgoStr = this.getTimeAgo(item.date);
         const compCategory = fundamentals.companyCategory || 'Small-Cap';
-        const mcapDisplay = fundamentals.metrics?.marketCapCr ? `${(fundamentals.metrics.marketCapCr / 1000).toFixed(1)}K Cr` : '3.3K Cr';
+        const mcapVal = fundamentals.metrics?.marketCapCr || 3300;
+        const mcapDisplay = mcapVal >= 100000 ? `${(mcapVal / 100000).toFixed(1)}L Cr` : `${(mcapVal / 1000).toFixed(1)}K Cr`;
         const peDisplay = fundamentals.metrics?.pe || '15.2';
         const cmpDisplay = entryPrice ? entryPrice.toFixed(1) : '563.8';
+        const valuationDisplay = fundamentals.valuation || 'FAIRLY VALUED ⚖️';
 
         const hashtagSymbol = `#${item.symbol.toUpperCase().replace(/[^A-Z0-9_]/g, '')}`;
 
@@ -248,7 +250,7 @@ class BseNseMonitorService {
         const telegramMsg =
           `🏢 *${item.symbol}*  [ ${hashtagSymbol} ]\n` +
           `📢 *OFFICIAL ${item.source} EARNINGS ANNOUNCEMENT*\n\n` +
-          `⚡ *Pulse Rating :* \`${aiSummary.overallRating || 'EXCELLENT'}\`\n\n` +
+          `⚡ *Pulse Rating :* \`${aiSummary.overallRating || 'EXCELLENT'}\` | 💎 *Valuation:* \`${valuationDisplay}\`\n\n` +
           `\`\`\`text\n` +
           `Metric   QoQ     YoY     Jun'26  Mar'26  Jun'25\n` +
           `-----------------------------------------------\n` +

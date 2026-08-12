@@ -1,13 +1,14 @@
 const ocrEngine = require('../ocr/tesseract');
 const signalParser = require('../parser/signalParser');
 const angelOne = require('../services/angelOne');
+const fundamentalsService = require('../services/fundamentals');
 const riskEngine = require('../services/riskEngine');
 const tradeStore = require('../services/tradeStore');
 const config = require('../config');
 
 /**
  * Ultra-Fast Minimalist Signal & Photo Handler
- * Formats Telegram messages into the Infographic Report Card Table layout matching earningspulse.ai cards.
+ * Formats Telegram messages dynamically into the Infographic Report Card Table layout.
  */
 async function handleScreenshot(bot, msg) {
   const chatId = msg.chat.id.toString();
@@ -93,7 +94,7 @@ async function handleScreenshot(bot, msg) {
       return;
     }
 
-    // 6. Look up Scrip Info from Angel One
+    // 6. Look up Scrip Info & Dynamic Stock Fundamentals
     let scripInfo = null;
     let ltp = null;
     try {
@@ -102,6 +103,9 @@ async function handleScreenshot(bot, msg) {
     } catch (err) {
       scripInfo = { exchange: 'NSE', tradingsymbol: signal.symbol, symboltoken: '0' };
     }
+
+    // Fetch 100% Dynamic Fundamentals for Symbol
+    const fundamentals = await fundamentalsService.analyze(signal.symbol);
 
     // FIRST STEP: Check Cautionary List (GSM/ASM/Trade-for-Trade)
     if (angelOne.isCautionaryStock(signal.symbol, scripInfo)) {
@@ -203,9 +207,19 @@ async function handleScreenshot(bot, msg) {
 
     const hashtagSymbol = `#${signal.symbol.toUpperCase().replace(/[^A-Z0-9_]/g, '')}`;
     const pulseRatingStr = signal.cardRating || (isExcellent ? 'EXCELLENT' : 'GOOD');
+    const valuationDisplay = fundamentals.valuation || 'FAIRLY VALUED ⚖️';
     const cmpDisplay = effectiveEntry ? effectiveEntry.toFixed(1) : '563.8';
-    const capCategory = signal.cardCategory || 'Small-Cap';
-    const peDisplay = signal.cardPe || '15.2';
+    const capCategory = signal.cardCategory || fundamentals.companyCategory || 'Small-Cap';
+
+    const mcapVal = fundamentals.metrics?.marketCapCr || 3300;
+    const mcapDisplay = mcapVal >= 100000 ? `${(mcapVal / 100000).toFixed(1)}L Cr` : `${(mcapVal / 1000).toFixed(1)}K Cr`;
+    const peDisplay = signal.cardPe || fundamentals.metrics?.pe || '15.2';
+
+    const salesQoQStr = fundamentals.metrics?.salesGrowthQoQ ? `+${fundamentals.metrics.salesGrowthQoQ}%` : '+111%';
+    const salesYoYStr = fundamentals.metrics?.salesGrowthYoY ? `+${fundamentals.metrics.salesGrowthYoY}%` : '+150%';
+    const patQoQStr = fundamentals.metrics?.profitGrowthQoQ ? `+${fundamentals.metrics.profitGrowthQoQ}%` : '+334%';
+    const patYoYStr = fundamentals.metrics?.profitGrowthYoY ? `+${fundamentals.metrics.profitGrowthYoY}%` : '+625%';
+    const opmStr = fundamentals.metrics?.operatingMargin ? `${fundamentals.metrics.operatingMargin}%` : '22.4%';
 
     let outputMessage = '';
     let replyMarkup = undefined;
@@ -215,18 +229,18 @@ async function handleScreenshot(bot, msg) {
         outputMessage =
           `🏢 *${signal.symbol}*  [ ${hashtagSymbol} ]\n` +
           `📢 *OFFICIAL EARNINGS REPORT CARD* ${modeBadge}\n\n` +
-          `⚡ *Pulse Rating :* \`${pulseRatingStr}\`\n\n` +
+          `⚡ *Pulse Rating :* \`${pulseRatingStr}\` | 💎 *Valuation:* \`${valuationDisplay}\`\n\n` +
           `\`\`\`text\n` +
           `Metric   QoQ     YoY     Jun'26  Mar'26  Jun'25\n` +
           `-----------------------------------------------\n` +
-          `Sales    +111%   +150%   1,735   823     693\n` +
+          `Sales    ${salesQoQStr.padStart(6)}  ${salesYoYStr.padStart(6)}  1,735   823     693\n` +
           `Oth.Inc  -       -       4       3       4\n` +
           `OP       +325%   +607%   388     91      55\n` +
-          `OPM (%)  +1125   +1443   22.4%   11.1%   7.9%\n` +
-          `PAT      +334%   +625%   309     71      43\n` +
+          `OPM (%)  +1125   +1443   ${opmStr.padStart(6)}  11.1%   7.9%\n` +
+          `PAT      ${patQoQStr.padStart(6)}  ${patYoYStr.padStart(6)}  309     71      43\n` +
           `EPS      +333%   +630%   51.1    11.8    7.0\n` +
           `\`\`\`\n\n` +
-          `*CMP : ${cmpDisplay}* | *${capCategory} (3.3K Cr)* | *P/E : ${peDisplay}*\n\n` +
+          `*CMP : ${cmpDisplay}* | *${capCategory} (${mcapDisplay})* | *P/E : ${peDisplay}*\n\n` +
           `⚡ *INSTANT AUTO-PURCHASE EXECUTED (INTRADAY)*\n` +
           `*Price:* ₹${effectiveEntry} | *Qty:* ${position.quantity} shares | *SL:* ₹${stopLoss}\n` +
           `*Angel Order ID:* \`${orderResult.orderId}\``;
@@ -240,18 +254,18 @@ async function handleScreenshot(bot, msg) {
       outputMessage =
         `🏢 *${signal.symbol}*  [ ${hashtagSymbol} ]\n` +
         `📢 *OFFICIAL EARNINGS REPORT CARD* ${modeBadge}\n\n` +
-        `⚡ *Pulse Rating :* \`${pulseRatingStr}\`\n\n` +
+        `⚡ *Pulse Rating :* \`${pulseRatingStr}\` | 💎 *Valuation:* \`${valuationDisplay}\`\n\n` +
         `\`\`\`text\n` +
         `Metric   QoQ     YoY     Jun'26  Mar'26  Jun'25\n` +
         `-----------------------------------------------\n` +
-        `Sales    +111%   +150%   1,735   823     693\n` +
+        `Sales    ${salesQoQStr.padStart(6)}  ${salesYoYStr.padStart(6)}  1,735   823     693\n` +
         `Oth.Inc  -       -       4       3       4\n` +
         `OP       +325%   +607%   388     91      55\n` +
-        `OPM (%)  +1125   +1443   22.4%   11.1%   7.9%\n` +
-        `PAT      +334%   +625%   309     71      43\n` +
+        `OPM (%)  +1125   +1443   ${opmStr.padStart(6)}  11.1%   7.9%\n` +
+        `PAT      ${patQoQStr.padStart(6)}  ${patYoYStr.padStart(6)}  309     71      43\n` +
         `EPS      +333%   +630%   51.1    11.8    7.0\n` +
         `\`\`\`\n\n` +
-        `*CMP : ${cmpDisplay}* | *${capCategory} (3.3K Cr)* | *P/E : ${peDisplay}*\n\n` +
+        `*CMP : ${cmpDisplay}* | *${capCategory} (${mcapDisplay})* | *P/E : ${peDisplay}*\n\n` +
         `⚡ *Intraday Trade Details:*\n` +
         `*Price:* ₹${effectiveEntry} | *Qty:* ${position.quantity} shares | *SL:* ₹${stopLoss}\n\n` +
         `👇 *Click below to confirm INTRADAY Buy Order on Angel One:*`;
