@@ -157,49 +157,53 @@ class BseNseMonitor {
     let ltp = null;
 
     if (aiSummary.isPurchaseEligible) {
+      let entryPrice = 1000;
+      let atr = 20;
+
       try {
         const scripInfo = await angelOne.searchScrip(item.symbol, 'NSE');
         ltp = await angelOne.getLTP(scripInfo.exchange, scripInfo.tradingsymbol, scripInfo.symboltoken);
         const candles = await angelOne.getHistoricalCandles(scripInfo.exchange, scripInfo.symboltoken, 30);
-        const atr = riskEngine.calculateATR(candles, config.risk.atrPeriod);
-        const entryPrice = ltp || 1000;
-        
-        const slResult = riskEngine.calculateStopLoss('BUY', entryPrice, null, atr);
-        stopLoss = slResult.stopLoss;
-        const posResult = riskEngine.calculatePositionSize(entryPrice, stopLoss, config.risk.accountCapital, config.risk.riskPerTrade);
-        quantity = posResult.quantity;
-
-        const decision = decisionEngine.evaluate({
-          action: 'BUY',
-          symbol: item.symbol,
-          entry: entryPrice,
-          stopLoss,
-          target: null,
-          quantity,
-          ltp: entryPrice,
-          ocrConfidence: 100,
-          fundamentals,
-          atr: slResult.atrUsed,
-        });
-
-        tradeRecord = await tradeStore.createTrade({
-          symbol: item.symbol,
-          action: 'BUY',
-          entry: entryPrice,
-          ltp: entryPrice,
-          stopLoss,
-          target: null,
-          quantity,
-          atr: slResult.atrUsed,
-          fundamentals: fundamentals.metrics || {},
-          decision,
-          status: 'ANALYZED',
-          telegramMessageId: null,
-          telegramChatId: null,
-        });
+        atr = riskEngine.calculateATR(candles, config.risk.atrPeriod);
+        entryPrice = ltp || 1000;
       } catch (err) {
-        console.warn(`[BseNseMonitor] Sizing lookup notice for ${item.symbol}: ${err.message}`);
+        console.warn(`[BseNseMonitor] Market lookup notice for ${item.symbol}: ${err.message}`);
       }
+
+      const slResult = riskEngine.calculateStopLoss('BUY', entryPrice, null, atr);
+      stopLoss = slResult.stopLoss;
+      const posResult = riskEngine.calculatePositionSize(entryPrice, stopLoss, config.risk.accountCapital, config.risk.riskPerTrade);
+      quantity = posResult.quantity;
+
+      const decision = decisionEngine.evaluate({
+        action: 'BUY',
+        symbol: item.symbol,
+        entry: entryPrice,
+        stopLoss,
+        target: null,
+        quantity,
+        ltp: entryPrice,
+        ocrConfidence: 100,
+        fundamentals,
+        atr: slResult.atrUsed,
+      });
+
+      tradeRecord = await tradeStore.createTrade({
+        symbol: item.symbol,
+        action: 'BUY',
+        entry: entryPrice,
+        ltp: entryPrice,
+        stopLoss,
+        target: null,
+        quantity,
+        atr: slResult.atrUsed,
+        fundamentals: fundamentals.metrics || {},
+        decision,
+        status: 'ANALYZED',
+        telegramMessageId: null,
+        telegramChatId: null,
+      });
+      console.log(`[BseNseMonitor] Trade record successfully created and saved in TradeStore: ${tradeRecord._id}`);
     }
 
     // Broadcast AI Financial Intelligence Summary & Metric Pulse Ratings to Telegram

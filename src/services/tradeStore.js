@@ -9,10 +9,15 @@ class TradeStore {
    * Save or Create a Trade Record
    */
   async createTrade(data) {
+    let createdTrade = null;
+
     if (mongoose.connection.readyState === 1) {
       try {
-        const trade = await Trade.create(data);
-        return trade;
+        createdTrade = await Trade.create(data);
+        if (createdTrade) {
+          inMemoryTrades.set(createdTrade._id.toString(), createdTrade);
+          return createdTrade;
+        }
       } catch (err) {
         console.warn(`[TradeStore] MongoDB save failed (${err.message}). Storing in memory.`);
       }
@@ -39,14 +44,20 @@ class TradeStore {
    * Find Trade by ID
    */
   async findById(id) {
-    if (inMemoryTrades.has(id)) {
-      return inMemoryTrades.get(id);
+    if (!id) return null;
+    const strId = id.toString();
+
+    if (inMemoryTrades.has(strId)) {
+      return inMemoryTrades.get(strId);
     }
 
-    if (mongoose.connection.readyState === 1) {
+    if (mongoose.connection.readyState === 1 && !strId.startsWith('MEM_')) {
       try {
-        const trade = await Trade.findById(id);
-        if (trade) return trade;
+        const trade = await Trade.findById(strId);
+        if (trade) {
+          inMemoryTrades.set(strId, trade);
+          return trade;
+        }
       } catch (err) {
         console.warn(`[TradeStore] MongoDB fetch error: ${err.message}`);
       }
