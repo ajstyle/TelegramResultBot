@@ -65,7 +65,16 @@ class PdfParserEngine {
       const origWarn = console.warn;
       const origError = console.error;
 
-      const shouldFilter = (str) => typeof str === 'string' && str.includes('font private use area');
+      const shouldFilter = (str) => {
+        if (typeof str !== 'string') return false;
+        return (
+          str.includes('font private use area') ||
+          str.includes('TT:') ||
+          str.includes('invalid function id') ||
+          str.includes('Warning:') ||
+          str.includes('TrueType')
+        );
+      };
 
       process.stdout.write = function (string, encoding, fd) {
         if (shouldFilter(string)) return true;
