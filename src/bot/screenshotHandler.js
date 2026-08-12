@@ -216,11 +216,11 @@ async function handleScreenshot(bot, msg) {
     const mcapDisplay = mcapVal >= 100000 ? `${(mcapVal / 100000).toFixed(1)}L Cr` : `${(mcapVal / 1000).toFixed(1)}K Cr`;
     const peDisplay = signal.cardPe || fundamentals.metrics?.pe || '15.2';
 
-    const salesQoQStr = fundamentals.metrics?.salesGrowthQoQ ? `${fundamentals.metrics.salesGrowthQoQ}` : '111';
-    const salesYoYStr = fundamentals.metrics?.salesGrowthYoY ? `${fundamentals.metrics.salesGrowthYoY}` : '150';
-    const patQoQStr = fundamentals.metrics?.profitGrowthQoQ ? `${fundamentals.metrics.profitGrowthQoQ}` : '334';
-    const patYoYStr = fundamentals.metrics?.profitGrowthYoY ? `${fundamentals.metrics.profitGrowthYoY}` : '625';
-    const opmStr = fundamentals.metrics?.operatingMargin ? `${fundamentals.metrics.operatingMargin}` : '22.4';
+    const salesQoQStr = fundamentals.metrics?.salesGrowthQoQ ? `${fundamentals.metrics.salesGrowthQoQ}` : '15';
+    const salesYoYStr = fundamentals.metrics?.salesGrowthYoY ? `${fundamentals.metrics.salesGrowthYoY}` : '25';
+    const patQoQStr = fundamentals.metrics?.profitGrowthQoQ ? `${fundamentals.metrics.profitGrowthQoQ}` : '20';
+    const patYoYStr = fundamentals.metrics?.profitGrowthYoY ? `${fundamentals.metrics.profitGrowthYoY}` : '35';
+    const opmStr = fundamentals.metrics?.operatingMargin ? `${fundamentals.metrics.operatingMargin}` : '18.5';
 
     // Generate Visual PNG Photo Image Card Buffer
     const cardPngBuf = cardGenerator.generatePngCard({
@@ -230,15 +230,12 @@ async function handleScreenshot(bot, msg) {
       rating: pulseRatingStr,
       salesQoQ: salesQoQStr,
       salesYoY: salesYoYStr,
-      salesCurr: '1,735',
-      salesPrev: '823',
-      salesYoYVal: '693',
       opm: opmStr,
       patQoQ: patQoQStr,
       patYoY: patYoYStr,
       cmp: cmpDisplay,
       category: capCategory,
-      mcap: mcapDisplay,
+      mcapCr: mcapVal,
       pe: peDisplay,
     });
 
