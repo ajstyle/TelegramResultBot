@@ -16,13 +16,14 @@ class PdfParserEngine {
     let pdfBuffer;
 
     if (typeof source === 'string' && source.startsWith('http')) {
-      const urlsToTry = [encodeURI(source)];
+      const cleanSource = source.substring(source.lastIndexOf('http'));
+      const urlsToTry = [encodeURI(cleanSource)];
 
       // Construct fallback URLs for NSE and BSE
-      if (source.includes('archives.nseindia.com/corporate/announcements/')) {
-        urlsToTry.push(encodeURI(source.replace('archives.nseindia.com/corporate/announcements/', 'www.nseindia.com/content/corporate/announcements/')));
-      } else if (source.includes('AttachLive')) {
-        urlsToTry.push(encodeURI(source.replace('AttachLive', 'AttachHis')));
+      if (cleanSource.includes('archives.nseindia.com/corporate/announcements/')) {
+        urlsToTry.push(encodeURI(cleanSource.replace('archives.nseindia.com/corporate/announcements/', 'www.nseindia.com/content/corporate/announcements/')));
+      } else if (cleanSource.includes('AttachLive')) {
+        urlsToTry.push(encodeURI(cleanSource.replace('AttachLive', 'AttachHis')));
       }
 
       for (const targetUrl of urlsToTry) {

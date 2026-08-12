@@ -73,6 +73,22 @@ class BseNseMonitor {
     }
   }
 
+  formatNsePdfUrl(file) {
+    if (!file) return null;
+    if (file.startsWith('http://') || file.startsWith('https://')) {
+      return file;
+    }
+    return `https://archives.nseindia.com/corporate/announcements/${file}`;
+  }
+
+  formatBsePdfUrl(file) {
+    if (!file) return null;
+    if (file.startsWith('http://') || file.startsWith('https://')) {
+      return file;
+    }
+    return `https://www.bseindia.com/xml-data/corpfiling/AttachLive/${file}`;
+  }
+
   /**
    * Fetch NSE Corporate Announcements with headers & backoff
    */
@@ -92,7 +108,7 @@ class BseNseMonitor {
           source: 'NSE',
           symbol: item.symbol || item.sm_symbol || 'NSE_STOCK',
           title: item.desc || item.attchmntText || 'Corporate Announcement',
-          pdfUrl: item.attchmntFile ? `https://archives.nseindia.com/corporate/announcements/${item.attchmntFile}` : null,
+          pdfUrl: this.formatNsePdfUrl(item.attchmntFile || item.attachmentFile || item.file),
           date: item.an_dt || new Date().toISOString(),
         }));
       }
@@ -122,7 +138,7 @@ class BseNseMonitor {
           source: 'BSE',
           symbol: item.SLONGNAME || item.SCRIP_CD || 'BSE_STOCK',
           title: item.NEWSSUB || item.HEADLINE || 'Corporate Announcement',
-          pdfUrl: item.ATTACHMENTNAME ? `https://www.bseindia.com/xml-data/corpfiling/AttachLive/${item.ATTACHMENTNAME}` : null,
+          pdfUrl: this.formatBsePdfUrl(item.ATTACHMENTNAME),
           date: item.NEWS_DT || new Date().toISOString(),
         }));
       }
