@@ -60,10 +60,6 @@ class AnnouncementFilter {
     // 1. Check for explicit exclusions
     for (const keyword of this.exclusionKeywords) {
       if (textToMatch.includes(keyword)) {
-        // Exception: If title contains "financial results" along with "outcome of board meeting", allow it
-        if (textToMatch.includes('financial results') || textToMatch.includes('quarterly results')) {
-          break;
-        }
         return false;
       }
     }
