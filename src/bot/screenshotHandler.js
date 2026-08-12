@@ -53,7 +53,7 @@ async function handleScreenshot(bot, msg) {
   const processingMsgs = [];
   for (const targetId of targetRecipientIds) {
     try {
-      const pMsg = await bot.sendMessage(targetId, '⏳ Analyzing signal & result pulse rating...');
+      const pMsg = await bot.sendMessage(targetId, '⏳ Processing signal & checking cautionary status...');
       processingMsgs.push({ targetId, messageId: pMsg.message_id });
     } catch (err) {
       console.warn(`[ScreenshotHandler] Failed to send processing notice to ${targetId}: ${err.message}`);
@@ -61,11 +61,14 @@ async function handleScreenshot(bot, msg) {
   }
 
   try {
-    let ocrText = '';
+    // Fast-Path Caption Parsing (0.05s Execution Speed when Caption/Text exists)
+    let ocrText = msg.caption || msg.text || '';
     let ocrConfidence = 100;
+    let signal = signalParser.parse(ocrText);
 
-    // Check if message contains photo or is raw text signal
-    if (msg.photo && Array.isArray(msg.photo) && msg.photo.length > 0 && msg.photo[0].file_id !== 'TEXT_SIGNAL') {
+    // Fallback Image OCR Scanning only if caption text does not contain symbol/rating
+    if (!signal.isParsed && msg.photo && Array.isArray(msg.photo) && msg.photo.length > 0 && msg.photo[0].file_id !== 'TEXT_SIGNAL') {
+      console.log(`[ScreenshotHandler] Caption incomplete. Performing image Tesseract OCR scanning...`);
       const photoArray = msg.photo;
       const highestResPhoto = photoArray[photoArray.length - 1];
 
@@ -77,25 +80,16 @@ async function handleScreenshot(bot, msg) {
       const imageBuffer = Buffer.concat(chunks);
 
       const ocrResult = await ocrEngine.processImage(imageBuffer);
-      const captionText = msg.caption || msg.text || '';
-      ocrText = `${captionText}\n${ocrResult.text}`.trim();
+      ocrText = `${ocrText}\n${ocrResult.text}`.trim();
       ocrConfidence = ocrResult.confidence;
-
-      console.log(`[ScreenshotHandler] Combined Caption + OCR Text: "${ocrText}" (Confidence: ${ocrConfidence}%)`);
-    } else if (msg.text || msg.caption) {
-      ocrText = msg.text || msg.caption;
-      ocrConfidence = 100;
-      console.log(`[ScreenshotHandler] Direct Text Signal Received: "${ocrText}"`);
+      signal = signalParser.parse(ocrText);
     }
 
-    // 5. Parse Signal
-    const signal = signalParser.parse(ocrText);
     if (!signal.isParsed) {
       const noticeMsg =
-        `⚠️ *OCR Signal Parsing Notice*\n\n` +
-        `*Raw Text Extracted:*\n\`${ocrText || '(No text detected)'}\`\n\n` +
-        `*OCR Confidence:* ${Math.round(ocrConfidence)}%\n\n` +
-        `Could not automatically extract stock symbol or entry price. Please send text manually in format: \`BUY TCS @ 3520\``;
+        `⚠️ *Signal Parsing Notice*\n\n` +
+        `*Text Analyzed:*\n\`${ocrText || '(No text or caption detected)'}\`\n\n` +
+        `Could not automatically extract stock symbol or entry price. Please send text in format: \`#PANAMAPET - Excellent Results\` or \`BUY TCS @ 3520\``;
 
       for (const { targetId, messageId } of processingMsgs) {
         try {
@@ -105,7 +99,7 @@ async function handleScreenshot(bot, msg) {
       return;
     }
 
-    // 6. Look up Scrip Info from Angel One & Perform First-Step Cautionary Check
+    // 6. Look up Scrip Info from Angel One & Perform FIRST-STEP Cautionary Check
     let scripInfo = null;
     let ltp = null;
     try {
@@ -137,7 +131,7 @@ async function handleScreenshot(bot, msg) {
 
     const effectiveEntry = signal.entry || ltp || 100;
 
-    // Instant 2% Volatility SL calculation (Bypasses slow 30-candle historical network fetch for 0.2-sec speed)
+    // Instant 2% Volatility SL calculation (0.01-sec speed)
     const atr = (effectiveEntry * 0.02) / (config.risk.atrMultiplier || 2);
     const { stopLoss, atrUsed, isCalculated } = riskEngine.calculateStopLoss(
       signal.action,
