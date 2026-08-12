@@ -156,7 +156,8 @@ class BseNseMonitorService {
       }
 
       const fundamentals = await fundamentalsService.analyze(item.symbol);
-      const aiSummary = aiSummaryEngine.generateSummary(item.symbol, pdfAnalysis.rawText, pdfAnalysis.metrics);
+      const combinedMetrics = { ...(fundamentals.metrics || {}), ...(pdfAnalysis.metrics || {}) };
+      const aiSummary = aiSummaryEngine.generateSummary(item.symbol, pdfAnalysis.rawText, combinedMetrics);
 
       let scripInfo = null;
       let ltp = null;
