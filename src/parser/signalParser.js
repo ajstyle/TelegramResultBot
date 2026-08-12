@@ -1,16 +1,16 @@
 /**
  * Reusable Signal Parser
- * Extracts trading signals (Action, Symbol, Entry, StopLoss, Target) from raw text.
+ * Extracts trading signals & infographic card data (Action, Symbol, Entry, StopLoss, Target, Rating, Category)
  */
 class SignalParser {
   /**
-   * Parse text and return structured signal object
+   * Parse raw OCR text or message text
    * @param {string} rawText
-   * @returns {{ action: string|null, symbol: string|null, entry: number|null, stopLoss: number|null, target: number|null, isParsed: boolean }}
+   * @returns {{ action: string|null, symbol: string|null, entry: number|null, stopLoss: number|null, target: number|null, cardRating: string|null, cardCategory: string|null, cardPe: number|null, isParsed: boolean }}
    */
   parse(rawText) {
     if (!rawText || typeof rawText !== 'string') {
-      return { action: null, symbol: null, entry: null, stopLoss: null, target: null, isParsed: false };
+      return { action: null, symbol: null, entry: null, stopLoss: null, target: null, cardRating: null, cardCategory: null, cardPe: null, isParsed: false };
     }
 
     // Clean up text: replace line breaks with spaces, convert multiple spaces to single space
@@ -23,10 +23,6 @@ class SignalParser {
       action = 'BUY';
     } else if (/\b(SELL|SHORT)\b/.test(upperText)) {
       action = 'SELL';
-    }
-
-    if (!action) {
-      return { action: null, symbol: null, entry: null, stopLoss: null, target: null, isParsed: false };
     }
 
     // 2. Extract Stop Loss (SL, S.L., STOPLOSS, STOP LOSS)
@@ -43,45 +39,80 @@ class SignalParser {
       target = parseFloat(targetMatch[1]);
     }
 
-    // 4. Extract Symbol & Entry Price
-    // Patterns to consider:
-    // - BUY TCS @ 3520
-    // - BUY TCS ENTRY 3520
-    // - BUY: TCS 3520
-    // - BUY TCS 3520
-    // - SELL RELIANCE @ 1450
-
     let symbol = null;
     let entry = null;
+    let cardRating = null;
+    let cardCategory = null;
+    let cardPe = null;
 
-    // Remove SL and TGT portions to prevent price confusion in symbol/entry extraction
+    // --- INFOGRAPHIC CARD LAYOUT PARSING (earningspulse.ai & Corporate Result Cards) ---
+    // Bracket Symbol e.g. [ PANAMAPET ] or [TCS]
+    const bracketSymbolMatch = cleanText.match(/\[\s*([A-Z0-9_-]+)\s*\]/i);
+    if (bracketSymbolMatch) {
+      symbol = bracketSymbolMatch[1].toUpperCase();
+    }
+
+    // Pulse Rating e.g. Pulse Rating : Excellent / Good
+    const pulseRatingMatch = upperText.match(/\bPULSE\s*RATING\s*[:=]?\s*(EXCELLENT|VERY\s*GOOD|GOOD|FAIR|POOR|VERY\s*POOR)/i);
+    if (pulseRatingMatch) {
+      cardRating = pulseRatingMatch[1].toUpperCase();
+      if (!action) {
+        if (cardRating.includes('EXCELLENT') || cardRating.includes('GOOD')) {
+          action = 'BUY';
+        } else if (cardRating.includes('POOR')) {
+          action = 'AVOID';
+        }
+      }
+    }
+
+    // CMP (Current Market Price) e.g. CMP : 563.8
+    const cmpMatch = upperText.match(/\bCMP\s*[:=]?\s*([0-9,]+(?:\.[0-9]+)?)/);
+    if (cmpMatch) {
+      entry = parseFloat(cmpMatch[1].replace(/,/g, ''));
+    }
+
+    // Company Size & Market Cap e.g. Small-Cap (3.3K Cr) or Mid-Cap
+    const capCategoryMatch = cleanText.match(/\b(Large-Cap|Mid-Cap|Small-Cap|Micro-Cap|Penny-Stock)\b/i);
+    if (capCategoryMatch) {
+      cardCategory = capCategoryMatch[1];
+    }
+
+    // P/E e.g. P/E : 15.2
+    const peMatch = upperText.match(/\bP\/?E\s*[:=]?\s*([0-9]+(?:\.[0-9]+)?)/);
+    if (peMatch) {
+      cardPe = parseFloat(peMatch[1]);
+    }
+
+    // Standard BUY/SELL Text Pattern Extraction
     let priceText = upperText;
     if (slMatch) priceText = priceText.replace(slMatch[0], '');
     if (targetMatch) priceText = priceText.replace(targetMatch[0], '');
 
-    // Common action prefixes
     const actionPattern = '(?:BUY|SELL|LONG|SHORT)';
+    if (!symbol || !entry) {
+      const mainMatch = priceText.match(
+        new RegExp(`${actionPattern}[:\\s]+([A-Z0-9\\.&-]+)(?:[\\s]+(?:@|ENTRY|AT|PRICE))?[:\\s]+([0-9]+(?:\\.[0-9]+)?)`)
+      );
 
-    // Pattern 1: Action [:]? [SYMBOL] [@] [ENTRY]
-    // e.g. BUY TCS @ 3520, BUY: RELIANCE 1450, BUY TCS ENTRY 3520
-    const mainMatch = priceText.match(
-      new RegExp(`${actionPattern}[:\\s]+([A-Z0-9\\.&-]+)(?:[\\s]+(?:@|ENTRY|AT|PRICE))?[:\\s]+([0-9]+(?:\\.[0-9]+)?)`)
-    );
-
-    if (mainMatch) {
-      symbol = mainMatch[1].replace(/[^A-Z0-9-]/g, '').trim();
-      entry = parseFloat(mainMatch[2]);
-    } else {
-      // Fallback Pattern 2: Action [SYMBOL] [NUMERIC_ENTRY]
-      const fallbackMatch = priceText.match(new RegExp(`${actionPattern}[:\\s]+([A-Z0-9\\.&-]+)[\\s]+([0-9]+(?:\\.[0-9]+)?)`));
-      if (fallbackMatch) {
-        symbol = fallbackMatch[1].replace(/[^A-Z0-9-]/g, '').trim();
-        entry = parseFloat(fallbackMatch[2]);
+      if (mainMatch) {
+        if (!symbol) symbol = mainMatch[1].replace(/[^A-Z0-9-]/g, '').trim();
+        if (!entry) entry = parseFloat(mainMatch[2]);
+      } else {
+        const fallbackMatch = priceText.match(new RegExp(`${actionPattern}[:\\s]+([A-Z0-9\\.&-]+)[\\s]+([0-9]+(?:\\.[0-9]+)?)`));
+        if (fallbackMatch) {
+          if (!symbol) symbol = fallbackMatch[1].replace(/[^A-Z0-9-]/g, '').trim();
+          if (!entry) entry = parseFloat(fallbackMatch[2]);
+        }
       }
     }
 
+    // If action is still not determined but symbol and CMP exist (common in image cards)
+    if (!action && symbol && entry) {
+      action = 'BUY';
+    }
+
     // Clean up symbol names (remove noise words if matched accidentally)
-    const ignoreKeywords = ['ENTRY', 'AT', 'FOR', 'NOW', 'CMP', 'PRICE', 'EQUITY', 'NSE', 'BSE'];
+    const ignoreKeywords = ['ENTRY', 'AT', 'FOR', 'NOW', 'CMP', 'PRICE', 'EQUITY', 'NSE', 'BSE', 'METRIC', 'QOQ', 'YOY', 'PULSE', 'RATING'];
     if (symbol && ignoreKeywords.includes(symbol)) {
       symbol = null;
     }
@@ -94,6 +125,9 @@ class SignalParser {
       entry,
       stopLoss,
       target,
+      cardRating,
+      cardCategory,
+      cardPe,
       isParsed,
     };
   }

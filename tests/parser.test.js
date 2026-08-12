@@ -70,4 +70,30 @@ describe('Signal Parser Unit Tests', () => {
     expect(result.isParsed).toBe(false);
     expect(result.action).toBeNull();
   });
+
+  test('Parses earningspulse.ai card layout for PANAMAPET', () => {
+    const cardInput = `
+      Panama Petrochem [PANAMAPET]
+      Petroleum Products | Lubricants
+      Q1 FY27 Pulse Rating : Excellent in Cr
+      Metric QoQ YoY Jun'26 Mar'26 Jun'25
+      Sales 111% 150% 1,735 823 693
+      Other Inc. - - 4 3 4
+      OP 325% 607% 388 91 55
+      OPM 1125 bps 1443 bps 22.4% 11.1% 7.9%
+      PAT 334% 625% 309 71 43
+      EPS 333% 630% 51.1 11.8 7.0
+      CMP : 563.8 | Small-Cap (3.3K Cr) | P/E : 15.2
+    `;
+
+    const result = signalParser.parse(cardInput);
+
+    expect(result.isParsed).toBe(true);
+    expect(result.action).toBe('BUY');
+    expect(result.symbol).toBe('PANAMAPET');
+    expect(result.entry).toBe(563.8);
+    expect(result.cardRating).toBe('EXCELLENT');
+    expect(result.cardCategory).toBe('Small-Cap');
+    expect(result.cardPe).toBe(15.2);
+  });
 });
