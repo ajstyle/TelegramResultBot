@@ -182,15 +182,20 @@ class BseNseMonitor {
         `✅ *Positive Drivers:*\n` + aiSummary.positivePoints.map(point => `- ${point}`).join('\n') + `\n\n` +
         `⚠️ *Hidden Risks:*\n` + aiSummary.hiddenRisks.map(risk => `- ${risk}`).join('\n');
 
-      const targetChats = config.telegram.authorizedChatIds.length > 0 
-        ? config.telegram.authorizedChatIds 
-        : (config.telegram.targetChannel ? [`@${config.telegram.targetChannel.replace(/^@/, '')}`] : []);
+      const targetChats = new Set([
+        ...config.telegram.authorizedChatIds,
+        ...(config.telegram.targetChannel ? [`@${config.telegram.targetChannel.replace(/^@/, '')}`] : []),
+      ]);
 
       for (const chatId of targetChats) {
         try {
           await this.bot.sendMessage(chatId, telegramMsg, { parse_mode: 'Markdown', disable_web_page_preview: false });
         } catch (e) {
-          console.warn(`[BseNseMonitor] Failed to send Telegram alert to ${chatId}: ${e.message}`);
+          if (e.message && e.message.includes('403')) {
+            console.warn(`[BseNseMonitor] Notice: Bot is not an Admin in channel ${chatId}. Add bot as Administrator in ${chatId} if you want channel posts.`);
+          } else {
+            console.warn(`[BseNseMonitor] Could not send Telegram alert to ${chatId}: ${e.message}`);
+          }
         }
       }
     }
