@@ -1,4 +1,4 @@
-const axios = require('axios');
+const https = require('https');
 
 /**
  * Pluggable Modular BSE Announcement Adapter
@@ -6,47 +6,79 @@ const axios = require('axios');
 class BseAdapter {
   constructor() {
     this.name = 'BSE';
-    this.userAgents = [
-      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    ];
   }
 
-  formatPdfUrl(file) {
-    if (!file) return null;
-    if (file.startsWith('http://') || file.startsWith('https://')) {
-      return file;
+  formatPdfUrl(attachmentName, newsid) {
+    if (attachmentName) {
+      if (attachmentName.startsWith('http://') || attachmentName.startsWith('https://')) {
+        return attachmentName;
+      }
+      return `https://www.bseindia.com/xml-data/corpfiling/AttachLive/${attachmentName}`;
     }
-    return `https://www.bseindia.com/xml-data/corpfiling/AttachLive/${file}`;
+    if (newsid) {
+      const match = newsid.match(/([a-f0-9-]{36})/i);
+      if (match) {
+        return `https://www.bseindia.com/xml-data/corpfiling/AttachLive/${match[1]}.pdf`;
+      }
+    }
+    return null;
   }
 
-  async fetchAnnouncements() {
-    try {
-      const response = await axios.get(`https://api.bseindia.com/BseIndiaAPI/api/AnnSubCategoryData/w?categoryId=-1&subCategoryId=-1&strType=C&_t=${Date.now()}`, {
+  fetchAnnouncements() {
+    return new Promise((resolve) => {
+      const options = {
+        hostname: 'api.bseindia.com',
+        path: `/BseIndiaAPI/api/CorpAnn/w?scripcode=&cat=&subcat=&_t=${Date.now()}`,
+        method: 'GET',
+        insecureHTTPParser: true,
         headers: {
-          'User-Agent': this.userAgents[0],
-          'Accept': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+          'Accept': 'application/json, text/plain, */*',
           'Origin': 'https://www.bseindia.com',
           'Referer': 'https://www.bseindia.com/',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0',
+          'Cache-Control': 'no-cache',
         },
-        timeout: 5000,
+      };
+
+      const req = https.request(options, (res) => {
+        let data = '';
+        res.on('data', (chunk) => (data += chunk));
+        res.on('end', () => {
+          try {
+            const list = JSON.parse(data);
+            if (Array.isArray(list)) {
+              const announcements = list.map((item) => {
+                const newsIdStr = item.Newsid || item.NEWSID || item.NEWS_ID || '';
+                const scripMatch = newsIdStr.match(/scrip_CD=(\d+)/i);
+                const scripCode = scripMatch ? scripMatch[1] : (item.SCRIP_CD || item.SLONGNAME || 'BSE_STOCK');
+                const symbolCandidate = item.SLONGNAME || item.SHORT_NAME || scripCode;
+
+                const cleanNewsId = newsIdStr.split('&')[0] || `${Date.now()}_${Math.random()}`;
+
+                return {
+                  source: 'BSE',
+                  symbol: symbolCandidate,
+                  title: item.Subject || item.NEWSSUB || item.HEADLINE || 'Corporate Announcement',
+                  subject: item.Subject || item.HEADLINE || '',
+                  pdfUrl: this.formatPdfUrl(item.ATTACHMENTNAME || item.AttachmentName, newsIdStr),
+                  announcementId: `BSE_${cleanNewsId}`,
+                  date: item.NEWS_DT || item.News_dt || new Date().toISOString(),
+                };
+              });
+              return resolve(announcements);
+            }
+          } catch (_) {}
+          resolve([]);
+        });
       });
 
-      if (response.data && Array.isArray(response.data.Table)) {
-        return response.data.Table.map(item => ({
-          source: 'BSE',
-          symbol: item.SLONGNAME || item.SCRIP_CD || 'BSE_STOCK',
-          title: item.NEWSSUB || item.HEADLINE || 'Corporate Announcement',
-          subject: item.HEADLINE || item.NEWSSUB || '',
-          pdfUrl: this.formatPdfUrl(item.ATTACHMENTNAME),
-          announcementId: item.NEWSID ? `BSE_${item.NEWSID}` : null,
-          date: item.NEWS_DT || new Date().toISOString(),
-        }));
-      }
-    } catch (_) {}
-    return [];
+      req.on('error', () => resolve([]));
+      req.setTimeout(6000, () => {
+        req.destroy();
+        resolve([]);
+      });
+      req.end();
+    });
   }
 }
 
