@@ -19,12 +19,33 @@ class BseNseMonitor {
     this.timer = null;
     this.recentAnnouncements = [];
     this.activeChatIds = new Set();
+    this.isInitialRun = true;
   }
 
   addActiveChatId(chatId) {
     if (chatId) {
       this.activeChatIds.add(chatId.toString());
     }
+  }
+
+  /**
+   * Filter out old announcements (> 3 hours old)
+   */
+  isRecentAnnouncement(item) {
+    if (!item || !item.date) return true;
+    try {
+      const pubDate = new Date(item.date);
+      if (isNaN(pubDate.getTime())) return true;
+
+      const now = Date.now();
+      const diffMs = now - pubDate.getTime();
+      const maxAgeMs = 3 * 60 * 60 * 1000; // 3 hours
+
+      if (diffMs > maxAgeMs) {
+        return false;
+      }
+    } catch (_) {}
+    return true;
   }
 
   /**
@@ -61,15 +82,32 @@ class BseNseMonitor {
 
       const allItems = [...nseItems, ...bseItems];
 
+      // On initial boot, seed deduplicator with pre-existing items so old announcements are ignored
+      if (this.isInitialRun) {
+        this.isInitialRun = false;
+        for (const item of allItems) {
+          if (announcementFilter.isEarningsAnnouncement(item)) {
+            deduplicator.isUnique(item);
+          }
+        }
+        console.log(`[BseNseMonitor] Initialized deduplicator with ${allItems.length} existing announcements. Listening for new live earnings...`);
+        return;
+      }
+
       for (const item of allItems) {
         // 1. Filter out non-earnings announcements
         if (!announcementFilter.isEarningsAnnouncement(item)) {
           continue;
         }
 
-        // 2. Cross-source deduplication check
+        // 2. Filter out old announcements (> 3 hours old)
+        if (!this.isRecentAnnouncement(item)) {
+          continue;
+        }
+
+        // 3. Cross-source deduplication check
         if (deduplicator.isUnique(item)) {
-          console.log(`[BseNseMonitor] Earnings Announcement Detected from ${item.source}: ${item.symbol} - ${item.title}`);
+          console.log(`[BseNseMonitor] Fresh Earnings Announcement Detected from ${item.source}: ${item.symbol} - ${item.title}`);
           await this.processAnnouncement(item);
         }
       }
