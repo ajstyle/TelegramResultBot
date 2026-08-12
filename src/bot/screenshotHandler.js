@@ -50,6 +50,17 @@ async function handleScreenshot(bot, msg) {
     ? (config.telegram.authorizedChatIds.length > 0 ? config.telegram.authorizedChatIds : [chatId])
     : [chatId];
 
+  // 2. Instant User Feedback Loading Message (0.01s Response Time)
+  const processingMsgs = [];
+  for (const targetId of targetRecipientIds) {
+    try {
+      const pMsg = await bot.sendMessage(targetId, '⏳ Analyzing image signal & pulse rating...');
+      processingMsgs.push({ targetId, messageId: pMsg.message_id });
+    } catch (err) {
+      console.warn(`[ScreenshotHandler] Failed to send processing notice to ${targetId}: ${err.message}`);
+    }
+  }
+
   try {
     // Fast-Path Caption Parsing (0.01s Execution Speed when Caption/Text exists)
     let ocrText = msg.caption || msg.text || '';
@@ -58,7 +69,7 @@ async function handleScreenshot(bot, msg) {
 
     // Fallback Image OCR Scanning only if caption text does not contain symbol/rating
     if (!signal.isParsed && msg.photo && Array.isArray(msg.photo) && msg.photo.length > 0 && msg.photo[0].file_id !== 'TEXT_SIGNAL') {
-      console.log(`[ScreenshotHandler] Caption incomplete. Performing image Tesseract OCR scanning...`);
+      console.log(`[ScreenshotHandler] Caption incomplete. Performing image Tesseract OCR scanning with warm worker...`);
       const photoArray = msg.photo;
       const highestResPhoto = photoArray[photoArray.length - 1];
 
@@ -81,9 +92,9 @@ async function handleScreenshot(bot, msg) {
         `*Text Analyzed:*\n\`${ocrText || '(No text or caption detected)'}\`\n\n` +
         `Could not automatically extract stock symbol or entry price. Please send text in format: \`#PANAMAPET - Excellent Results\` or \`BUY TCS @ 3520\``;
 
-      for (const targetId of targetRecipientIds) {
+      for (const { targetId, messageId } of processingMsgs) {
         try {
-          await bot.sendMessage(targetId, noticeMsg, { parse_mode: 'Markdown' });
+          await bot.editMessageText(noticeMsg, { chat_id: targetId, message_id: messageId, parse_mode: 'Markdown' });
         } catch (_) {}
       }
       return;
@@ -94,7 +105,6 @@ async function handleScreenshot(bot, msg) {
     let ltp = null;
     try {
       scripInfo = await angelOne.searchScrip(signal.symbol, 'NSE');
-      // Skip network getLTP if signal entry price is already extracted from caption/card
       if (signal.entry) {
         ltp = signal.entry;
       } else {
@@ -116,9 +126,9 @@ async function handleScreenshot(bot, msg) {
         `SEBI & Angel One restrict automated API orders for stocks under cautionary listings.\n\n` +
         `💡 *Manual Trade:* If you still wish to buy ${signal.symbol}, please place the order manually in your Angel One mobile app.`;
 
-      for (const targetId of targetRecipientIds) {
+      for (const { targetId, messageId } of processingMsgs) {
         try {
-          await bot.sendMessage(targetId, cautionaryNotice, { parse_mode: 'Markdown' });
+          await bot.editMessageText(cautionaryNotice, { chat_id: targetId, message_id: messageId, parse_mode: 'Markdown' });
         } catch (_) {}
       }
       return;
@@ -206,7 +216,7 @@ async function handleScreenshot(bot, msg) {
       decision,
       status: tradeStatus,
       angelOrderId: orderResult?.orderId || null,
-      telegramMessageId: null,
+      telegramMessageId: processingMsgs[0]?.messageId || null,
       telegramChatId: targetRecipientIds[0] || chatId,
     });
 
@@ -271,21 +281,25 @@ async function handleScreenshot(bot, msg) {
       };
     }
 
-    for (const targetId of targetRecipientIds) {
+    for (const { targetId, messageId } of processingMsgs) {
       try {
-        await bot.sendMessage(targetId, outputMessage, {
+        await bot.editMessageText(outputMessage, {
+          chat_id: targetId,
+          message_id: messageId,
           parse_mode: 'Markdown',
           reply_markup: replyMarkup,
         });
       } catch (err) {
-        console.warn(`[ScreenshotHandler] Failed to send message to ${targetId}: ${err.message}`);
+        console.warn(`[ScreenshotHandler] Failed to edit message ${messageId} on ${targetId}: ${err.message}`);
       }
     }
   } catch (error) {
     console.error(`[ScreenshotHandler] Error processing screenshot: ${error.stack}`);
-    for (const targetId of targetRecipientIds) {
+    for (const { targetId, messageId } of processingMsgs) {
       try {
-        await bot.sendMessage(targetId, `❌ *Error Processing Image:* ${error.message}`, {
+        await bot.editMessageText(`❌ *Error Processing Image:* ${error.message}`, {
+          chat_id: targetId,
+          message_id: messageId,
           parse_mode: 'Markdown',
         });
       } catch (_) {}
