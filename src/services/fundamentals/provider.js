@@ -33,7 +33,7 @@ class FundamentalsProvider {
 
         const response = await axios.get(requestUrl, {
           headers: requestHeaders,
-          timeout: 5000,
+          timeout: 500,
         });
 
         if (response.data && Array.isArray(response.data) && response.data.length > 0) {

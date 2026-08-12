@@ -142,7 +142,7 @@ class AngelOneService {
           exchange,
           searchscrip: formattedSymbol,
         },
-        { headers: this.getHeaders(), timeout: 15000 }
+        { headers: this.getHeaders(), timeout: 1000 }
       );
 
       if (response.data && response.data.status && Array.isArray(response.data.data) && response.data.data.length > 0) {
