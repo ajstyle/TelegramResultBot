@@ -245,6 +245,21 @@ async function startServer() {
     console.log(`[Express] HTTP Server running on http://localhost:${config.port}`);
   });
 
+  const gracefulShutdown = signal => {
+    console.log(`[Server] Received ${signal}. Shutting down gracefully...`);
+    try {
+      bseNseMonitor.stop();
+    } catch (_) {}
+    server.close(() => {
+      console.log('[Server] HTTP server closed. Exiting cleanly.');
+      process.exit(0);
+    });
+    setTimeout(() => process.exit(0), 3000);
+  };
+
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
   return server;
 }
 
