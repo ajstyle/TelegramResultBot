@@ -50,10 +50,13 @@ function initTelegramBot() {
   const botStartTimeSec = Math.floor(Date.now() / 1000);
 
   const isStaleMessage = msg => {
+    // Never drop private direct messages or forwarded channel posts
+    if (msg && msg.chat && msg.chat.type === 'private') return false;
+    if (msg && (msg.forward_from_chat || msg.forward_from)) return false;
+
     if (!msg || !msg.date) return false;
     const nowSec = Math.floor(Date.now() / 1000);
-    // Ignore messages sent before bot started or older than 120 seconds
-    return (msg.date < botStartTimeSec - 30) || ((nowSec - msg.date) > 120);
+    return (nowSec - msg.date) > 600; // Drop only if older than 10 minutes
   };
 
   const isTargetChannelMessage = msg => {
