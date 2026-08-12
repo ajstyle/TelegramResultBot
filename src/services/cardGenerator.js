@@ -12,15 +12,25 @@ class CardGenerator {
    */
   generatePngCard(data) {
     const svgBuffer = this.generateSvgCard(data);
+    const svgStr = svgBuffer.toString('utf-8');
     try {
-      const resvg = new Resvg(svgBuffer.toString('utf-8'), {
+      const resvg = new Resvg(svgStr, {
         fitTo: { mode: 'width', value: 800 },
+        font: { loadSystemFonts: true },
       });
-      const pngData = resvg.render();
-      return pngData.asPng();
+      return resvg.render().asPng();
     } catch (e) {
-      console.error('[CardGenerator] Resvg PNG rendering error:', e.message);
-      return svgBuffer;
+      console.warn('[CardGenerator] Resvg primary rendering notice:', e.message);
+      try {
+        const fallbackResvg = new Resvg(svgStr, {
+          fitTo: { mode: 'width', value: 800 },
+          font: { loadSystemFonts: false },
+        });
+        return fallbackResvg.render().asPng();
+      } catch (err2) {
+        console.error('[CardGenerator] Resvg PNG fallback error:', err2.message);
+        return svgBuffer;
+      }
     }
   }
 
