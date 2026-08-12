@@ -1,10 +1,10 @@
 /**
  * Reusable Signal Parser
- * Extracts trading signals & infographic card data (Action, Symbol, Entry, StopLoss, Target, Rating, Category)
+ * Generic Extractor for Trading Signals & Infographic Cards (Action, Symbol, Entry, StopLoss, Target, Rating, Category)
  */
 class SignalParser {
   /**
-   * Parse raw OCR text or message text
+   * Parse raw OCR text or message text dynamically for ANY stock
    * @param {string} rawText
    * @returns {{ action: string|null, symbol: string|null, entry: number|null, stopLoss: number|null, target: number|null, cardRating: string|null, cardCategory: string|null, cardPe: number|null, isParsed: boolean }}
    */
@@ -45,14 +45,61 @@ class SignalParser {
     let cardCategory = null;
     let cardPe = null;
 
-    // --- INFOGRAPHIC CARD LAYOUT PARSING (earningspulse.ai & Corporate Result Cards) ---
-    // Bracket Symbol e.g. [ PANAMAPET ] or [TCS]
-    const bracketSymbolMatch = cleanText.match(/\[\s*([A-Z0-9_-]+)\s*\]/i);
-    if (bracketSymbolMatch) {
-      symbol = bracketSymbolMatch[1].toUpperCase();
+    // --- STEP A: Standard Text Signal Pattern Matching (e.g. BUY TCS @ 3520) ---
+    let priceText = upperText;
+    if (slMatch) priceText = priceText.replace(slMatch[0], '');
+    if (targetMatch) priceText = priceText.replace(targetMatch[0], '');
+
+    const actionPattern = '(?:BUY|SELL|LONG|SHORT)';
+    const mainMatch = priceText.match(
+      new RegExp(`${actionPattern}[:\\s]+([A-Z0-9\\.&-]+)(?:[\\s]+(?:@|ENTRY|AT|PRICE))?[:\\s]+([0-9]+(?:\\.[0-9]+)?)`)
+    );
+
+    if (mainMatch) {
+      symbol = mainMatch[1].replace(/[^A-Z0-9-]/g, '').trim();
+      entry = parseFloat(mainMatch[2]);
+    } else {
+      const fallbackMatch = priceText.match(new RegExp(`${actionPattern}[:\\s]+([A-Z0-9\\.&-]+)[\\s]+([0-9]+(?:\\.[0-9]+)?)`));
+      if (fallbackMatch) {
+        symbol = fallbackMatch[1].replace(/[^A-Z0-9-]/g, '').trim();
+        entry = parseFloat(fallbackMatch[2]);
+      }
     }
 
-    // Pulse Rating e.g. Pulse Rating : Excellent / Good / Eva Pulse Rating : Excellent
+    // --- STEP B: Generic Infographic Card Parsing (Runs if symbol/entry not found from text regex) ---
+    
+    // 1. Bracket Symbol Extractor e.g. [ PANAMAPET ], [ TCS ], ( RELIANCE ), [ DIXON ]
+    if (!symbol) {
+      const bracketSymbolMatch = cleanText.match(/(?:\[|\(|\{)\s*([A-Z0-9_-]{2,15})\s*(?:\]|\)|\})/i);
+      const nonSymbolBrackets = ['CR', 'Q1', 'Q2', 'Q3', 'Q4', 'FY24', 'FY25', 'FY26', 'FY27', 'FY28', 'BUY', 'SELL', 'NSE', 'BSE'];
+      if (bracketSymbolMatch && !nonSymbolBrackets.includes(bracketSymbolMatch[1].toUpperCase())) {
+        symbol = bracketSymbolMatch[1].toUpperCase();
+      }
+    }
+
+    // 2. Generic Header Scanning Extractor (Runs for ANY stock card when brackets are absent or OCR noise occurs)
+    if (!symbol) {
+      const lines = rawText.split(/[\r\n]+/).map(line => line.replace(/[^a-zA-Z0-9\s-]/g, ' ').trim()).filter(Boolean);
+      
+      const noiseWords = new Set([
+        'METRIC', 'QOQ', 'YOY', 'PULSE', 'RATING', 'EXCELLENT', 'GOOD', 'POOR', 'FAIR', 'BUY', 'SELL',
+        'LIMITED', 'LTD', 'INDUSTRIES', 'CORP', 'CORPORATION', 'HOLDINGS', 'FINANCE', 'BANK', 'INDIA',
+        'PRODUCTS', 'LUBRICANTS', 'SERVICES', 'ENTERPRISES', 'IN', 'CR', 'CMP', 'PE', 'EPS', 'PAT', 'OPM', 'OP', 'SALES'
+      ]);
+
+      for (let i = 0; i < Math.min(3, lines.length); i++) {
+        const words = lines[i].split(/\s+/).filter(w => w.length >= 3 && !noiseWords.has(w.toUpperCase()));
+        if (words.length > 0) {
+          const candidateTitle = words.slice(0, 3).join(' ').toUpperCase();
+          if (candidateTitle.length >= 3) {
+            symbol = candidateTitle;
+            break;
+          }
+        }
+      }
+    }
+
+    // 3. Pulse Rating Extractor e.g. Pulse Rating : Excellent / Good
     const pulseRatingMatch = upperText.match(/(?:PULSE\s*RATING|RATING)\s*[:=]?\s*(EXCELLENT|VERY\s*GOOD|GOOD|FAIR|POOR|VERY\s*POOR)/i);
     if (pulseRatingMatch) {
       cardRating = pulseRatingMatch[1].toUpperCase();
@@ -65,69 +112,24 @@ class SignalParser {
       }
     }
 
-    // CMP (Current Market Price) e.g. CMP : 563.8
-    const cmpMatch = upperText.match(/\bCMP\s*[:=]?\s*([0-9,]+(?:\.[0-9]+)?)/);
-    if (cmpMatch) {
-      entry = parseFloat(cmpMatch[1].replace(/,/g, ''));
+    // 4. CMP (Current Market Price) Extractor e.g. CMP : 563.8 or CMP 1450.5
+    if (!entry) {
+      const cmpMatch = upperText.match(/\bCMP\s*[:=]?\s*([0-9,]+(?:\.[0-9]+)?)/);
+      if (cmpMatch) {
+        entry = parseFloat(cmpMatch[1].replace(/,/g, ''));
+      }
     }
 
-    // Company Size & Market Cap e.g. Small-Cap (3.3K Cr) or Mid-Cap
+    // 5. Company Size & Market Cap Extractor e.g. Small-Cap (3.3K Cr) or Mid-Cap
     const capCategoryMatch = cleanText.match(/\b(Large-Cap|Mid-Cap|Small-Cap|Micro-Cap|Penny-Stock)\b/i);
     if (capCategoryMatch) {
       cardCategory = capCategoryMatch[1];
     }
 
-    // P/E e.g. P/E : 15.2 or P/E 115.2 / 15.2
+    // 6. P/E Extractor e.g. P/E : 15.2
     const peMatch = upperText.match(/\bP\/?E\s*[:=]?\s*([0-9]+(?:\.[0-9]+)?)/);
     if (peMatch) {
       cardPe = parseFloat(peMatch[1]);
-    }
-
-    // Standard BUY/SELL Text Pattern Extraction
-    let priceText = upperText;
-    if (slMatch) priceText = priceText.replace(slMatch[0], '');
-    if (targetMatch) priceText = priceText.replace(targetMatch[0], '');
-
-    const actionPattern = '(?:BUY|SELL|LONG|SHORT)';
-    if (!symbol || !entry) {
-      const mainMatch = priceText.match(
-        new RegExp(`${actionPattern}[:\\s]+([A-Z0-9\\.&-]+)(?:[\\s]+(?:@|ENTRY|AT|PRICE))?[:\\s]+([0-9]+(?:\\.[0-9]+)?)`)
-      );
-
-      if (mainMatch) {
-        if (!symbol) symbol = mainMatch[1].replace(/[^A-Z0-9-]/g, '').trim();
-        if (!entry) entry = parseFloat(mainMatch[2]);
-      } else {
-        const fallbackMatch = priceText.match(new RegExp(`${actionPattern}[:\\s]+([A-Z0-9\\.&-]+)[\\s]+([0-9]+(?:\\.[0-9]+)?)`));
-        if (fallbackMatch) {
-          if (!symbol) symbol = fallbackMatch[1].replace(/[^A-Z0-9-]/g, '').trim();
-          if (!entry) entry = parseFloat(fallbackMatch[2]);
-        }
-      }
-    }
-
-    // Known Company Name -> Stock Symbol mapping for OCR noise fallback
-    const knownCompanyMap = [
-      { name: 'PANAMA PETRO', symbol: 'PANAMAPET' },
-      { name: 'PANAMA PETROCHEM', symbol: 'PANAMAPET' },
-      { name: 'TATA MOTORS', symbol: 'TATAMOTORS' },
-      { name: 'TATA CONSULTANCY', symbol: 'TCS' },
-      { name: 'INFOSYS', symbol: 'INFOSYS' },
-      { name: 'RELIANCE', symbol: 'RELIANCE' },
-      { name: 'HDFC BANK', symbol: 'HDFCBANK' },
-      { name: 'ICICI BANK', symbol: 'ICICIBANK' },
-      { name: 'STATE BANK', symbol: 'SBIN' },
-      { name: 'JNK INDIA', symbol: 'JNKINDIA' },
-      { name: 'FLAIR', symbol: 'FLAIR' },
-    ];
-
-    if (!symbol) {
-      for (const comp of knownCompanyMap) {
-        if (upperText.includes(comp.name)) {
-          symbol = comp.symbol;
-          break;
-        }
-      }
     }
 
     // If action is still not determined but symbol and CMP exist (common in image cards)

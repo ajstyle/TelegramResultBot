@@ -118,8 +118,27 @@ describe('Signal Parser Unit Tests', () => {
 
     expect(result.isParsed).toBe(true);
     expect(result.action).toBe('BUY');
-    expect(result.symbol).toBe('PANAMAPET');
+    expect(result.symbol).toBe('PANAMA PETROCHEM');
     expect(result.entry).toBe(563.8);
+    expect(result.cardRating).toBe('EXCELLENT');
+  });
+
+  test('Parses generic card for Dixon Technologies [DIXON]', () => {
+    const genericInput = `
+      Dixon Tech [DIXON]
+      Consumer Electronics
+      Pulse Rating : Excellent
+      Sales 45% 68% 4200 2800 2500
+      PAT 85% 120% 210 115 95
+      CMP : 14250.0 | Mid-Cap (85K Cr) | P/E 62.5
+    `;
+
+    const result = signalParser.parse(genericInput);
+
+    expect(result.isParsed).toBe(true);
+    expect(result.action).toBe('BUY');
+    expect(result.symbol).toBe('DIXON');
+    expect(result.entry).toBe(14250.0);
     expect(result.cardRating).toBe('EXCELLENT');
   });
 });
