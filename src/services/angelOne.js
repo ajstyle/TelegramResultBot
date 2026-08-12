@@ -256,9 +256,16 @@ class AngelOneService {
    * @param {object} orderParams { tradingsymbol, symboltoken, transactiontype, quantity, price, orderType, productType }
    * @returns {Promise<{ success: boolean, orderId: string, message: string }>}
    */
-  async placeOrder(orderParams) {
-    const { tradingsymbol, symboltoken, transactiontype, quantity, price, orderType = 'LIMIT', productType = 'DELIVERY', exchange = 'NSE' } = orderParams;
-
+  async placeOrder({
+    tradingsymbol,
+    symboltoken,
+    transactiontype = 'BUY',
+    quantity,
+    price,
+    orderType = 'LIMIT',
+    productType = 'INTRADAY',
+    exchange = 'NSE',
+  }) {
     if (config.tradingMode === 'PAPER') {
       const mockOrderId = `PAPER_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
       console.log(`[AngelOne] PAPER ORDER PLACED: ${transactiontype} ${quantity} ${tradingsymbol} @ ₹${price} (Order ID: ${mockOrderId})`);

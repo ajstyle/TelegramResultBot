@@ -151,10 +151,13 @@ async function handleScreenshot(bot, msg) {
       atr: atrUsed,
     });
 
-    // 14. Auto-Execute Check
+    // 14. Auto-Execute Check (Triggers auto-purchase directly when Pulse Rating is EXCELLENT or AutoExecute enabled)
+    const isPulseExcellent = (signal.cardRating && signal.cardRating.includes('EXCELLENT')) || (decision.score >= 70);
+    const shouldAutoExecute = isPulseExcellent || config.telegram.autoExecute;
+
     let orderResult = null;
-    if (config.telegram.autoExecute && decision.recommendation !== 'AVOID' && position.quantity > 0) {
-      console.log(`[ScreenshotHandler] Auto-executing ${signal.action} order for ${signal.symbol}...`);
+    if (shouldAutoExecute && decision.recommendation !== 'AVOID' && position.quantity > 0) {
+      console.log(`[ScreenshotHandler] Auto-executing INTRADAY ${signal.action} order for ${signal.symbol}...`);
       orderResult = await angelOne.placeOrder({
         tradingsymbol: scripInfo.tradingsymbol,
         symboltoken: scripInfo.symboltoken,
@@ -162,7 +165,7 @@ async function handleScreenshot(bot, msg) {
         quantity: position.quantity,
         price: effectiveEntry,
         orderType: 'LIMIT',
-        productType: 'DELIVERY',
+        productType: 'INTRADAY',
         exchange: 'NSE',
       });
     }

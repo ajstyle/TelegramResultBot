@@ -107,7 +107,7 @@ async function handleOrderConfirmation(bot, callbackQuery) {
     // 5. Look up symbol token dynamically from Angel One
     const scripInfo = await angelOne.searchScrip(trade.symbol, 'NSE');
 
-    // 6. Place Order with Angel One
+    // 6. Place Order with Angel One (INTRADAY)
     const orderResult = await angelOne.placeOrder({
       tradingsymbol: scripInfo.tradingsymbol,
       symboltoken: scripInfo.symboltoken,
@@ -115,7 +115,7 @@ async function handleOrderConfirmation(bot, callbackQuery) {
       quantity: trade.quantity,
       price: trade.entry,
       orderType: 'LIMIT',
-      productType: 'DELIVERY',
+      productType: 'INTRADAY',
       exchange: 'NSE',
     });
 
