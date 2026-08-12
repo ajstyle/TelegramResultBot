@@ -241,11 +241,11 @@ class BseNseMonitorService {
         }
 
         const timeAgoStr = this.getTimeAgo(item.date);
-        const compCategory = fundamentals.companyCategory || 'Small-Cap';
-        const mcapVal = fundamentals.metrics?.marketCapCr || 3300;
-        const mcapDisplay = mcapVal >= 100000 ? `${(mcapVal / 100000).toFixed(1)}L Cr` : `${(mcapVal / 1000).toFixed(1)}K Cr`;
-        const peDisplay = fundamentals.metrics?.pe || '15.2';
-        const cmpDisplay = entryPrice ? entryPrice.toFixed(1) : '563.8';
+        const compCategory = fundamentals.companyCategory || 'Listed Stock';
+        const mcapVal = fundamentals.metrics?.marketCapCr;
+        const mcapDisplay = mcapVal ? (mcapVal >= 100000 ? `${(mcapVal / 100000).toFixed(1)}L Cr` : `${(mcapVal / 1000).toFixed(1)}K Cr`) : '-';
+        const peDisplay = fundamentals.metrics?.pe ? `${fundamentals.metrics.pe}` : '-';
+        const cmpDisplay = entryPrice ? `₹${entryPrice.toFixed(1)}` : '-';
         const valuationDisplay = fundamentals.valuation || 'FAIRLY VALUED ⚖️';
 
         const displayHeaderSymbol = item.scripCode && item.symbol !== item.scripCode
@@ -254,55 +254,37 @@ class BseNseMonitorService {
 
         const hashtagSymbol = `#${item.symbol.toUpperCase().replace(/[^A-Z0-9_]/g, '')}`;
 
-        const salesGrowthQoQ = p.salesQoQ.val ?? 15;
-        const salesGrowthYoY = p.salesYoY.val ?? 25;
-        const patGrowthQoQ = p.patQoQ.val ?? 20;
-        const patGrowthYoY = p.patYoY.val ?? 35;
-        const opmVal = p.opm.val ?? 18.5;
+        // Direct Extracted PDF Results
+        const m = pdfAnalysis.metrics || {};
+        const sQoQStr = m.salesQoQ !== null && m.salesQoQ !== undefined ? `${m.salesQoQ > 0 ? '+' : ''}${m.salesQoQ}%` : '-';
+        const sYoYStr = m.salesYoY !== null && m.salesYoY !== undefined ? `${m.salesYoY > 0 ? '+' : ''}${m.salesYoY}%` : '-';
+        const pQoQStr = m.patQoQ !== null && m.patQoQ !== undefined ? `${m.patQoQ > 0 ? '+' : ''}${m.patQoQ}%` : '-';
+        const pYoYStr = m.patYoY !== null && m.patYoY !== undefined ? `${m.patYoY > 0 ? '+' : ''}${m.patYoY}%` : '-';
+        const opmStr = m.opm !== null && m.opm !== undefined ? `${m.opm}%` : '-';
 
-        // Dynamic Stock Figures for Text Table
-        const sCurr = Math.round(mcapVal * 0.4);
-        const sPrev = Math.round(sCurr / (1 + salesGrowthQoQ / 100));
-        const sYoY = Math.round(sCurr / (1 + salesGrowthYoY / 100));
+        const sCurrStr = m.sales !== null && m.sales !== undefined ? m.sales.toLocaleString('en-IN') : '-';
+        const sPrevStr = m.salesPrev !== null && m.salesPrev !== undefined ? m.salesPrev.toLocaleString('en-IN') : '-';
+        const sYoYValStr = m.salesYoYVal !== null && m.salesYoYVal !== undefined ? m.salesYoYVal.toLocaleString('en-IN') : '-';
 
-        const opCurr = Math.round(sCurr * (opmVal / 100));
-        const opPrev = Math.round(sPrev * ((opmVal * 0.9) / 100));
-        const opYoYVal = Math.round(sYoY * ((opmVal * 0.8) / 100));
-
-        const pCurr = Math.round(opCurr * 0.72);
-        const pPrev = Math.round(pCurr / (1 + Math.max(0.1, patGrowthQoQ) / 100));
-        const pYoY = Math.round(pCurr / (1 + Math.max(0.1, patGrowthYoY) / 100));
-
-        const sharesCount = mcapVal / (entryPrice || 500);
-        const eCurr = Math.max(0.1, pCurr / sharesCount).toFixed(1);
-        const ePrev = Math.max(0.1, pPrev / sharesCount).toFixed(1);
-        const eYoY = Math.max(0.1, pYoY / sharesCount).toFixed(1);
-
-        const opQoQ = Math.round(((opCurr - opPrev) / Math.max(1, opPrev)) * 100);
-        const opYoY = Math.round(((opCurr - opYoYVal) / Math.max(1, opYoYVal)) * 100);
-        const epQoQ = Math.round(((parseFloat(eCurr) - parseFloat(ePrev)) / Math.max(0.1, parseFloat(ePrev))) * 100);
-        const epYoY = Math.round(((parseFloat(eCurr) - parseFloat(eYoY)) / Math.max(0.1, parseFloat(eYoY))) * 100);
-
-        const salesQoQStr = `${salesGrowthQoQ > 0 ? '+' : ''}${salesGrowthQoQ}%`;
-        const salesYoYStr = `${salesGrowthYoY > 0 ? '+' : ''}${salesGrowthYoY}%`;
-        const patQoQStr = `${patGrowthQoQ > 0 ? '+' : ''}${patGrowthQoQ}%`;
-        const patYoYStr = `${patGrowthYoY > 0 ? '+' : ''}${patGrowthYoY}%`;
-        const opmStr = `${opmVal}%`;
+        const othCurrStr = m.otherIncome !== null && m.otherIncome !== undefined ? m.otherIncome.toLocaleString('en-IN') : '-';
+        const opCurrStr = m.operatingProfit !== null && m.operatingProfit !== undefined ? m.operatingProfit.toLocaleString('en-IN') : '-';
+        const patCurrStr = m.pat !== null && m.pat !== undefined ? m.pat.toLocaleString('en-IN') : '-';
+        const epsCurrStr = m.eps !== null && m.eps !== undefined ? m.eps.toString() : '-';
 
         // Infographic Report Card Table Format matching earningspulse.ai card layout
         const telegramMsg =
           `🏢 *${displayHeaderSymbol}*  [ ${hashtagSymbol} ]\n` +
           `📢 *OFFICIAL ${item.source} EARNINGS ANNOUNCEMENT*\n\n` +
-          `⚡ *Pulse Rating :* \`${aiSummary.overallRating || 'EXCELLENT'}\` | 💎 *Valuation:* \`${valuationDisplay}\`\n\n` +
+          `⚡ *Pulse Rating :* \`${aiSummary.overallRating || 'GOOD 👍'}\` | 💎 *Valuation:* \`${valuationDisplay}\`\n\n` +
           `\`\`\`text\n` +
           `Metric   QoQ     YoY     Jun'26  Mar'26  Jun'25\n` +
           `-----------------------------------------------\n` +
-          `Sales    ${salesQoQStr.padStart(6)}  ${salesYoYStr.padStart(6)}  ${sCurr.toLocaleString('en-IN').padStart(6)}  ${sPrev.toLocaleString('en-IN').padStart(6)}  ${sYoY.toLocaleString('en-IN').padStart(6)}\n` +
-          `Oth.Inc  -       -       ${Math.max(1, Math.round(sCurr * 0.005)).toString().padStart(6)}  ${Math.max(1, Math.round(sPrev * 0.005)).toString().padStart(6)}  ${Math.max(1, Math.round(sYoY * 0.005)).toString().padStart(6)}\n` +
-          `OP       ${opQoQ >= 0 ? '+' : ''}${opQoQ}%   ${opYoY >= 0 ? '+' : ''}${opYoY}%   ${opCurr.toLocaleString('en-IN').padStart(6)}  ${opPrev.toLocaleString('en-IN').padStart(6)}  ${opYoYVal.toLocaleString('en-IN').padStart(6)}\n` +
-          `OPM (%)  +${Math.round((opmVal - opmVal * 0.9) * 10)}   +${Math.round((opmVal - opmVal * 0.8) * 10)}   ${opmStr.padStart(6)}  ${(opmVal * 0.9).toFixed(1)}%   ${(opmVal * 0.8).toFixed(1)}%\n` +
-          `PAT      ${patQoQStr.padStart(6)}  ${patYoYStr.padStart(6)}  ${pCurr.toLocaleString('en-IN').padStart(6)}  ${pPrev.toLocaleString('en-IN').padStart(6)}  ${pYoY.toLocaleString('en-IN').padStart(6)}\n` +
-          `EPS      ${epQoQ >= 0 ? '+' : ''}${epQoQ}%   ${epYoY >= 0 ? '+' : ''}${epYoY}%   ${eCurr.padStart(6)}  ${ePrev.padStart(6)}  ${eYoY.padStart(6)}\n` +
+          `Sales    ${sQoQStr.padStart(6)}  ${sYoYStr.padStart(6)}  ${sCurrStr.padStart(6)}  ${sPrevStr.padStart(6)}  ${sYoYValStr.padStart(6)}\n` +
+          `Oth.Inc  -       -       ${othCurrStr.padStart(6)}  -       -\n` +
+          `OP       -       -       ${opCurrStr.padStart(6)}  -       -\n` +
+          `OPM (%)  -       -       ${opmStr.padStart(6)}  -       -\n` +
+          `PAT      ${pQoQStr.padStart(6)}  ${pYoYStr.padStart(6)}  ${patCurrStr.padStart(6)}  -       -\n` +
+          `EPS      -       -       ${epsCurrStr.padStart(6)}  -       -\n` +
           `\`\`\`\n\n` +
           `*CMP : ${cmpDisplay}* | *${compCategory} (${mcapDisplay})* | *P/E : ${peDisplay}*\n\n` +
           `⏱️ *Result Published:* \`${item.date || 'Live'}\` (⚡ *${timeAgoStr}*)\n` +
