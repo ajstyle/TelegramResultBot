@@ -51,7 +51,6 @@ class PdfParserEngine {
       }
 
       if (!pdfBuffer) {
-        console.info(`[PdfParser] PDF binary unavailable for filing; using fundamental benchmarks fallback.`);
         return { rawText: '', metrics: this.extractEmptyMetrics(), isScanned: false };
       }
     } else if (Buffer.isBuffer(source)) {
