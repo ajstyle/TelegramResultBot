@@ -2,7 +2,7 @@ const https = require('https');
 
 /**
  * Pluggable Modular BSE Announcement Adapter
- * Filters corporate announcements for tradable equity scrips and handles PDF URL resolution.
+ * Filters corporate announcements for tradable equity scrips, resolves company stock names, and handles PDF URLs.
  */
 class BseAdapter {
   constructor() {
@@ -41,6 +41,23 @@ class BseAdapter {
     return true;
   }
 
+  /**
+   * Extract Company Stock Name from announcement headline
+   */
+  extractCompanyName(title, fallback = '') {
+    if (title) {
+      const cleaned = title.replace(/^[\d\s-:]+/, '');
+      const parts = cleaned.split(/\s*-\s*|\s*:\s*|\s*Outcome\s*|\s*Announcement\s*/i);
+      if (parts[0] && parts[0].trim().length > 2) {
+        const candidate = parts[0].trim().toUpperCase();
+        if (!/^\d+$/.test(candidate)) {
+          return candidate;
+        }
+      }
+    }
+    return fallback;
+  }
+
   fetchAnnouncements() {
     return new Promise((resolve) => {
       const options = {
@@ -75,14 +92,19 @@ class BseAdapter {
                   const newsIdStr = item.Newsid || item.NEWSID || item.NEWS_ID || '';
                   const scripMatch = newsIdStr.match(/scrip_CD=(\d+)/i);
                   const scripCode = scripMatch ? scripMatch[1] : (item.SCRIP_CD || item.SLONGNAME || 'BSE_STOCK');
-                  const symbolCandidate = item.SLONGNAME || item.SHORT_NAME || scripCode;
+                  
+                  const rawTitle = item.Subject || item.NEWSSUB || item.HEADLINE || 'Corporate Announcement';
+                  const companyName = this.extractCompanyName(rawTitle, item.SLONGNAME || item.SHORT_NAME || '');
+                  
+                  const finalSymbol = (companyName && !/^\d+$/.test(companyName)) ? companyName : scripCode;
 
                   const cleanNewsId = newsIdStr.split('&')[0] || `${Date.now()}_${Math.random()}`;
 
                   return {
                     source: 'BSE',
-                    symbol: symbolCandidate,
-                    title: item.Subject || item.NEWSSUB || item.HEADLINE || 'Corporate Announcement',
+                    symbol: finalSymbol,
+                    scripCode: scripCode,
+                    title: rawTitle,
                     subject: item.Subject || item.HEADLINE || '',
                     pdfUrl: this.formatPdfUrl(item.ATTACHMENTNAME || item.AttachmentName, newsIdStr),
                     announcementId: `BSE_${cleanNewsId}`,

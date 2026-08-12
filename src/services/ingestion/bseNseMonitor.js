@@ -238,6 +238,10 @@ class BseNseMonitorService {
         const cmpDisplay = entryPrice ? entryPrice.toFixed(1) : '563.8';
         const valuationDisplay = fundamentals.valuation || 'FAIRLY VALUED ⚖️';
 
+        const displayHeaderSymbol = item.scripCode && item.symbol !== item.scripCode
+          ? `${item.symbol} (${item.scripCode})`
+          : item.symbol;
+
         const hashtagSymbol = `#${item.symbol.toUpperCase().replace(/[^A-Z0-9_]/g, '')}`;
 
         const salesGrowthQoQ = p.salesQoQ.val ?? 15;
@@ -277,7 +281,7 @@ class BseNseMonitorService {
 
         // Infographic Report Card Table Format matching earningspulse.ai card layout
         const telegramMsg =
-          `🏢 *${item.symbol}*  [ ${hashtagSymbol} ]\n` +
+          `🏢 *${displayHeaderSymbol}*  [ ${hashtagSymbol} ]\n` +
           `📢 *OFFICIAL ${item.source} EARNINGS ANNOUNCEMENT*\n\n` +
           `⚡ *Pulse Rating :* \`${aiSummary.overallRating || 'EXCELLENT'}\` | 💎 *Valuation:* \`${valuationDisplay}\`\n\n` +
           `\`\`\`text\n` +
