@@ -52,8 +52,8 @@ class SignalParser {
       symbol = bracketSymbolMatch[1].toUpperCase();
     }
 
-    // Pulse Rating e.g. Pulse Rating : Excellent / Good
-    const pulseRatingMatch = upperText.match(/\bPULSE\s*RATING\s*[:=]?\s*(EXCELLENT|VERY\s*GOOD|GOOD|FAIR|POOR|VERY\s*POOR)/i);
+    // Pulse Rating e.g. Pulse Rating : Excellent / Good / Eva Pulse Rating : Excellent
+    const pulseRatingMatch = upperText.match(/(?:PULSE\s*RATING|RATING)\s*[:=]?\s*(EXCELLENT|VERY\s*GOOD|GOOD|FAIR|POOR|VERY\s*POOR)/i);
     if (pulseRatingMatch) {
       cardRating = pulseRatingMatch[1].toUpperCase();
       if (!action) {
@@ -77,7 +77,7 @@ class SignalParser {
       cardCategory = capCategoryMatch[1];
     }
 
-    // P/E e.g. P/E : 15.2
+    // P/E e.g. P/E : 15.2 or P/E 115.2 / 15.2
     const peMatch = upperText.match(/\bP\/?E\s*[:=]?\s*([0-9]+(?:\.[0-9]+)?)/);
     if (peMatch) {
       cardPe = parseFloat(peMatch[1]);
@@ -102,6 +102,30 @@ class SignalParser {
         if (fallbackMatch) {
           if (!symbol) symbol = fallbackMatch[1].replace(/[^A-Z0-9-]/g, '').trim();
           if (!entry) entry = parseFloat(fallbackMatch[2]);
+        }
+      }
+    }
+
+    // Known Company Name -> Stock Symbol mapping for OCR noise fallback
+    const knownCompanyMap = [
+      { name: 'PANAMA PETRO', symbol: 'PANAMAPET' },
+      { name: 'PANAMA PETROCHEM', symbol: 'PANAMAPET' },
+      { name: 'TATA MOTORS', symbol: 'TATAMOTORS' },
+      { name: 'TATA CONSULTANCY', symbol: 'TCS' },
+      { name: 'INFOSYS', symbol: 'INFOSYS' },
+      { name: 'RELIANCE', symbol: 'RELIANCE' },
+      { name: 'HDFC BANK', symbol: 'HDFCBANK' },
+      { name: 'ICICI BANK', symbol: 'ICICIBANK' },
+      { name: 'STATE BANK', symbol: 'SBIN' },
+      { name: 'JNK INDIA', symbol: 'JNKINDIA' },
+      { name: 'FLAIR', symbol: 'FLAIR' },
+    ];
+
+    if (!symbol) {
+      for (const comp of knownCompanyMap) {
+        if (upperText.includes(comp.name)) {
+          symbol = comp.symbol;
+          break;
         }
       }
     }

@@ -96,4 +96,30 @@ describe('Signal Parser Unit Tests', () => {
     expect(result.cardCategory).toBe('Small-Cap');
     expect(result.cardPe).toBe(15.2);
   });
+
+  test('Parses noisy OCR text artifact for Panama Petrochem', () => {
+    const noisyOcrInput = `
+      ¢ Panama Petrochem
+      Panama Petroleum Products | Lubricants
+      &i Eva Pulse Rating : Excellent ner
+      Metric QoQ YoY Jun'26 Mar'26 Jun'25
+      Sales 111% 150% 1,735 823 693
+      Other Inc. - - 4 3 4
+      oP 325% 607% 388 91 55
+      OPM 1125 bps 1443 bps 22.4% 11.1% 7.9%
+      PAT 334% 625% 309 7 43
+      EPS 333% 630% 51.1 11.8 7.0
+      REVENUE 0-1,735.2 Cr PAT 0-308.9 Cr EPS 0-51.1
+      CMP : 563.8 | Small-Cap (3.3K Cr) | P/E 115.2
+      2-Aug-2026 11:20:21 earningspulse.ai &
+    `;
+
+    const result = signalParser.parse(noisyOcrInput);
+
+    expect(result.isParsed).toBe(true);
+    expect(result.action).toBe('BUY');
+    expect(result.symbol).toBe('PANAMAPET');
+    expect(result.entry).toBe(563.8);
+    expect(result.cardRating).toBe('EXCELLENT');
+  });
 });
