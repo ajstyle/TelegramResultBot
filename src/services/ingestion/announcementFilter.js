@@ -44,6 +44,8 @@ class AnnouncementFilter {
       'credit rating',
       'voting results',
       'compliance certificate',
+      'newspaper publication',
+      'newspaper advertisement',
     ];
   }
 
