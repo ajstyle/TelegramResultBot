@@ -230,10 +230,13 @@ class BseNseMonitor {
         };
       }
 
+      const timeAgoStr = this.getTimeAgo(item.date);
+
       const telegramMsg =
         `📢 *OFFICIAL ${item.source} EARNINGS ANNOUNCEMENT*\n\n` +
         `*Stock:* ${item.symbol}\n` +
         `*Title:* ${item.title}\n` +
+        `⏱️ *Result Published:* \`${item.date || 'Live'}\` (⚡ *${timeAgoStr}*)\n` +
         (item.pdfUrl ? `📄 *Filing PDF:* [Download Result PDF](${item.pdfUrl})\n\n` : '\n') +
         `🏆 *OVERALL RESULT RATING:* \`${aiSummary.overallRating}\` (Score: ${aiSummary.overallScore}/100)\n` +
         `💎 *CURRENT VALUATION:* \`${valRating}\` (P/E: ${fundamentals.metrics?.pe || 'N/A'}, Sector P/E: ${fundamentals.metrics?.sectorPe || 'N/A'})\n` +
@@ -268,6 +271,34 @@ class BseNseMonitor {
           console.warn(`[BseNseMonitor] Could not send Telegram alert to ${chatId}: ${e.message}`);
         }
       }
+    }
+  }
+
+  /**
+   * Calculate time elapsed ago for announcement publication
+   */
+  getTimeAgo(dateInput) {
+    if (!dateInput) return 'Just now';
+    try {
+      const pubDate = new Date(dateInput);
+      if (isNaN(pubDate.getTime())) return `${dateInput}`;
+
+      const now = Date.now();
+      const diffMs = Math.max(0, now - pubDate.getTime());
+      const diffSecs = Math.floor(diffMs / 1000);
+      const diffMins = Math.floor(diffSecs / 60);
+      const diffHours = Math.floor(diffMins / 60);
+
+      if (diffHours > 0) {
+        const remainingMins = diffMins % 60;
+        return `${diffHours} hr${diffHours > 1 ? 's' : ''} ${remainingMins} min${remainingMins > 1 ? 's' : ''} ago`;
+      }
+      if (diffMins > 0) {
+        return `${diffMins} min${diffMins > 1 ? 's' : ''} ago`;
+      }
+      return `${diffSecs} sec${diffSecs !== 1 ? 's' : ''} ago`;
+    } catch (_) {
+      return `${dateInput}`;
     }
   }
 
