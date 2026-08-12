@@ -119,17 +119,21 @@ class AngelOneService {
       return this.scripCache.get(cacheKey);
     }
 
+    const defaultScrip = {
+      symboltoken: `TOKEN_${formattedSymbol}`,
+      tradingsymbol: `${formattedSymbol}-EQ`,
+      exchange,
+    };
+
     if (config.tradingMode === 'PAPER' && !this.jwtToken) {
-      const mockResult = {
-        symboltoken: `MOCK_${formattedSymbol}_TOKEN`,
-        tradingsymbol: `${formattedSymbol}-EQ`,
-        exchange,
-      };
-      this.scripCache.set(cacheKey, mockResult);
-      return mockResult;
+      return defaultScrip;
     }
 
-    await this.login();
+    try {
+      await this.login();
+    } catch (_) {
+      return defaultScrip;
+    }
 
     try {
       const response = await axios.post(
@@ -142,12 +146,9 @@ class AngelOneService {
       );
 
       if (response.data && response.data.status && Array.isArray(response.data.data) && response.data.data.length > 0) {
-        // Priority 1: Exact match for TRADING-EQ (e.g., RELIANCE-EQ, TCS-EQ)
         const eqMatch = response.data.data.find(
           item => item.tradingsymbol === `${formattedSymbol}-EQ`
         );
-
-        // Priority 2: Any scrip ending in -EQ
         const anyEqMatch = response.data.data.find(
           item => item.tradingsymbol && item.tradingsymbol.endsWith('-EQ')
         );
@@ -161,15 +162,10 @@ class AngelOneService {
         this.scripCache.set(cacheKey, scripResult);
         return scripResult;
       }
-      throw new Error(`Scrip not found for symbol: ${formattedSymbol}`);
-    } catch (error) {
-      console.warn(`[AngelOne] Scrip lookup failed for ${formattedSymbol}: ${error.message}`);
-      return {
-        symboltoken: `TOKEN_${formattedSymbol}`,
-        tradingsymbol: `${formattedSymbol}-EQ`,
-        exchange,
-      };
-    }
+    } catch (_) {}
+
+    this.scripCache.set(cacheKey, defaultScrip);
+    return defaultScrip;
   }
 
   /**
