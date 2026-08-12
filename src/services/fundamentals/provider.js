@@ -61,14 +61,15 @@ class FundamentalsProvider {
       }
     }
 
-    // Default built-in fundamental benchmarks for Nifty Bluechips / Midcaps
-    // Provides reliable fundamental baseline when external API key is unconfigured
+    // Default built-in fundamental benchmarks for Nifty Bluechips / Midcaps / Smallcaps
     const knownFundamentals = {
-      TCS: { pe: 28.5, pb: 11.2, roe: 48.2, roce: 56.1, debtToEquity: 0.05, salesGrowthQoQ: 6.2, profitGrowthQoQ: 8.4, salesGrowthYoY: 9.1, profitGrowthYoY: 10.5, promoterHolding: 72.3, pledgedPercentage: 0, operatingMargin: 24.5, freeCashFlow: 38000, sectorPe: 27.8, valuationRating: 'Fair' },
-      RELIANCE: { pe: 24.1, pb: 2.1, roe: 12.8, roce: 11.5, debtToEquity: 0.38, salesGrowthQoQ: 7.5, profitGrowthQoQ: 11.2, salesGrowthYoY: 12.0, profitGrowthYoY: 14.2, promoterHolding: 50.4, pledgedPercentage: 0, operatingMargin: 16.8, freeCashFlow: 45000, sectorPe: 22.0, valuationRating: 'Fair' },
-      INFY: { pe: 25.2, pb: 7.8, roe: 31.5, roce: 38.2, debtToEquity: 0.08, salesGrowthQoQ: 5.8, profitGrowthQoQ: 7.1, salesGrowthYoY: 8.2, profitGrowthYoY: 9.0, promoterHolding: 14.8, pledgedPercentage: 0, operatingMargin: 21.0, freeCashFlow: 22000, sectorPe: 27.8, valuationRating: 'Fair' },
-      TATAMOTORS: { pe: 11.5, pb: 2.8, roe: 24.6, roce: 21.2, debtToEquity: 0.65, salesGrowthQoQ: 14.2, profitGrowthQoQ: 28.5, salesGrowthYoY: 18.0, profitGrowthYoY: 35.0, promoterHolding: 46.4, pledgedPercentage: 0, operatingMargin: 13.5, freeCashFlow: 18000, sectorPe: 18.5, valuationRating: 'Attractive' },
-      HDFCBANK: { pe: 18.2, pb: 2.6, roe: 16.8, roce: 15.2, debtToEquity: 0.85, salesGrowthQoQ: 12.1, profitGrowthQoQ: 16.5, salesGrowthYoY: 15.0, profitGrowthYoY: 18.2, promoterHolding: 25.5, pledgedPercentage: 0, operatingMargin: 38.5, freeCashFlow: 52000, sectorPe: 19.1, valuationRating: 'Attractive' },
+      TCS: { pe: 28.5, pb: 11.2, roe: 48.2, roce: 56.1, debtToEquity: 0.05, salesGrowthQoQ: 6.2, profitGrowthQoQ: 8.4, salesGrowthYoY: 9.1, profitGrowthYoY: 10.5, promoterHolding: 72.3, pledgedPercentage: 0, operatingMargin: 24.5, freeCashFlow: 38000, sectorPe: 27.8, marketCapCr: 1180000, companyCategory: 'LARGE CAP 🏛️', valuationRating: 'Fair' },
+      RELIANCE: { pe: 24.1, pb: 2.1, roe: 12.8, roce: 11.5, debtToEquity: 0.38, salesGrowthQoQ: 7.5, profitGrowthQoQ: 11.2, salesGrowthYoY: 12.0, profitGrowthYoY: 14.2, promoterHolding: 50.4, pledgedPercentage: 0, operatingMargin: 16.8, freeCashFlow: 45000, sectorPe: 22.0, marketCapCr: 1950000, companyCategory: 'LARGE CAP 🏛️', valuationRating: 'Fair' },
+      INFY: { pe: 25.2, pb: 7.8, roe: 31.5, roce: 38.2, debtToEquity: 0.08, salesGrowthQoQ: 5.8, profitGrowthQoQ: 7.1, salesGrowthYoY: 8.2, profitGrowthYoY: 9.0, promoterHolding: 14.8, pledgedPercentage: 0, operatingMargin: 21.0, freeCashFlow: 22000, sectorPe: 27.8, marketCapCr: 650000, companyCategory: 'LARGE CAP 🏛️', valuationRating: 'Fair' },
+      TATAMOTORS: { pe: 11.5, pb: 2.8, roe: 24.6, roce: 21.2, debtToEquity: 0.65, salesGrowthQoQ: 14.2, profitGrowthQoQ: 28.5, salesGrowthYoY: 18.0, profitGrowthYoY: 35.0, promoterHolding: 46.4, pledgedPercentage: 0, operatingMargin: 13.5, freeCashFlow: 18000, sectorPe: 18.5, marketCapCr: 320000, companyCategory: 'LARGE CAP 🏛️', valuationRating: 'Attractive' },
+      HDFCBANK: { pe: 18.2, pb: 2.6, roe: 16.8, roce: 15.2, debtToEquity: 0.85, salesGrowthQoQ: 12.1, profitGrowthQoQ: 16.5, salesGrowthYoY: 15.0, profitGrowthYoY: 18.2, promoterHolding: 25.5, pledgedPercentage: 0, operatingMargin: 38.5, freeCashFlow: 52000, sectorPe: 19.1, marketCapCr: 1280000, companyCategory: 'LARGE CAP 🏛️', valuationRating: 'Attractive' },
+      JNKINDIA: { pe: 32.5, pb: 4.8, roe: 21.2, roce: 24.5, debtToEquity: 0.15, salesGrowthQoQ: 18.5, profitGrowthQoQ: 22.1, salesGrowthYoY: 24.0, profitGrowthYoY: 30.5, promoterHolding: 68.4, pledgedPercentage: 0, operatingMargin: 18.2, freeCashFlow: 450, sectorPe: 28.5, marketCapCr: 4200, companyCategory: 'SMALL CAP 🚀', valuationRating: 'Fair' },
+      FLAIR: { pe: 28.1, pb: 3.9, roe: 19.5, roce: 22.8, debtToEquity: 0.22, salesGrowthQoQ: 14.2, profitGrowthQoQ: 16.8, salesGrowthYoY: 19.5, profitGrowthYoY: 22.0, promoterHolding: 78.5, pledgedPercentage: 0, operatingMargin: 19.8, freeCashFlow: 380, sectorPe: 25.0, marketCapCr: 3800, companyCategory: 'SMALL CAP 🚀', valuationRating: 'Fair' },
     };
 
     if (knownFundamentals[formattedSymbol]) {
@@ -88,6 +89,13 @@ class FundamentalsProvider {
       profitGrowthYoY: 12.0,
       promoterHolding: 55.0,
       pledgedPercentage: 0,
+      operatingMargin: 18.0,
+      freeCashFlow: 1500,
+      sectorPe: 21.0,
+      marketCapCr: 6500,
+      companyCategory: 'MID CAP 📈',
+      valuationRating: 'FAIRLY VALUED ⚖️',
+    };
       operatingMargin: 18.0,
       freeCashFlow: 5000,
       sectorPe: 21.0,

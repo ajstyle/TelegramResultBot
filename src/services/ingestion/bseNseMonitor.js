@@ -232,9 +232,13 @@ class BseNseMonitor {
 
       const timeAgoStr = this.getTimeAgo(item.date);
 
+      const compCategory = fundamentals.companyCategory || 'MID CAP 📈';
+      const mcapStr = fundamentals.metrics?.marketCapCr ? ` (Market Cap: ₹${fundamentals.metrics.marketCapCr.toLocaleString('en-IN')} Cr)` : '';
+
       const telegramMsg =
         `📢 *OFFICIAL ${item.source} EARNINGS ANNOUNCEMENT*\n\n` +
         `*Stock:* ${item.symbol}\n` +
+        `🏢 *Category:* \`${compCategory}\`${mcapStr}\n` +
         `*Title:* ${item.title}\n` +
         `⏱️ *Result Published:* \`${item.date || 'Live'}\` (⚡ *${timeAgoStr}*)\n` +
         (item.pdfUrl ? `📄 *Filing PDF:* [Download Result PDF](${item.pdfUrl})\n\n` : '\n') +

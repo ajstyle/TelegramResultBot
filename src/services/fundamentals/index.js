@@ -22,6 +22,7 @@ class FundamentalsService {
     const score = this.calculateScore(rawData);
     const rating = this.getRating(score);
     const valuation = rawData.valuationRating || this.getValuation(rawData.pe, rawData.sectorPe);
+    const companyCategory = rawData.companyCategory || this.getCompanyCategory(rawData.marketCapCr, rawData.price);
 
     return {
       metrics: {
@@ -39,12 +40,33 @@ class FundamentalsService {
         operatingMargin: rawData.operatingMargin,
         freeCashFlow: rawData.freeCashFlow,
         sectorPe: rawData.sectorPe,
+        marketCapCr: rawData.marketCapCr,
+        companyCategory,
       },
       score,
       rating,
       valuation,
+      companyCategory,
       isAvailable: true,
     };
+  }
+
+  /**
+   * Determine Market Cap Category based on SEBI & Industry Norms
+   * @param {number|null} marketCapCr
+   * @param {number|null} price
+   * @returns {string} LARGE CAP 🏛️ | MID CAP 📈 | SMALL CAP 🚀 | PENNY STOCK ⚠️
+   */
+  getCompanyCategory(marketCapCr, price) {
+    if (price && price < 25 && (!marketCapCr || marketCapCr < 500)) {
+      return 'PENNY STOCK ⚠️';
+    }
+    if (!marketCapCr) return 'MID CAP 📈';
+
+    if (marketCapCr >= 20000) return 'LARGE CAP 🏛️';
+    if (marketCapCr >= 5000) return 'MID CAP 📈';
+    if (marketCapCr >= 500) return 'SMALL CAP 🚀';
+    return 'PENNY STOCK ⚠️';
   }
 
   /**
