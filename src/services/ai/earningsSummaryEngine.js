@@ -80,9 +80,20 @@ class EarningsSummaryEngine {
    * @param {object} parsedMetrics { sales, otherIncome, operatingProfit, opm, pat, eps, salesQoQ, salesYoY, patQoQ, patYoY }
    * @returns {object}
    */
-  generateSummary(symbol, rawText = '', parsedMetrics = {}) {
-    const formattedSymbol = symbol.toUpperCase().trim();
-    const upperText = (rawText || '').toUpperCase();
+  generateSummary(symbol, arg2 = '', arg3 = {}) {
+    let rawText = '';
+    let parsedMetrics = {};
+
+    if (typeof arg2 === 'string') {
+      rawText = arg2;
+      parsedMetrics = arg3 && typeof arg3 === 'object' ? arg3 : {};
+    } else if (typeof arg2 === 'object' && arg2 !== null) {
+      parsedMetrics = arg2;
+      rawText = typeof arg3 === 'string' ? arg3 : '';
+    }
+
+    const formattedSymbol = (symbol || 'STOCK').toUpperCase().trim();
+    const upperText = (typeof rawText === 'string' ? rawText : '').toUpperCase();
 
     // Default growth estimates if not extracted directly from PDF table
     const salesQoQ = parsedMetrics.salesQoQ ?? (parsedMetrics.sales ? 8.5 : null);
