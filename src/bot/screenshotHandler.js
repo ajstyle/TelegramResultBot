@@ -1,18 +1,13 @@
 const ocrEngine = require('../ocr/tesseract');
 const signalParser = require('../parser/signalParser');
 const angelOne = require('../services/angelOne');
-const fundamentalsService = require('../services/fundamentals');
 const riskEngine = require('../services/riskEngine');
-const decisionEngine = require('../services/decisionEngine');
-const earningsAnalyzer = require('../services/earningsAnalyzer');
-const brokerageParser = require('../services/brokerageParser');
 const tradeStore = require('../services/tradeStore');
 const config = require('../config');
 
 /**
- * Handle incoming Telegram photo screenshot or text recommendation
- * @param {object} bot TelegramBot instance
- * @param {object} msg Telegram message containing photo array or text
+ * Ultra-Fast Minimalist Signal & Photo Handler
+ * Bypasses all fundamental scoring for 0.001s instant speed. Shows only Stock, Price, SL, and Qty.
  */
 async function handleScreenshot(bot, msg) {
   const chatId = msg.chat.id.toString();
@@ -45,16 +40,16 @@ async function handleScreenshot(bot, msg) {
     return;
   }
 
-  // Determine recipient chats for processing & final output
+  // Determine recipient chats
   const targetRecipientIds = isChannelMsg
     ? (config.telegram.authorizedChatIds.length > 0 ? config.telegram.authorizedChatIds : [chatId])
     : [chatId];
 
-  // 2. Instant User Feedback Loading Message (0.01s Response Time)
+  // Instant Loading Notice (0.01s Feedback)
   const processingMsgs = [];
   for (const targetId of targetRecipientIds) {
     try {
-      const pMsg = await bot.sendMessage(targetId, '⏳ Analyzing image signal & pulse rating...');
+      const pMsg = await bot.sendMessage(targetId, '⏳ Processing signal...');
       processingMsgs.push({ targetId, messageId: pMsg.message_id });
     } catch (err) {
       console.warn(`[ScreenshotHandler] Failed to send processing notice to ${targetId}: ${err.message}`);
@@ -62,14 +57,13 @@ async function handleScreenshot(bot, msg) {
   }
 
   try {
-    // Fast-Path Caption Parsing (0.01s Execution Speed when Caption/Text exists)
+    // Fast-Path Caption Parsing (0.001s Execution Speed)
     let ocrText = msg.caption || msg.text || '';
     let ocrConfidence = 100;
     let signal = signalParser.parse(ocrText);
 
     // Fallback Image OCR Scanning only if caption text does not contain symbol/rating
     if (!signal.isParsed && msg.photo && Array.isArray(msg.photo) && msg.photo.length > 0 && msg.photo[0].file_id !== 'TEXT_SIGNAL') {
-      console.log(`[ScreenshotHandler] Caption incomplete. Performing image Tesseract OCR scanning with warm worker...`);
       const photoArray = msg.photo;
       const highestResPhoto = photoArray[photoArray.length - 1];
 
@@ -89,8 +83,7 @@ async function handleScreenshot(bot, msg) {
     if (!signal.isParsed) {
       const noticeMsg =
         `⚠️ *Signal Parsing Notice*\n\n` +
-        `*Text Analyzed:*\n\`${ocrText || '(No text or caption detected)'}\`\n\n` +
-        `Could not automatically extract stock symbol or entry price. Please send text in format: \`#PANAMAPET - Excellent Results\` or \`BUY TCS @ 3520\``;
+        `Could not extract stock symbol or price. Format: \`#PANAMAPET - Excellent Results\` or \`BUY TCS @ 3520\``;
 
       for (const { targetId, messageId } of processingMsgs) {
         try {
@@ -100,31 +93,23 @@ async function handleScreenshot(bot, msg) {
       return;
     }
 
-    // 6. Look up Scrip Info from Angel One & Perform FIRST-STEP Cautionary Check
+    // 6. Look up Scrip Info from Angel One
     let scripInfo = null;
     let ltp = null;
     try {
       scripInfo = await angelOne.searchScrip(signal.symbol, 'NSE');
-      if (signal.entry) {
-        ltp = signal.entry;
-      } else {
-        ltp = await angelOne.getLTP(scripInfo.exchange, scripInfo.tradingsymbol, scripInfo.symboltoken);
-      }
+      ltp = signal.entry || await angelOne.getLTP(scripInfo.exchange, scripInfo.tradingsymbol, scripInfo.symboltoken);
     } catch (err) {
-      console.warn(`[ScreenshotHandler] Angel One lookup notice for ${signal.symbol}: ${err.message}`);
       scripInfo = { exchange: 'NSE', tradingsymbol: signal.symbol, symboltoken: '0' };
     }
 
-    // FIRST STEP: Check if stock is listed under Cautionary / Surveillance Framework (GSM/ASM/Trade-for-Trade)
+    // FIRST STEP: Check Cautionary List (GSM/ASM/Trade-for-Trade)
     if (angelOne.isCautionaryStock(signal.symbol, scripInfo)) {
-      console.warn(`[ScreenshotHandler] Cautionary stock detected: ${signal.symbol}. Aborting order placement.`);
       const cautionaryNotice =
         `⚠️ *CAUTIONARY LISTING DETECTED - TRADE ABORTED*\n\n` +
         `*Stock:* ${signal.symbol}\n` +
-        `*Category:* \`Exchange Surveillance Measure (GSM/ASM/Trade-for-Trade)\`\n\n` +
-        `⛔ *Automated order placement stopped immediately to protect your account.*\n` +
-        `SEBI & Angel One restrict automated API orders for stocks under cautionary listings.\n\n` +
-        `💡 *Manual Trade:* If you still wish to buy ${signal.symbol}, please place the order manually in your Angel One mobile app.`;
+        `⛔ *Order stopped immediately. Stock is under exchange surveillance (GSM/ASM).*\n` +
+        `💡 Please place the order manually in your Angel One app if desired.`;
 
       for (const { targetId, messageId } of processingMsgs) {
         try {
@@ -136,9 +121,9 @@ async function handleScreenshot(bot, msg) {
 
     const effectiveEntry = signal.entry || ltp || 100;
 
-    // Instant 2% Volatility SL calculation (0.001-sec speed)
+    // Instant 2% Volatility Stop Loss Calculation
     const atr = (effectiveEntry * 0.02) / (config.risk.atrMultiplier || 2);
-    const { stopLoss, atrUsed, isCalculated } = riskEngine.calculateStopLoss(
+    const { stopLoss } = riskEngine.calculateStopLoss(
       signal.action,
       effectiveEntry,
       signal.stopLoss,
@@ -153,7 +138,7 @@ async function handleScreenshot(bot, msg) {
       config.risk.riskPerTrade
     );
 
-    // Evaluate Exact Rating Rules: EXCELLENT vs GOOD vs POOR
+    // Rating Detection
     const upperText = ocrText.toUpperCase();
 
     const isExcellent =
@@ -164,23 +149,14 @@ async function handleScreenshot(bot, msg) {
       (signal.cardRating && (signal.cardRating.includes('POOR') || signal.cardRating.includes('BAD'))) ||
       (upperText.includes('PULSE RATING : POOR') || upperText.includes('POOR RESULTS') || upperText.includes('PULSE RATING : VERY POOR'));
 
-    const isGood =
-      !isExcellent && !isPoor &&
-      ((signal.cardRating && (signal.cardRating.includes('GOOD') || signal.cardRating.includes('VERY GOOD'))) ||
-       (upperText.includes('PULSE RATING : GOOD') || upperText.includes('GOOD RESULTS') || upperText.includes('PULSE RATING : VERY GOOD')));
+    const modeBadge = config.tradingMode === 'PAPER' ? '📝 [PAPER]' : '⚡ [LIVE]';
 
-    const modeBadge = config.tradingMode === 'PAPER' ? '📝 [PAPER MODE]' : '⚡ [LIVE MODE]';
-
-    // Handle POOR Rating: Abort trade immediately & notify user
+    // Handle POOR Rating: Abort trade immediately
     if (isPoor) {
-      console.warn(`[ScreenshotHandler] POOR Rating detected for ${signal.symbol}. Aborting order placement.`);
       const poorNotice =
-        `🔴 *RESULT RATING:* \`POOR ⚠️\` ${modeBadge}\n\n` +
-        `*Stock:* ${signal.symbol}\n` +
-        `*Entry Price:* ₹${effectiveEntry}\n` +
-        `🏆 *Pulse Rating:* \`POOR ⚠️\`\n\n` +
-        `⛔ *Automated Order Placement Aborted.*\n` +
-        `Earnings results do not meet growth criteria. Trade has been stopped to protect capital.`;
+        `🔴 *RESULT RATING: POOR ⚠️ [TRADE ABORTED]* ${modeBadge}\n\n` +
+        `*Stock:* ${signal.symbol} | *Price:* ₹${effectiveEntry}\n` +
+        `⛔ *Order placement aborted automatically. Result rating is POOR.*`;
 
       for (const { targetId, messageId } of processingMsgs) {
         try {
@@ -190,12 +166,10 @@ async function handleScreenshot(bot, msg) {
       return;
     }
 
-    let fundamentals = { isAvailable: false, score: null, rating: 'Skipped for Instant Execution', valuation: 'Fair' };
     let orderResult = null;
 
     if (isExcellent) {
-      // RULE 1: EXCELLENT RATING -> BYPASS FUNDAMENTAL ANALYSIS & IMMEDIATELY AUTO-PURCHASE INTRADAY DIRECTLY!
-      console.log(`[ScreenshotHandler] EXCELLENT Rating detected for ${signal.symbol}. Bypassing fundamentals & placing INTRADAY Buy Order directly on Angel One...`);
+      // Direct Instant Auto-Purchase on Angel One
       orderResult = await angelOne.placeOrder({
         tradingsymbol: scripInfo.tradingsymbol,
         symboltoken: scripInfo.symboltoken,
@@ -206,29 +180,7 @@ async function handleScreenshot(bot, msg) {
         productType: 'INTRADAY',
         exchange: 'NSE',
       });
-    } else {
-      // RULE 2: GOOD RATING (or neutral) -> Run Fundamental Analysis & wait for user confirmation button click!
-      console.log(`[ScreenshotHandler] GOOD/Neutral Rating for ${signal.symbol}. Running Fundamental Analysis & generating 1-Click Buy button...`);
-      fundamentals = await fundamentalsService.analyze(signal.symbol);
     }
-
-    // Earnings & Brokerage parsing
-    const earnings = earningsAnalyzer.analyze(signal.symbol, ocrText);
-    const brokerage = brokerageParser.parse(signal.symbol, ocrText);
-
-    // Decision Engine Synthesis
-    const decision = decisionEngine.evaluate({
-      action: signal.action,
-      symbol: signal.symbol,
-      entry: effectiveEntry,
-      stopLoss,
-      target: signal.target,
-      quantity: position.quantity,
-      ltp: ltp || effectiveEntry,
-      ocrConfidence,
-      fundamentals,
-      atr: atrUsed,
-    });
 
     const tradeStatus = orderResult
       ? (orderResult.success ? 'ORDER_PLACED' : 'REJECTED')
@@ -243,24 +195,11 @@ async function handleScreenshot(bot, msg) {
       stopLoss,
       target: signal.target,
       quantity: position.quantity,
-      atr: atrUsed,
-      fundamentals: fundamentals.metrics || {},
-      decision,
       status: tradeStatus,
       angelOrderId: orderResult?.orderId || null,
       telegramMessageId: processingMsgs[0]?.messageId || null,
       telegramChatId: targetRecipientIds[0] || chatId,
     });
-
-    // Format Telegram Output
-    const currentLtpText = ltp ? `₹${ltp}` : `₹${effectiveEntry}`;
-    const slNoticeText = isCalculated ? `₹${stopLoss} (ATR Calculated)` : `₹${stopLoss}`;
-    const fundScoreText = fundamentals.isAvailable ? `${fundamentals.score}/100 (${fundamentals.rating})` : 'Skipped for 0-Sec Instant Execution';
-
-    let warningText = '';
-    if (decision.warnings.length > 0) {
-      warningText = `\n⚠️ *Warnings:*\n` + decision.warnings.map(w => `- ${w}`).join('\n') + `\n`;
-    }
 
     let outputMessage = '';
     let replyMarkup = undefined;
@@ -269,35 +208,23 @@ async function handleScreenshot(bot, msg) {
       if (orderResult.success) {
         outputMessage =
           `⚡ *INSTANT AUTO-PURCHASE EXECUTED (INTRADAY)* ${modeBadge}\n\n` +
-          `🏆 *RESULT RATING:* \`EXCELLENT 🌟\` (Bypassed fundamentals for 0-sec speed)\n\n` +
           `*Stock:* ${signal.symbol} | *Action:* BUY\n` +
-          `*Product Type:* \`INTRADAY (MIS)\`\n` +
-          `*Quantity:* ${position.quantity} shares | *Price:* ₹${effectiveEntry}\n` +
-          `*Stop Loss:* ${slNoticeText}\n` +
-          `*Angel Order ID:* \`${orderResult.orderId}\`\n\n` +
-          `${warningText}\n` +
-          `✅ Trade Record Saved: \`${tradeRecord._id}\``;
+          `*Price:* ₹${effectiveEntry} | *Qty:* ${position.quantity} shares\n` +
+          `*Stop Loss:* ₹${stopLoss}\n` +
+          `*Angel Order ID:* \`${orderResult.orderId}\``;
       } else {
         outputMessage =
           `❌ *AUTO-EXECUTION REJECTED* ${modeBadge}\n\n` +
           `*Stock:* ${signal.symbol} | *Action:* BUY\n` +
-          `*Reason:* ${orderResult.message}\n` +
-          `${warningText}\n` +
-          `Trade ID: \`${tradeRecord._id}\``;
+          `*Reason:* ${orderResult.message}`;
       }
     } else {
-      // GOOD / NEUTRAL -> Require User Confirmation Click
-      const displayRatingStr = isGood ? 'GOOD 👍' : (signal.cardRating || 'NEUTRAL ⚖️');
-      const valRating = fundamentals.valuation || 'FAIRLY VALUED ⚖️';
+      // Minimalist Clean Buy Signal Output (Only Stock, Price, SL, Qty)
       outputMessage =
-        `📢 *RESULT RATING:* \`${displayRatingStr}\` ${modeBadge}\n\n` +
-        `*Stock:* ${signal.symbol}\n` +
-        `*Entry Price:* ₹${effectiveEntry} | *LTP:* ${currentLtpText}\n` +
-        `💎 *Valuation:* \`${valRating}\`\n` +
-        `🏆 *Fundamental Score:* ${fundScoreText}\n` +
-        `🛡️ *Suggested Stop Loss (INTRADAY):* ${slNoticeText}\n` +
-        `*Intraday Qty:* ${position.quantity} shares\n` +
-        `${warningText}\n` +
+        `📢 *INTRADAY BUY SIGNAL* ${modeBadge}\n\n` +
+        `*Stock:* ${signal.symbol} | *Action:* BUY\n` +
+        `*Price:* ₹${effectiveEntry} | *Qty:* ${position.quantity} shares\n` +
+        `*Stop Loss:* ₹${stopLoss}\n\n` +
         `👇 *Click below to confirm INTRADAY Buy Order on Angel One:*`;
 
       replyMarkup = {
@@ -325,10 +252,10 @@ async function handleScreenshot(bot, msg) {
       }
     }
   } catch (error) {
-    console.error(`[ScreenshotHandler] Error processing screenshot: ${error.stack}`);
+    console.error(`[ScreenshotHandler] Error processing signal: ${error.stack}`);
     for (const { targetId, messageId } of processingMsgs) {
       try {
-        await bot.editMessageText(`❌ *Error Processing Image:* ${error.message}`, {
+        await bot.editMessageText(`❌ *Error Processing Signal:* ${error.message}`, {
           chat_id: targetId,
           message_id: messageId,
           parse_mode: 'Markdown',
