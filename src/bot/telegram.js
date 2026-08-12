@@ -36,6 +36,9 @@ function initTelegramBot() {
   }
 
   const isTargetChannelMessage = msg => {
+    // Always allow private direct messages to the bot
+    if (msg && msg.chat && msg.chat.type === 'private') return true;
+
     if (!config.telegram.targetChannel) return true;
     const target = config.telegram.targetChannel.toLowerCase().replace(/^@/, '');
 
@@ -52,8 +55,16 @@ function initTelegramBot() {
     );
   };
 
+  // Register active chat IDs with bseNseMonitor
+  const registerChatId = msg => {
+    if (msg && msg.chat && msg.chat.id) {
+      bseNseMonitor.addActiveChatId(msg.chat.id.toString());
+    }
+  };
+
   // 1. Handle /start and /help commands
   bot.onText(/\/(start|help)/, async msg => {
+    registerChatId(msg);
     const chatId = msg.chat.id;
     const helpMsg =
       `🤖 *Telegram Stock Trading Assistant*\n\n` +
@@ -68,6 +79,7 @@ function initTelegramBot() {
 
   // 2. Handle incoming Photos (Direct message, Group, or Channel)
   bot.on('photo', async msg => {
+    registerChatId(msg);
     if (!isTargetChannelMessage(msg)) return;
     console.log(`[TelegramBot] Photo received from Chat ID: ${msg.chat.id}`);
     await handleScreenshot(bot, msg);
@@ -75,6 +87,7 @@ function initTelegramBot() {
 
   // 3. Handle incoming Text Signals
   bot.on('message', async msg => {
+    registerChatId(msg);
     if (msg.photo || (msg.text && msg.text.startsWith('/'))) return;
     if (!isTargetChannelMessage(msg)) return;
 
@@ -90,6 +103,7 @@ function initTelegramBot() {
 
   // 4. Handle incoming Telegram Channel Posts
   bot.on('channel_post', async msg => {
+    registerChatId(msg);
     if (!isTargetChannelMessage(msg)) return;
     console.log(`[TelegramBot] Channel Post received from Channel: ${msg.chat.title || msg.chat.username || msg.chat.id}`);
     const textToParse = msg.text || msg.caption || '';

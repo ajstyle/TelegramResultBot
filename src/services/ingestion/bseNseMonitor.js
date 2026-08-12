@@ -13,6 +13,13 @@ class BseNseMonitor {
     this.isPolling = false;
     this.timer = null;
     this.recentAnnouncements = [];
+    this.activeChatIds = new Set();
+  }
+
+  addActiveChatId(chatId) {
+    if (chatId) {
+      this.activeChatIds.add(chatId.toString());
+    }
   }
 
   /**
@@ -123,7 +130,10 @@ class BseNseMonitor {
         `✅ *Positive Drivers:*\n` + aiSummary.positivePoints.map(point => `- ${point}`).join('\n') + `\n\n` +
         `⚠️ *Hidden Risks:*\n` + aiSummary.hiddenRisks.map(risk => `- ${risk}`).join('\n');
 
-      const targetChats = config.telegram.authorizedChatIds;
+      const targetChats = new Set([
+        ...config.telegram.authorizedChatIds,
+        ...Array.from(this.activeChatIds),
+      ]);
 
       for (const chatId of targetChats) {
         try {
