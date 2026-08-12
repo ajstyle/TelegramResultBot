@@ -1,14 +1,14 @@
 /**
  * AI Financial Intelligence & Pulse Rating Engine
  * Evaluates Sales, Other Income, OP, OPM, PAT, EPS on QoQ & YoY basis with Pulse Ratings:
- * EXCELLENT 🌟 | GOOD 👍 | WEAK ⚠️ | VERY WEAK 🚨
+ * EXCELLENT 🌟 | GOOD 👍 | POOR ⚠️ | VERY POOR 🚨
  */
 class EarningsSummaryEngine {
   /**
    * Determine Pulse Rating for a given metric percentage growth or value
    * @param {number|null} val
    * @param {string} type 'growth' | 'margin'
-   * @returns {string} 'EXCELLENT', 'GOOD', 'WEAK', 'VERY WEAK', or 'N/A'
+   * @returns {string} 'EXCELLENT 🌟', 'GOOD 👍', 'POOR ⚠️', 'VERY POOR 🚨', or 'N/A'
    */
   getPulseRating(val, type = 'growth') {
     if (val === null || val === undefined) return 'N/A';
@@ -16,19 +16,65 @@ class EarningsSummaryEngine {
     if (type === 'margin') {
       if (val >= 22) return 'EXCELLENT 🌟';
       if (val >= 14) return 'GOOD 👍';
-      if (val >= 8) return 'WEAK ⚠️';
-      return 'VERY WEAK 🚨';
+      if (val >= 8) return 'POOR ⚠️';
+      return 'VERY POOR 🚨';
     }
 
     // Default growth rating
     if (val >= 20) return 'EXCELLENT 🌟';
     if (val >= 8) return 'GOOD 👍';
-    if (val >= 0) return 'WEAK ⚠️';
-    return 'VERY WEAK 🚨';
+    if (val >= 0) return 'POOR ⚠️';
+    return 'VERY POOR 🚨';
   }
 
   /**
-   * Synthesize deep financial summary and comprehensive Pulse Ratings
+   * Calculate overall result rating combining all parameters
+   * @param {object} pulseRatings
+   * @returns {{ overallScore: number, overallRating: string, isPurchaseEligible: boolean }}
+   */
+  calculateOverallResult(pulseRatings) {
+    let score = 0;
+    let count = 0;
+
+    const ratingToScore = (rating) => {
+      if (rating.includes('EXCELLENT')) return 90;
+      if (rating.includes('GOOD')) return 72;
+      if (rating.includes('POOR')) return 48;
+      if (rating.includes('VERY POOR')) return 20;
+      return 60;
+    };
+
+    for (const key of Object.keys(pulseRatings)) {
+      if (pulseRatings[key].rating !== 'N/A') {
+        score += ratingToScore(pulseRatings[key].rating);
+        count++;
+      }
+    }
+
+    const overallScore = count > 0 ? Math.round(score / count) : 65;
+
+    let overallRating = 'GOOD 👍';
+    let isPurchaseEligible = false;
+
+    if (overallScore >= 80) {
+      overallRating = 'EXCELLENT 🌟';
+      isPurchaseEligible = true;
+    } else if (overallScore >= 60) {
+      overallRating = 'GOOD 👍';
+      isPurchaseEligible = true;
+    } else if (overallScore >= 40) {
+      overallRating = 'POOR ⚠️';
+      isPurchaseEligible = false;
+    } else {
+      overallRating = 'VERY POOR 🚨';
+      isPurchaseEligible = false;
+    }
+
+    return { overallScore, overallRating, isPurchaseEligible };
+  }
+
+  /**
+   * Synthesize deep financial summary, comprehensive Pulse Ratings, and Overall Result Rating
    * @param {string} symbol
    * @param {string} rawText
    * @param {object} parsedMetrics { sales, otherIncome, operatingProfit, opm, pat, eps, salesQoQ, salesYoY, patQoQ, patYoY }
@@ -57,6 +103,8 @@ class EarningsSummaryEngine {
       eps: { val: parsedMetrics.eps ?? null, rating: this.getPulseRating(parsedMetrics.eps ? 14 : null, 'growth') },
     };
 
+    const { overallScore, overallRating, isPurchaseEligible } = this.calculateOverallResult(pulseRatings);
+
     const positivePoints = [];
     const negativePoints = [];
     const hiddenRisks = [];
@@ -81,12 +129,15 @@ class EarningsSummaryEngine {
       hiddenRisks.push('Short-term foreign exchange volatility and interest cost pressures.');
     }
 
-    const shortSummary = `${formattedSymbol}: Sales YoY ${salesYoY !== null ? salesYoY + '%' : 'Steady'}, PAT YoY ${patYoY !== null ? patYoY + '%' : 'Strong'}, OPM ${opmVal}%. Overall Financial Pulse: GOOD.`;
+    const shortSummary = `${formattedSymbol}: Overall Result Rating: ${overallRating} (Score: ${overallScore}/100). OPM ${opmVal}%.`;
 
     return {
       symbol: formattedSymbol,
       shortSummary,
       pulseRatings,
+      overallScore,
+      overallRating,
+      isPurchaseEligible,
       positivePoints,
       negativePoints,
       hiddenRisks,

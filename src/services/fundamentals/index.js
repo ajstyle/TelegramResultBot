@@ -144,13 +144,13 @@ class FundamentalsService {
   }
 
   /**
-   * Determine valuation rating
+   * Determine valuation rating comparing Stock P/E against Sector P/E
    */
   getValuation(pe, sectorPe) {
-    if (!pe || !sectorPe) return 'Fair';
-    if (pe <= sectorPe * 0.9) return 'Attractive / Undervalued';
-    if (pe <= sectorPe * 1.15) return 'Fair';
-    return 'Premium / Overvalued';
+    if (!pe || !sectorPe) return 'FAIRLY VALUED ⚖️';
+    if (pe <= sectorPe * 0.95) return 'UNDERVALUED / ATTRACTIVE 💎';
+    if (pe <= sectorPe * 1.15) return 'FAIRLY VALUED ⚖️';
+    return 'OVERVALUED / EXPENSIVE 🔴';
   }
 }
 

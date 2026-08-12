@@ -5,6 +5,11 @@ const bseAdapter = require('../adapters/bseAdapter');
 const aiAdapter = require('../adapters/aiAdapter');
 const pdfParser = require('../pdf/pdfParser');
 const signalParser = require('../../parser/signalParser');
+const fundamentalsService = require('../fundamentals');
+const riskEngine = require('../riskEngine');
+const decisionEngine = require('../decisionEngine');
+const angelOne = require('../angelOne');
+const tradeStore = require('../tradeStore');
 const config = require('../../config');
 
 class BseNseMonitor {
@@ -78,7 +83,7 @@ class BseNseMonitor {
   }
 
   /**
-   * Deeply process individual announcement: PDF extraction, TTM calculations, AI summary, Telegram alert
+   * Deeply process individual announcement: PDF extraction, TTM calculations, Valuation, AI summary, Telegram alert
    */
   async processAnnouncement(item) {
     let pdfAnalysis = { rawText: '', metrics: {} };
@@ -87,6 +92,7 @@ class BseNseMonitor {
     }
 
     const aiSummary = aiAdapter.generateSummary(item.symbol, item.title + ' ' + pdfAnalysis.rawText, pdfAnalysis.metrics);
+    const fundamentals = await fundamentalsService.analyze(item.symbol);
 
     // Save in recent announcements list for REST API
     const announcementRecord = {
@@ -96,6 +102,7 @@ class BseNseMonitor {
       title: item.title,
       pdfUrl: item.pdfUrl,
       metrics: pdfAnalysis.metrics,
+      fundamentals: fundamentals.metrics,
       aiSummary,
       timestamp: new Date().toISOString(),
     };
@@ -105,17 +112,90 @@ class BseNseMonitor {
       this.recentAnnouncements.pop();
     }
 
+    // Lookup Scrip & Calculate ATR Stop Loss & Sizing if purchase eligible
+    let tradeRecord = null;
+    let stopLoss = null;
+    let quantity = 0;
+    let ltp = null;
+
+    if (aiSummary.isPurchaseEligible) {
+      try {
+        const scripInfo = await angelOne.searchScrip(item.symbol, 'NSE');
+        ltp = await angelOne.getLTP(scripInfo.exchange, scripInfo.tradingsymbol, scripInfo.symboltoken);
+        const candles = await angelOne.getHistoricalCandles(scripInfo.exchange, scripInfo.symboltoken, 30);
+        const atr = riskEngine.calculateATR(candles, config.risk.atrPeriod);
+        const entryPrice = ltp || 1000;
+        
+        const slResult = riskEngine.calculateStopLoss('BUY', entryPrice, null, atr);
+        stopLoss = slResult.stopLoss;
+        const posResult = riskEngine.calculatePositionSize(entryPrice, stopLoss, config.risk.accountCapital, config.risk.riskPerTrade);
+        quantity = posResult.quantity;
+
+        const decision = decisionEngine.evaluate({
+          action: 'BUY',
+          symbol: item.symbol,
+          entry: entryPrice,
+          stopLoss,
+          target: null,
+          quantity,
+          ltp: entryPrice,
+          ocrConfidence: 100,
+          fundamentals,
+          atr: slResult.atrUsed,
+        });
+
+        tradeRecord = await tradeStore.createTrade({
+          symbol: item.symbol,
+          action: 'BUY',
+          entry: entryPrice,
+          ltp: entryPrice,
+          stopLoss,
+          target: null,
+          quantity,
+          atr: slResult.atrUsed,
+          fundamentals: fundamentals.metrics || {},
+          decision,
+          status: 'ANALYZED',
+          telegramMessageId: null,
+          telegramChatId: null,
+        });
+      } catch (err) {
+        console.warn(`[BseNseMonitor] Sizing lookup notice for ${item.symbol}: ${err.message}`);
+      }
+    }
+
     // Broadcast AI Financial Intelligence Summary & Metric Pulse Ratings to Telegram
     if (this.bot) {
       const p = aiSummary.pulseRatings;
       const m = pdfAnalysis.metrics;
+      const valRating = fundamentals.valuation || 'FAIRLY VALUED ⚖️';
+
+      let replyMarkup = undefined;
+      let buyButtonNotice = '';
+
+      if (aiSummary.isPurchaseEligible && tradeRecord) {
+        buyButtonNotice = `\n⚡ *Result is ${aiSummary.overallRating}! Instant Purchase Enabled.*\n*Entry:* ₹${tradeRecord.entry} | *SL:* ₹${stopLoss} | *Qty:* ${quantity} shares\n`;
+
+        replyMarkup = {
+          inline_keyboard: [
+            [
+              { text: `⚡ 1-CLICK BUY ON ANGEL ONE (SL: ₹${stopLoss} | Qty: ${quantity})`, callback_data: `CONFIRM_${tradeRecord._id}` },
+            ],
+            [
+              { text: `❌ CANCEL`, callback_data: `CANCEL_${tradeRecord._id}` },
+            ]
+          ],
+        };
+      }
 
       const telegramMsg =
         `📢 *OFFICIAL ${item.source} EARNINGS ANNOUNCEMENT*\n\n` +
         `*Stock:* ${item.symbol}\n` +
         `*Title:* ${item.title}\n` +
         (item.pdfUrl ? `📄 *Filing PDF:* [Download Result PDF](${item.pdfUrl})\n\n` : '\n') +
-        `💡 *AI Summary:* ${aiSummary.shortSummary}\n\n` +
+        `🏆 *OVERALL RESULT RATING:* \`${aiSummary.overallRating}\` (Score: ${aiSummary.overallScore}/100)\n` +
+        `💎 *CURRENT VALUATION:* \`${valRating}\` (P/E: ${fundamentals.metrics?.pe || 'N/A'}, Sector P/E: ${fundamentals.metrics?.sectorPe || 'N/A'})\n` +
+        `${buyButtonNotice}\n` +
         `📊 *METRIC PULSE RATINGS (QoQ, YoY & TTM)*\n` +
         `• *Sales (QoQ):* ${p.salesQoQ.val !== null ? p.salesQoQ.val + '%' : 'N/A'} ➔ \`${p.salesQoQ.rating}\`\n` +
         `• *Sales (YoY):* ${p.salesYoY.val !== null ? p.salesYoY.val + '%' : 'N/A'} ➔ \`${p.salesYoY.rating}\`\n` +
@@ -137,17 +217,15 @@ class BseNseMonitor {
 
       for (const chatId of targetChats) {
         try {
-          await this.bot.sendMessage(chatId, telegramMsg, { parse_mode: 'Markdown', disable_web_page_preview: false });
+          await this.bot.sendMessage(chatId, telegramMsg, {
+            parse_mode: 'Markdown',
+            disable_web_page_preview: false,
+            reply_markup: replyMarkup,
+          });
         } catch (e) {
           console.warn(`[BseNseMonitor] Could not send Telegram alert to ${chatId}: ${e.message}`);
         }
       }
-    }
-
-    // Try parsing signal
-    const parsedSignal = signalParser.parse(`${item.symbol} ${item.title}`);
-    if (parsedSignal.isParsed) {
-      console.log(`[BseNseMonitor] Actionable trade signal detected in ${item.symbol} announcement!`);
     }
   }
 
