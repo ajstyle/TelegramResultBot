@@ -1,32 +1,35 @@
 services:
   - type: web
     name: telegram-trading-assistant
-    runtime: node
+    env: node
     buildCommand: npm install
     startCommand: npm start
+    healthCheckPath: /health
     envVars:
       - key: PORT
         value: 3000
       - key: NODE_ENV
         value: production
       - key: TRADING_MODE
-        sync: false
+        value: LIVE
       - key: TELEGRAM_BOT_TOKEN
-        sync: false
+        value: 8937947792:AAGO58NK4N83vOBW4ONx5bKsbdA6p9_-5TU
+      - key: AUTHORIZED_TELEGRAM_CHAT_IDS
+        value: "1015884436"
       - key: TARGET_TELEGRAM_CHANNEL
-        sync: false
+        value: earnings_pulse
       - key: AUTO_EXECUTE_ORDER
-        sync: false
+        value: "true"
       - key: POLLING_INTERVAL_MS
         value: 5000
       - key: ANGEL_API_KEY
-        sync: false
+        value: FnjqYiUZ
       - key: ANGEL_CLIENT_CODE
-        sync: false
+        value: R704779
       - key: ANGEL_PIN
-        sync: false
+        value: "0812"
       - key: ANGEL_TOTP_SECRET
-        sync: false
+        value: HSLCI45Y7YK6MQVSODG3253DDY
       - key: ACCOUNT_CAPITAL
         value: 100000
       - key: RISK_PER_TRADE
@@ -37,7 +40,3 @@ services:
         value: 14
       - key: OCR_CONFIDENCE_THRESHOLD
         value: 60
-      - key: FUNDAMENTALS_API_KEY
-        sync: false
-      - key: FUNDAMENTALS_API_URL
-        sync: false
