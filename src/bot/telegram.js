@@ -5,6 +5,8 @@ const { handleOrderConfirmation } = require('./orderConfirmation');
 const signalParser = require('../parser/signalParser');
 const bseNseMonitor = require('../services/ingestion/bseNseMonitor');
 
+let activeBotInstance = null;
+
 /**
  * Initialize Telegram Listener & Event Handlers
  */
@@ -12,6 +14,12 @@ function initTelegramBot() {
   if (!config.telegram.botToken) {
     console.warn('[TelegramBot] TELEGRAM_BOT_TOKEN not found in environment. Telegram bot listener disabled.');
     return null;
+  }
+
+  if (activeBotInstance) {
+    try {
+      activeBotInstance.stopPolling();
+    } catch (_) {}
   }
 
   const maskedToken = config.telegram.botToken.length > 10 
@@ -31,6 +39,7 @@ function initTelegramBot() {
     },
   });
 
+  activeBotInstance = bot;
   bseNseMonitor.setBotInstance(bot);
 
   console.log(`[TelegramBot] Listener started with polling (Interval: ${config.telegram.pollingInterval || 5000}ms)...`);
@@ -136,6 +145,8 @@ function initTelegramBot() {
   bot.on('polling_error', error => {
     if (error.message && error.message.includes('404')) {
       console.error(`[TelegramBot] Polling error: 404 Not Found. Make sure TELEGRAM_BOT_TOKEN in .env is correct and restart the server.`);
+    } else if (error.message && error.message.includes('409')) {
+      console.warn(`[TelegramBot] Notice: 409 Conflict - Another bot instance is active (e.g. Render zero-downtime deploy or local server). Polling will auto-resume.`);
     } else {
       console.error(`[TelegramBot] Polling error: ${error.message}`);
     }
