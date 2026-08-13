@@ -9,7 +9,6 @@ const riskEngine = require('../riskEngine');
 const decisionEngine = require('../decisionEngine');
 const tradeStore = require('../tradeStore');
 const angelOne = require('../angelOne');
-const cardGenerator = require('../cardGenerator');
 const config = require('../../config');
 
 /**
@@ -372,31 +371,8 @@ class BseNseMonitorService {
           `| **EPS** | ${epsQoQStr} | ${epsYoYStr} | **${epsCurrStr}** | ${epsPrevStr} | ${epsYoYValStr} |\n\n` +
           `*CMP : ${cmpDisplay}* | *${compCategory} (${mcapDisplay})* | *P/E : ${peDisplay}*\n\n` +
           `⏱️ *Result Published:* \`${item.date || 'Live'}\` (⚡ *${timeAgoStr}*)\n` +
+          (item.pdfUrl ? `📄 *Filing PDF:* [Download Official Filing PDF](${item.pdfUrl})\n` : '') +
           `${buyButtonNotice}`;
-
-        let cardPngBuf = null;
-        try {
-          cardPngBuf = cardGenerator.generatePngCard({
-            symbol: item.symbol,
-            scripCode: item.scripCode,
-            symbolName: displayHeaderSymbol,
-            cmp: cmpDisplay,
-            category: compCategory,
-            mcapCr: mcapVal,
-            pe: peDisplay,
-            periodLabels: labels,
-            scorecard: sc || {
-              Sales: { QoQ: sQoQStr, YoY: sYoYStr, Qt: sCurrStr, Qt1: sPrevStr, Qt4: sYoYValStr },
-              'Other Inc.': { QoQ: othQoQStr, YoY: othYoYStr, Qt: othCurrStr, Qt1: othPrevStr, Qt4: othYoYValStr },
-              OP: { QoQ: opQoQStr, YoY: opYoYStr, Qt: opCurrStr, Qt1: opPrevStr, Qt4: opYoYValStr },
-              OPM: { QoQ: opmQoQStr, YoY: opmYoYStr, Qt: opmCurrStr, Qt1: opmPrevStr, Qt4: opmYoYValStr },
-              PAT: { QoQ: pQoQStr, YoY: pYoYStr, Qt: patCurrStr, Qt1: patPrevStr, Qt4: patYoYValStr },
-              EPS: { QoQ: epsQoQStr, YoY: epsYoYStr, Qt: epsCurrStr, Qt1: epsPrevStr, Qt4: epsYoYValStr },
-            },
-          });
-        } catch (cardErr) {
-          console.warn(`[BseNseMonitor] Card generator notice: ${cardErr.message}`);
-        }
 
         const targetChats = new Set([
           ...config.telegram.authorizedChatIds,
@@ -405,29 +381,11 @@ class BseNseMonitorService {
 
         for (const chatId of targetChats) {
           try {
-            let sentMsg = null;
-            if (cardPngBuf) {
-              try {
-                sentMsg = await this.bot.sendPhoto(
-                  chatId,
-                  cardPngBuf,
-                  {
-                    caption: telegramMsg,
-                    parse_mode: 'Markdown',
-                    reply_markup: replyMarkup,
-                  },
-                  { filename: `${item.symbol}_Scorecard_Card.png`, contentType: 'image/png' }
-                );
-              } catch (_) {}
-            }
-
-            if (!sentMsg) {
-              sentMsg = await this.bot.sendMessage(chatId, telegramMsg, {
-                parse_mode: 'Markdown',
-                reply_markup: replyMarkup,
-                disable_web_page_preview: true,
-              });
-            }
+            const sentMsg = await this.bot.sendMessage(chatId, telegramMsg, {
+              parse_mode: 'Markdown',
+              reply_markup: replyMarkup,
+              disable_web_page_preview: true,
+            });
 
             if (sentMsg && tradeRecord && !tradeRecord.telegramMessageId) {
               tradeRecord.telegramMessageId = sentMsg.message_id.toString();

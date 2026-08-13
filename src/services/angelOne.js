@@ -142,18 +142,18 @@ class AngelOneService {
           exchange,
           searchscrip: formattedSymbol,
         },
-        { headers: this.getHeaders(), timeout: 1000 }
+        { headers: this.getHeaders(), timeout: 5000 }
       );
 
       if (response.data && response.data.status && Array.isArray(response.data.data) && response.data.data.length > 0) {
         const eqMatch = response.data.data.find(
           item => item.tradingsymbol === `${formattedSymbol}-EQ`
         );
-        const anyEqMatch = response.data.data.find(
-          item => item.tradingsymbol && item.tradingsymbol.endsWith('-EQ')
+        const beMatch = response.data.data.find(
+          item => item.tradingsymbol === `${formattedSymbol}-BE` || item.tradingsymbol?.startsWith(formattedSymbol)
         );
 
-        const selected = eqMatch || anyEqMatch || response.data.data[0];
+        const selected = eqMatch || beMatch || response.data.data[0];
         const scripResult = {
           symboltoken: selected.symboltoken,
           tradingsymbol: selected.tradingsymbol,
@@ -162,6 +162,24 @@ class AngelOneService {
         };
         this.scripCache.set(cacheKey, scripResult);
         return scripResult;
+      }
+    } catch (_) {}
+
+    // Fallback: Fetch from Angel One Official Scrip Master File
+    try {
+      const smRes = await axios.get('https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json', { timeout: 8000 });
+      if (Array.isArray(smRes.data)) {
+        const match = smRes.data.find(item => item.name === formattedSymbol && (item.exch_seg === exchange || item.exch_seg === 'NSE' || item.exch_seg === 'BSE'));
+        if (match && match.token) {
+          const scripResult = {
+            symboltoken: match.token,
+            tradingsymbol: match.symbol,
+            exchange: match.exch_seg || exchange,
+            series: match.symbol.includes('-BE') ? 'BE' : 'EQ',
+          };
+          this.scripCache.set(cacheKey, scripResult);
+          return scripResult;
+        }
       }
     } catch (_) {}
 
