@@ -376,6 +376,32 @@ class BseNseMonitorService {
           (item.pdfUrl ? `📄 *Filing PDF:* [Download Official Filing PDF](${item.pdfUrl})\n` : '') +
           `${buyButtonNotice}`;
 
+        // Generate Ultra-High Resolution PNG Infographic Image Card
+        let cardPngBuf = null;
+        try {
+          cardPngBuf = cardGenerator.generatePngCard({
+            symbol: item.symbol,
+            scripCode: item.scripCode,
+            symbolName: displayHeaderSymbol,
+            cmp: cmpDisplay,
+            category: compCategory,
+            mcapCr: mcapVal,
+            pe: peDisplay,
+            pulseRating: computedPulseRating,
+            periodLabels: labels,
+            scorecard: sc || {
+              Sales: { QoQ: sQoQStr, YoY: sYoYStr, Qt: sCurrStr, Qt1: sPrevStr, Qt4: sYoYValStr },
+              'Other Inc.': { QoQ: othQoQStr, YoY: othYoYStr, Qt: othCurrStr, Qt1: othPrevStr, Qt4: othYoYValStr },
+              OP: { QoQ: opQoQStr, YoY: opYoYStr, Qt: opCurrStr, Qt1: opPrevStr, Qt4: opYoYValStr },
+              OPM: { QoQ: opmQoQStr, YoY: opmYoYStr, Qt: opmCurrStr, Qt1: opmPrevStr, Qt4: opmYoYValStr },
+              PAT: { QoQ: pQoQStr, YoY: pYoYStr, Qt: patCurrStr, Qt1: patPrevStr, Qt4: patYoYValStr },
+              EPS: { QoQ: epsQoQStr, YoY: epsYoYStr, Qt: epsCurrStr, Qt1: epsPrevStr, Qt4: epsYoYValStr },
+            },
+          });
+        } catch (cardErr) {
+          console.warn(`[BseNseMonitor] Card generator notice: ${cardErr.message}`);
+        }
+
         const targetChats = new Set([
           ...config.telegram.authorizedChatIds,
           ...Array.from(this.activeChatIds),
@@ -383,11 +409,33 @@ class BseNseMonitorService {
 
         for (const chatId of targetChats) {
           try {
-            const sentMsg = await this.bot.sendMessage(chatId, telegramMsg, {
-              parse_mode: 'Markdown',
-              reply_markup: replyMarkup,
-              disable_web_page_preview: true,
-            });
+            let sentMsg = null;
+
+            if (cardPngBuf) {
+              try {
+                sentMsg = await this.bot.sendPhoto(
+                  chatId,
+                  cardPngBuf,
+                  {
+                    caption: telegramMsg,
+                    parse_mode: 'Markdown',
+                    reply_markup: replyMarkup,
+                  },
+                  { filename: `${item.symbol}_Scorecard_Card.png`, contentType: 'image/png' }
+                );
+                console.log(`[BseNseMonitor] Sent Scorecard Photo Card for ${item.symbol} to Telegram chat ${chatId}!`);
+              } catch (photoErr) {
+                console.warn(`[BseNseMonitor] sendPhoto notice for ${item.symbol}: ${photoErr.message}. Falling back to sendMessage...`);
+              }
+            }
+
+            if (!sentMsg) {
+              sentMsg = await this.bot.sendMessage(chatId, telegramMsg, {
+                parse_mode: 'Markdown',
+                reply_markup: replyMarkup,
+                disable_web_page_preview: true,
+              });
+            }
 
             if (sentMsg && tradeRecord && !tradeRecord.telegramMessageId) {
               tradeRecord.telegramMessageId = sentMsg.message_id.toString();
