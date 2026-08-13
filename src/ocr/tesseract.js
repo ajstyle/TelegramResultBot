@@ -30,17 +30,26 @@ class TesseractOcrEngine {
   }
 
   /**
+   * Validate image buffer header magic bytes (PNG, JPEG, WebP, GIF, BMP, TIFF)
+   */
+  isValidImageBuffer(buf) {
+    if (!buf || !Buffer.isBuffer(buf) || buf.length < 32) return false;
+    if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4E && buf[3] === 0x47) return true; // PNG
+    if (buf[0] === 0xFF && buf[1] === 0xD8 && buf[2] === 0xFF) return true; // JPEG
+    if (buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46) return true; // RIFF/WebP
+    if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46) return true; // GIF
+    if (buf[0] === 0x42 && buf[1] === 0x4D) return true; // BMP
+    if ((buf[0] === 0x49 && buf[1] === 0x49) || (buf[0] === 0x4D && buf[1] === 0x4D)) return true; // TIFF
+    return false;
+  }
+
+  /**
    * Extract text and confidence score from image buffer
    * @param {Buffer} imageBuffer
    * @returns {Promise<{ text: string, confidence: number }>}
    */
   async processImage(imageBuffer) {
-    if (!imageBuffer) {
-      return { text: '', confidence: 0 };
-    }
-
-    // Tesseract OCR works on images (PNG/JPG/WebP/BMP). PDF buffers are handled natively by Gemini Multimodal.
-    if (Buffer.isBuffer(imageBuffer) && imageBuffer.toString('utf-8', 0, 5) === '%PDF-') {
+    if (!this.isValidImageBuffer(imageBuffer)) {
       return { text: '', confidence: 0 };
     }
 
