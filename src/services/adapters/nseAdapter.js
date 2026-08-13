@@ -24,32 +24,56 @@ class NseAdapter {
     return `https://archives.nseindia.com/corporate/announcements/${file}`;
   }
 
-  async fetchAnnouncements() {
+  async getCookies() {
     try {
-      const response = await axios.get(`https://www.nseindia.com/api/corporate-announcements?index=equities&_t=${Date.now()}`, {
+      const res = await axios.get('https://www.nseindia.com', {
         headers: {
+          'User-Agent': this.getRandomUserAgent(),
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        },
+        timeout: 4000,
+      });
+      if (res.headers['set-cookie']) {
+        this.cookies = res.headers['set-cookie'].map(c => c.split(';')[0]).join('; ');
+      }
+    } catch (_) {}
+  }
+
+  async fetchAnnouncements() {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const headers = {
           'User-Agent': this.getRandomUserAgent(),
           'Accept': 'application/json, text/plain, */*',
           'Referer': 'https://www.nseindia.com/companies-listing/corporate-filings-announcements',
           'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0',
-        },
-        timeout: 5000,
-      });
+        };
+        if (this.cookies) {
+          headers['Cookie'] = this.cookies;
+        }
 
-      if (Array.isArray(response.data)) {
-        return response.data.map(item => ({
-          source: 'NSE',
-          symbol: item.symbol || item.sm_symbol || 'NSE_STOCK',
-          title: item.desc || item.attchmntText || 'Corporate Announcement',
-          subject: item.attchmntText || item.desc || '',
-          pdfUrl: this.formatPdfUrl(item.attchmntFile || item.attachmentFile || item.file),
-          announcementId: item.an_dt ? `NSE_${item.symbol}_${item.an_dt}` : null,
-          date: item.an_dt || new Date().toISOString(),
-        }));
+        const response = await axios.get(`https://www.nseindia.com/api/corporate-announcements?index=equities&_t=${Date.now()}`, {
+          headers,
+          timeout: 5000,
+        });
+
+        if (Array.isArray(response.data)) {
+          return response.data.map(item => ({
+            source: 'NSE',
+            symbol: item.symbol || item.sm_symbol || 'NSE_STOCK',
+            title: item.desc || item.attchmntText || 'Corporate Announcement',
+            subject: item.attchmntText || item.desc || '',
+            pdfUrl: this.formatPdfUrl(item.attchmntFile || item.attachmentFile || item.file),
+            announcementId: item.an_dt ? `NSE_${item.symbol}_${item.an_dt}` : null,
+            date: item.an_dt || new Date().toISOString(),
+          }));
+        }
+      } catch (err) {
+        if (attempt === 0) {
+          await this.getCookies();
+        }
       }
-    } catch (_) {}
+    }
     return [];
   }
 }

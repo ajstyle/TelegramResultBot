@@ -58,21 +58,38 @@ class AnnouncementFilter {
   isEarningsAnnouncement(item) {
     const textToMatch = `${item.title || ''} ${item.subject || ''} ${item.pdfUrl || ''}`.toLowerCase();
 
-    // 1. Check for explicit exclusions
-    for (const exclusion of this.exclusionKeywords) {
+    // 1. Check for explicit inclusion keywords FIRST
+    let hasInclusion = false;
+    for (const keyword of this.inclusionKeywords) {
+      if (textToMatch.includes(keyword)) {
+        hasInclusion = true;
+        break;
+      }
+    }
+
+    if (!hasInclusion) {
+      return false;
+    }
+
+    // 2. Check for strict non-earnings noise exclusions (shareholding, trading window, loss of certificate)
+    const strictExclusions = [
+      'shareholding pattern',
+      'insider trading',
+      'loss of share certificate',
+      'closure of trading window',
+      'trading window closure',
+      'compliance certificate',
+      'audio recording',
+      'transcript',
+    ];
+
+    for (const exclusion of strictExclusions) {
       if (textToMatch.includes(exclusion)) {
         return false;
       }
     }
 
-    // 2. Check for inclusion keywords
-    for (const keyword of this.inclusionKeywords) {
-      if (textToMatch.includes(keyword)) {
-        return true;
-      }
-    }
-
-    return false;
+    return true;
   }
 }
 

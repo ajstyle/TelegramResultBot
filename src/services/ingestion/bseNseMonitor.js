@@ -82,7 +82,7 @@ class BseNseMonitorService {
 
       if (isNaN(annDate.getTime())) return true;
       const diffHours = (Date.now() - annDate.getTime()) / (1000 * 60 * 60);
-      return diffHours <= 3;
+      return diffHours <= 24;
     } catch (_) {
       return true;
     }
