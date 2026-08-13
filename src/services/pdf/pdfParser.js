@@ -27,6 +27,14 @@ class PdfParserEngine {
         const guidMatch = cleanSource.match(/([a-f0-9-]{36})/i);
         if (guidMatch) {
           const guidHyphen = guidMatch[1];
+          try {
+            const bseAdapter = require('../adapters/bseAdapter');
+            const resolvedUrl = await bseAdapter.resolvePdfUrl(null, guidHyphen);
+            if (resolvedUrl && !urlsToTry.includes(resolvedUrl)) {
+              urlsToTry.unshift(encodeURI(resolvedUrl));
+            }
+          } catch (_) {}
+
           const guidUnderscore = guidHyphen.replace(/-/g, '_');
           urlsToTry.push(`https://www.bseindia.com/xml-data/corpfiling/AttachLive/${guidHyphen}.pdf`);
           urlsToTry.push(`https://www.bseindia.com/xml-data/corpfiling/AttachLive/${guidUnderscore}.pdf`);
