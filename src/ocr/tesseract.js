@@ -72,8 +72,9 @@ class TesseractOcrEngine {
           await activeWorker.terminate();
         } catch (_) {}
       }
-      console.error(`[OCR Engine - ${this.name}] Error during OCR: ${error.message}`);
-      throw error;
+      const errMsg = (error && typeof error === 'object' && error.message) ? error.message : (error || 'Unknown error');
+      console.warn(`[OCR Engine - ${this.name}] Error during OCR: ${errMsg}`);
+      return { text: '', confidence: 0, raw: null };
     }
   }
 }
