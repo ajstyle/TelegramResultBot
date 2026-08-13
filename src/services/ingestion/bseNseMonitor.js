@@ -356,26 +356,23 @@ class BseNseMonitorService {
 
         const labels = geminiResult?.periodLabels || { q_t: "Jun '26", q_t1: "Mar '26", q_t4: "Jun '25" };
 
-        // Universal Dashboard Scorecard Table Format
+        // ⚡ Gemini Quantitative Scorecard Dashboard Table
         const telegramMsg =
           `🏢 *${displayHeaderSymbol}*  [ ${hashtagSymbol} ]\n` +
           `📢 *OFFICIAL ${item.source} EARNINGS ANNOUNCEMENT*\n\n` +
-          `⚡ *Pulse Rating :* \`${aiSummary.overallRating || 'GOOD 👍'}\` | 💎 *Valuation:* \`${valuationDisplay}\`\n\n` +
-          `\`\`\`text\n` +
-          `Metric   QoQ     YoY     ${labels.q_t.padEnd(6)} ${labels.q_t1.padEnd(6)} ${labels.q_t4.padEnd(6)}\n` +
-          `-----------------------------------------------\n` +
-          `Sales    ${sQoQStr.padStart(6)}  ${sYoYStr.padStart(6)}  ${sCurrStr.padStart(6)}  ${sPrevStr.padStart(6)}  ${sYoYValStr.padStart(6)}\n` +
-          `Oth.Inc  ${othQoQStr.padStart(6)}  ${othYoYStr.padStart(6)}  ${othCurrStr.padStart(6)}  ${othPrevStr.padStart(6)}  ${othYoYValStr.padStart(6)}\n` +
-          `OP       ${opQoQStr.padStart(6)}  ${opYoYStr.padStart(6)}  ${opCurrStr.padStart(6)}  ${opPrevStr.padStart(6)}  ${opYoYValStr.padStart(6)}\n` +
-          `OPM      ${opmQoQStr.padStart(6)}  ${opmYoYStr.padStart(6)}  ${opmCurrStr.padStart(6)}  ${opmPrevStr.padStart(6)}  ${opmYoYValStr.padStart(6)}\n` +
-          `PAT      ${pQoQStr.padStart(6)}  ${pYoYStr.padStart(6)}  ${patCurrStr.padStart(6)}  ${patPrevStr.padStart(6)}  ${patYoYValStr.padStart(6)}\n` +
-          `EPS      ${epsQoQStr.padStart(6)}  ${epsYoYStr.padStart(6)}  ${epsCurrStr.padStart(6)}  ${epsPrevStr.padStart(6)}  ${epsYoYValStr.padStart(6)}\n` +
-          `\`\`\`\n\n` +
+          `⚡ *Gemini Quantitative Scorecard Dashboard*\n\n` +
+          `| Metric | QoQ | YoY | Current Qtr (${labels.q_t}) | Prev Qtr (${labels.q_t1}) | Prior Year Qtr (${labels.q_t4}) |\n` +
+          `|---|:---:|:---:|:---:|:---:|:---:|\n` +
+          `| **Sales** | ${sQoQStr} | ${sYoYStr} | **${sCurrStr}** | ${sPrevStr} | ${sYoYValStr} |\n` +
+          `| **Other Inc.** | ${othQoQStr} | ${othYoYStr} | **${othCurrStr}** | ${othPrevStr} | ${othYoYValStr} |\n` +
+          `| **OP** | ${opQoQStr} | ${opYoYStr} | **${opCurrStr}** | ${opPrevStr} | ${opYoYValStr} |\n` +
+          `| **OPM (%)** | ${opmQoQStr} | ${opmYoYStr} | **${opmCurrStr}** | ${opmPrevStr} | ${opmYoYValStr} |\n` +
+          `| **PAT** | ${pQoQStr} | ${pYoYStr} | **${patCurrStr}** | ${patPrevStr} | ${patYoYValStr} |\n` +
+          `| **EPS** | ${epsQoQStr} | ${epsYoYStr} | **${epsCurrStr}** | ${epsPrevStr} | ${epsYoYValStr} |\n\n` +
           `*CMP : ${cmpDisplay}* | *${compCategory} (${mcapDisplay})* | *P/E : ${peDisplay}*\n\n` +
           `⏱️ *Result Published:* \`${item.date || 'Live'}\` (⚡ *${timeAgoStr}*)\n` +
           (item.pdfUrl ? `📄 *Filing PDF:* [Download Official Filing PDF](${item.pdfUrl})\n` : '') +
-          `${buyButtonNotice}` +
-          (geminiResult?.markdown || '');
+          `${buyButtonNotice}`;
 
         const targetChats = new Set([
           ...config.telegram.authorizedChatIds,
