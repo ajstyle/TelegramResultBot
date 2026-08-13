@@ -222,9 +222,10 @@ Return ONLY valid JSON matching this exact structure:
 }
 `;
 
-    const candidateModels = ['gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-flash-latest', 'gemini-3.5-flash-lite'];
+    const candidateModels = ['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-flash-latest'];
 
-    for (const modelName of candidateModels) {
+    for (let i = 0; i < candidateModels.length; i++) {
+      const modelName = candidateModels[i];
       try {
         const contents = [];
 
@@ -271,8 +272,13 @@ Return ONLY valid JSON matching this exact structure:
           periodLabels: parsedData.period_labels || { q_t: "Jun '26", q_t1: "Mar '26", q_t4: "Jun '25" },
         };
       } catch (err) {
-        console.warn(`[GeminiAnalyzer] Model ${modelName} notice: ${err.message}. Retrying next model in 1s...`);
-        await new Promise((r) => setTimeout(r, 1000));
+        const isRateLimit = err.message && (err.message.includes('429') || err.message.includes('RESOURCE_EXHAUSTED') || err.message.includes('Quota exceeded'));
+        const nextModel = candidateModels[i + 1];
+        if (isRateLimit) {
+          console.warn(`[GeminiAnalyzer] Rate/Quota limit (429) hit for ${modelName}.${nextModel ? ` Instantly falling back to ${nextModel}...` : ' No more models available.'}`);
+        } else {
+          console.warn(`[GeminiAnalyzer] Model ${modelName} notice: ${err.message}.${nextModel ? ` Retrying with ${nextModel}...` : ''}`);
+        }
       }
     }
 
