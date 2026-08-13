@@ -13,56 +13,85 @@ class FundamentalsProvider {
    */
   async fetchLivePrice(symbol, scripCode = null) {
     if (!symbol && !scripCode) return null;
-    const candidates = [];
+    const candidates = new Set();
 
-    const cleanSym = symbol ? symbol.toUpperCase().trim().replace(/[^A-Z0-9.-]/g, '') : '';
+    const cleanSym = symbol ? symbol.toUpperCase().trim().replace(/[^A-Z0-9.&-]/g, '') : '';
     const numericScrip = (scripCode && /^\d{6}$/.test(scripCode.toString())) 
       ? scripCode.toString() 
       : (/^\d{6}$/.test(cleanSym) ? cleanSym : null);
 
-    // 1. If symbol is a valid ticker string (e.g. GICRE, TCS, PANAMAPET), try NSE first
+    // 1. Primary symbol candidate (e.g. TCS.NS, GICRE.NS, PANAMAPET.NS)
     if (cleanSym && !/^\d{6}$/.test(cleanSym)) {
       if (cleanSym.includes('.')) {
-        candidates.push(cleanSym);
+        candidates.add(cleanSym);
       } else {
-        candidates.push(`${cleanSym}.NS`);
+        candidates.add(`${cleanSym}.NS`);
       }
     }
 
-    // 2. Fetch official BSE SecurityId for numeric scrip code (e.g. 506543 -> MPAGI.BO)
+    // 2. Resolve BSE official SecurityId for scrip code (e.g. 506543 -> MPAGI.BO)
     if (numericScrip) {
       try {
         const bseHeader = await this.fetchBseHeader(numericScrip);
         if (bseHeader && bseHeader.SecurityId) {
-          const secId = bseHeader.SecurityId.toUpperCase().trim();
-          if (!candidates.includes(`${secId}.BO`)) candidates.push(`${secId}.BO`);
-          if (!candidates.includes(`${secId}.NS`)) candidates.push(`${secId}.NS`);
+          const secId = bseHeader.SecurityId.toUpperCase().trim().replace(/[^A-Z0-9.&-]/g, '');
+          candidates.add(`${secId}.BO`);
+          candidates.add(`${secId}.NS`);
         }
       } catch (_) {}
     }
 
-    // 3. Fallback candidates
+    // 3. Fallback candidates (cleanSym.BO, numericScrip.BO)
     if (cleanSym && !/^\d{6}$/.test(cleanSym) && !cleanSym.includes('.')) {
-      if (!candidates.includes(`${cleanSym}.BO`)) candidates.push(`${cleanSym}.BO`);
+      candidates.add(`${cleanSym}.BO`);
     }
-    if (numericScrip && !candidates.includes(`${numericScrip}.BO`)) {
-      candidates.push(`${numericScrip}.BO`);
+    if (numericScrip) {
+      candidates.add(`${numericScrip}.BO`);
     }
 
+    // 4. Test candidates against Yahoo Finance Chart API
     for (const sym of candidates) {
+      const price = await this.queryYahooPrice(sym);
+      if (price !== null && price > 0) return price;
+    }
+
+    // 5. Universal Fallback: Search Yahoo Finance API for exact company / ticker match
+    const searchQuery = cleanSym && !/^\d{6}$/.test(cleanSym) ? cleanSym : (numericScrip || symbol);
+    if (searchQuery) {
       try {
-        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=1d`;
-        const res = await axios.get(url, {
+        const searchUrl = `https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(searchQuery)}&quotesCount=5`;
+        const res = await axios.get(searchUrl, {
           headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
           timeout: 4000,
         });
-        if (res.data?.chart?.result?.[0]?.meta) {
-          const meta = res.data.chart.result[0].meta;
-          const price = meta.regularMarketPrice || meta.chartPreviousClose;
-          if (price && !isNaN(price)) return parseFloat(price);
+        if (res.data?.quotes && Array.isArray(res.data.quotes)) {
+          for (const q of res.data.quotes) {
+            if (q.symbol && (q.symbol.endsWith('.NS') || q.symbol.endsWith('.BO'))) {
+              const searchedPrice = await this.queryYahooPrice(q.symbol);
+              if (searchedPrice !== null && searchedPrice > 0) return searchedPrice;
+            }
+          }
         }
       } catch (_) {}
     }
+
+    return null;
+  }
+
+  async queryYahooPrice(sym) {
+    try {
+      const encodedSym = encodeURIComponent(sym);
+      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodedSym}?interval=1d&range=1d`;
+      const res = await axios.get(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+        timeout: 4000,
+      });
+      if (res.data?.chart?.result?.[0]?.meta) {
+        const meta = res.data.chart.result[0].meta;
+        const price = meta.regularMarketPrice || meta.chartPreviousClose;
+        if (price && !isNaN(price)) return parseFloat(price);
+      }
+    } catch (_) {}
     return null;
   }
 
