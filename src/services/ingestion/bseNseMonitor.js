@@ -3,6 +3,7 @@ const bseAdapter = require('../adapters/bseAdapter');
 const announcementFilter = require('./announcementFilter');
 const pdfParserEngine = require('../pdf/pdfParser');
 const aiSummaryEngine = require('../ai/earningsSummaryEngine');
+const geminiAnalyzer = require('../ai/geminiAnalyzer');
 const fundamentalsService = require('../fundamentals');
 const riskEngine = require('../riskEngine');
 const decisionEngine = require('../decisionEngine');
@@ -165,6 +166,15 @@ class BseNseMonitorService {
         }
       }
 
+      let geminiResult = null;
+      if (item.pdfUrl || pdfAnalysis.rawText) {
+        try {
+          geminiResult = await geminiAnalyzer.analyzeResultPdf(pdfAnalysis.pdfBuffer || pdfAnalysis.rawText, item.symbol);
+        } catch (gErr) {
+          console.warn(`[BseNseMonitor] Gemini analysis notice for ${item.symbol}: ${gErr.message}`);
+        }
+      }
+
       const fundamentals = await fundamentalsService.analyze(item.symbol);
       const combinedMetrics = { ...(fundamentals.metrics || {}), ...(pdfAnalysis.metrics || {}) };
       const aiSummary = aiSummaryEngine.generateSummary(item.symbol, pdfAnalysis.rawText, combinedMetrics);
@@ -219,7 +229,6 @@ class BseNseMonitorService {
       });
 
       if (this.bot) {
-        const p = aiSummary.pulseRatings;
         const m = pdfAnalysis.metrics;
 
         let replyMarkup = undefined;
@@ -254,36 +263,114 @@ class BseNseMonitorService {
 
         const hashtagSymbol = `#${item.symbol.toUpperCase().replace(/[^A-Z0-9_]/g, '')}`;
 
-        // Direct Extracted PDF Results
-        const sQoQStr = m.salesQoQ !== null && m.salesQoQ !== undefined ? `${m.salesQoQ > 0 ? '+' : ''}${m.salesQoQ}%` : '-';
-        const sYoYStr = m.salesYoY !== null && m.salesYoY !== undefined ? `${m.salesYoY > 0 ? '+' : ''}${m.salesYoY}%` : '-';
-        const pQoQStr = m.patQoQ !== null && m.patQoQ !== undefined ? `${m.patQoQ > 0 ? '+' : ''}${m.patQoQ}%` : '-';
-        const pYoYStr = m.patYoY !== null && m.patYoY !== undefined ? `${m.patYoY > 0 ? '+' : ''}${m.patYoY}%` : '-';
-        const opmStr = m.opm !== null && m.opm !== undefined ? `${m.opm}%` : '-';
+        // Gemini Universal Scorecard Integration
+        let sQoQStr = '-';
+        let sYoYStr = '-';
+        let sCurrStr = '-';
+        let sPrevStr = '-';
+        let sYoYValStr = '-';
 
-        const sCurrStr = m.sales !== null && m.sales !== undefined ? m.sales.toLocaleString('en-IN') : '-';
-        const sPrevStr = m.salesPrev !== null && m.salesPrev !== undefined ? m.salesPrev.toLocaleString('en-IN') : '-';
-        const sYoYValStr = m.salesYoYVal !== null && m.salesYoYVal !== undefined ? m.salesYoYVal.toLocaleString('en-IN') : '-';
+        let othQoQStr = '-';
+        let othYoYStr = '-';
+        let othCurrStr = '-';
+        let othPrevStr = '-';
+        let othYoYValStr = '-';
 
-        const othCurrStr = m.otherIncome !== null && m.otherIncome !== undefined ? m.otherIncome.toLocaleString('en-IN') : '-';
-        const opCurrStr = m.operatingProfit !== null && m.operatingProfit !== undefined ? m.operatingProfit.toLocaleString('en-IN') : '-';
-        const patCurrStr = m.pat !== null && m.pat !== undefined ? m.pat.toLocaleString('en-IN') : '-';
-        const epsCurrStr = m.eps !== null && m.eps !== undefined ? m.eps.toString() : '-';
+        let opQoQStr = '-';
+        let opYoYStr = '-';
+        let opCurrStr = '-';
+        let opPrevStr = '-';
+        let opYoYValStr = '-';
 
-        // Infographic Report Card Table Format matching earningspulse.ai card layout
+        let opmQoQStr = '-';
+        let opmYoYStr = '-';
+        let opmCurrStr = '-';
+        let opmPrevStr = '-';
+        let opmYoYValStr = '-';
+
+        let pQoQStr = '-';
+        let pYoYStr = '-';
+        let patCurrStr = '-';
+        let patPrevStr = '-';
+        let patYoYValStr = '-';
+
+        let epsQoQStr = '-';
+        let epsYoYStr = '-';
+        let epsCurrStr = '-';
+        let epsPrevStr = '-';
+        let epsYoYValStr = '-';
+
+        const sc = geminiResult?.scorecard;
+        if (sc) {
+          sQoQStr = sc.Sales.QoQ;
+          sYoYStr = sc.Sales.YoY;
+          sCurrStr = `${sc.Sales.Qt}`;
+          sPrevStr = `${sc.Sales.Qt1}`;
+          sYoYValStr = `${sc.Sales.Qt4}`;
+
+          othQoQStr = sc['Other Inc.'].QoQ;
+          othYoYStr = sc['Other Inc.'].YoY;
+          othCurrStr = `${sc['Other Inc.'].Qt}`;
+          othPrevStr = `${sc['Other Inc.'].Qt1}`;
+          othYoYValStr = `${sc['Other Inc.'].Qt4}`;
+
+          opQoQStr = sc.OP.QoQ;
+          opYoYStr = sc.OP.YoY;
+          opCurrStr = `${sc.OP.Qt}`;
+          opPrevStr = `${sc.OP.Qt1}`;
+          opYoYValStr = `${sc.OP.Qt4}`;
+
+          opmQoQStr = sc.OPM.QoQ;
+          opmYoYStr = sc.OPM.YoY;
+          opmCurrStr = `${sc.OPM.Qt}`;
+          opmPrevStr = `${sc.OPM.Qt1}`;
+          opmYoYValStr = `${sc.OPM.Qt4}`;
+
+          pQoQStr = sc.PAT.QoQ;
+          pYoYStr = sc.PAT.YoY;
+          patCurrStr = `${sc.PAT.Qt}`;
+          patPrevStr = `${sc.PAT.Qt1}`;
+          patYoYValStr = `${sc.PAT.Qt4}`;
+
+          epsQoQStr = sc.EPS.QoQ;
+          epsYoYStr = sc.EPS.YoY;
+          epsCurrStr = `${sc.EPS.Qt}`;
+          epsPrevStr = `${sc.EPS.Qt1}`;
+          epsYoYValStr = `${sc.EPS.Qt4}`;
+        } else {
+          // Direct Extracted PDF Parser Fallback
+          sQoQStr = m.salesQoQ !== null && m.salesQoQ !== undefined ? `${m.salesQoQ > 0 ? '+' : ''}${m.salesQoQ}%` : '-';
+          sYoYStr = m.salesYoY !== null && m.salesYoY !== undefined ? `${m.salesYoY > 0 ? '+' : ''}${m.salesYoY}%` : '-';
+          pQoQStr = m.patQoQ !== null && m.patQoQ !== undefined ? `${m.patQoQ > 0 ? '+' : ''}${m.patQoQ}%` : '-';
+          pYoYStr = m.patYoY !== null && m.patYoY !== undefined ? `${m.patYoY > 0 ? '+' : ''}${m.patYoY}%` : '-';
+          opmQoQStr = m.opm !== null && m.opm !== undefined ? `${m.opm}%` : '-';
+
+          sCurrStr = m.sales !== null && m.sales !== undefined ? m.sales.toLocaleString('en-IN') : '-';
+          sPrevStr = m.salesPrev !== null && m.salesPrev !== undefined ? m.salesPrev.toLocaleString('en-IN') : '-';
+          sYoYValStr = m.salesYoYVal !== null && m.salesYoYVal !== undefined ? m.salesYoYVal.toLocaleString('en-IN') : '-';
+
+          othCurrStr = m.otherIncome !== null && m.otherIncome !== undefined ? m.otherIncome.toLocaleString('en-IN') : '-';
+          opCurrStr = m.operatingProfit !== null && m.operatingProfit !== undefined ? m.operatingProfit.toLocaleString('en-IN') : '-';
+          patCurrStr = m.pat !== null && m.pat !== undefined ? m.pat.toLocaleString('en-IN') : '-';
+          epsCurrStr = m.eps !== null && m.eps !== undefined ? m.eps.toString() : '-';
+        }
+
+        const labels = geminiResult?.periodLabels || { q_t: "Jun '26", q_t1: "Mar '26", q_t4: "Jun '25" };
+
+        // Universal Dashboard Scorecard Table Format
         const telegramMsg =
           `🏢 *${displayHeaderSymbol}*  [ ${hashtagSymbol} ]\n` +
           `📢 *OFFICIAL ${item.source} EARNINGS ANNOUNCEMENT*\n\n` +
           `⚡ *Pulse Rating :* \`${aiSummary.overallRating || 'GOOD 👍'}\` | 💎 *Valuation:* \`${valuationDisplay}\`\n\n` +
           `\`\`\`text\n` +
-          `Metric   QoQ     YoY     Jun'26  Mar'26  Jun'25\n` +
+          `Metric   QoQ     YoY     ${labels.q_t.padEnd(6)} ${labels.q_t1.padEnd(6)} ${labels.q_t4.padEnd(6)}\n` +
           `-----------------------------------------------\n` +
           `Sales    ${sQoQStr.padStart(6)}  ${sYoYStr.padStart(6)}  ${sCurrStr.padStart(6)}  ${sPrevStr.padStart(6)}  ${sYoYValStr.padStart(6)}\n` +
-          `Oth.Inc  -       -       ${othCurrStr.padStart(6)}  -       -\n` +
-          `OP       -       -       ${opCurrStr.padStart(6)}  -       -\n` +
-          `OPM (%)  -       -       ${opmStr.padStart(6)}  -       -\n` +
-          `PAT      ${pQoQStr.padStart(6)}  ${pYoYStr.padStart(6)}  ${patCurrStr.padStart(6)}  -       -\n` +
-          `EPS      -       -       ${epsCurrStr.padStart(6)}  -       -\n` +
+          `Oth.Inc  ${othQoQStr.padStart(6)}  ${othYoYStr.padStart(6)}  ${othCurrStr.padStart(6)}  ${othPrevStr.padStart(6)}  ${othYoYValStr.padStart(6)}\n` +
+          `OP       ${opQoQStr.padStart(6)}  ${opYoYStr.padStart(6)}  ${opCurrStr.padStart(6)}  ${opPrevStr.padStart(6)}  ${opYoYValStr.padStart(6)}\n` +
+          `OPM      ${opmQoQStr.padStart(6)}  ${opmYoYStr.padStart(6)}  ${opmCurrStr.padStart(6)}  ${opmPrevStr.padStart(6)}  ${opmYoYValStr.padStart(6)}\n` +
+          `PAT      ${pQoQStr.padStart(6)}  ${pYoYStr.padStart(6)}  ${patCurrStr.padStart(6)}  ${patPrevStr.padStart(6)}  ${patYoYValStr.padStart(6)}\n` +
+          `EPS      ${epsQoQStr.padStart(6)}  ${epsYoYStr.padStart(6)}  ${epsCurrStr.padStart(6)}  ${epsPrevStr.padStart(6)}  ${epsYoYValStr.padStart(6)}\n` +
           `\`\`\`\n\n` +
           `*CMP : ${cmpDisplay}* | *${compCategory} (${mcapDisplay})* | *P/E : ${peDisplay}*\n\n` +
           `⏱️ *Result Published:* \`${item.date || 'Live'}\` (⚡ *${timeAgoStr}*)\n` +
@@ -295,18 +382,18 @@ class BseNseMonitorService {
           symbol: item.symbol,
           subtitle: `${item.source} Listed Company`,
           rating: aiSummary.overallRating || 'GOOD 👍',
-          salesQoQ: m.salesQoQ !== null && m.salesQoQ !== undefined ? `${m.salesQoQ}` : '-',
-          salesYoY: m.salesYoY !== null && m.salesYoY !== undefined ? `${m.salesYoY}` : '-',
-          salesCurr: m.sales !== null && m.sales !== undefined ? `${m.sales.toLocaleString('en-IN')}` : '-',
-          salesPrev: m.salesPrev !== null && m.salesPrev !== undefined ? `${m.salesPrev.toLocaleString('en-IN')}` : '-',
-          salesYoYVal: m.salesYoYVal !== null && m.salesYoYVal !== undefined ? `${m.salesYoYVal.toLocaleString('en-IN')}` : '-',
-          opm: m.opm !== null && m.opm !== undefined ? `${m.opm}` : '-',
-          patQoQ: m.patQoQ !== null && m.patQoQ !== undefined ? `${m.patQoQ}` : '-',
-          patYoY: m.patYoY !== null && m.patYoY !== undefined ? `${m.patYoY}` : '-',
-          patCurr: m.pat !== null && m.pat !== undefined ? `${m.pat.toLocaleString('en-IN')}` : '-',
-          patPrev: m.patPrev !== null && m.patPrev !== undefined ? `${m.patPrev.toLocaleString('en-IN')}` : '-',
-          patYoYVal: m.patYoYVal !== null && m.patYoYVal !== undefined ? `${m.patYoYVal.toLocaleString('en-IN')}` : '-',
-          eps: m.eps !== null && m.eps !== undefined ? `${m.eps}` : '-',
+          salesQoQ: sQoQStr,
+          salesYoY: sYoYStr,
+          salesCurr: sCurrStr,
+          salesPrev: sPrevStr,
+          salesYoYVal: sYoYValStr,
+          opm: opmQoQStr,
+          patQoQ: pQoQStr,
+          patYoY: pYoYStr,
+          patCurr: patCurrStr,
+          patPrev: patPrevStr,
+          patYoYVal: patYoYValStr,
+          eps: epsCurrStr,
           cmp: cmpDisplay,
           category: compCategory,
           mcapCr: mcapVal,

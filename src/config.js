@@ -41,6 +41,8 @@ const config = {
     apiKey: process.env.FUNDAMENTALS_API_KEY || '',
     apiUrl: process.env.FUNDAMENTALS_API_URL || '',
   },
+
+  geminiApiKey: process.env.GEMINI_API_KEY || process.env.GEMINI_KEY || '',
 };
 
 /**

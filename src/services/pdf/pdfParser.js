@@ -130,6 +130,7 @@ class PdfParserEngine {
     const metrics = this.extractFinancialMetrics(rawText);
 
     return {
+      pdfBuffer,
       rawText,
       metrics,
       isScanned,
