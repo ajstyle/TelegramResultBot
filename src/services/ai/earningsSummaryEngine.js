@@ -51,7 +51,11 @@ class EarningsSummaryEngine {
       }
     }
 
-    const overallScore = count > 0 ? Math.round(score / count) : 65;
+    if (count === 0) {
+      return { overallScore: 50, overallRating: 'Neutral ⚖️', isPurchaseEligible: false };
+    }
+
+    const overallScore = Math.round(score / count);
 
     let overallRating = 'GOOD 👍';
     let isPurchaseEligible = false;

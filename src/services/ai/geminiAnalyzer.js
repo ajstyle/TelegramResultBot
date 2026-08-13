@@ -84,13 +84,22 @@ class GeminiFinancialAnalyzer {
 
       const opm = sales !== 0 ? (op / sales) * 100 : 0.0;
 
+      const formatValue = (val) => {
+        if (val === null || val === undefined || isNaN(val)) return 0;
+        const abs = Math.abs(val);
+        if (abs === 0) return 0;
+        if (abs >= 10) return Math.round(val);
+        if (abs >= 1) return Math.round(val * 10) / 10;
+        return Math.round(val * 100) / 100;
+      };
+
       return {
-        sales_disp: Math.round(sales),
-        other_inc_disp: Math.round(other_inc),
-        op_disp: Math.round(op),
+        sales_disp: formatValue(sales),
+        other_inc_disp: formatValue(other_inc),
+        op_disp: formatValue(op),
         opm_disp: Math.round(opm * 10) / 10,
-        pat_disp: Math.round(pat),
-        eps_disp: Math.round(eps * 10) / 10,
+        pat_disp: formatValue(pat),
+        eps_disp: Math.round(eps * 100) / 100,
       };
     };
 

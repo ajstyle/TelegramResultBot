@@ -175,7 +175,7 @@ class BseNseMonitorService {
         }
       }
 
-      const fundamentals = await fundamentalsService.analyze(item.symbol);
+      const fundamentals = await fundamentalsService.analyze(item.symbol, item.scripCode);
       const combinedMetrics = { ...(fundamentals.metrics || {}), ...(pdfAnalysis.metrics || {}) };
       const aiSummary = aiSummaryEngine.generateSummary(item.symbol, pdfAnalysis.rawText, combinedMetrics);
 
@@ -192,7 +192,7 @@ class BseNseMonitorService {
       if (!liveCmp) {
         try {
           const fundamentalsProvider = require('../fundamentals/provider');
-          liveCmp = await fundamentalsProvider.fetchLivePrice(item.symbol);
+          liveCmp = await fundamentalsProvider.fetchLivePrice(item.symbol, item.scripCode);
         } catch (_) {}
       }
 

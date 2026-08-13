@@ -9,24 +9,43 @@ const config = require('../../config');
  */
 class FundamentalsProvider {
   /**
-   * Fetch live CMP from Yahoo Finance
+   * Fetch live CMP from Yahoo Finance for NSE (.NS) or BSE (.BO) symbols & scrip codes
    */
-  async fetchLivePrice(symbol) {
-    if (!symbol) return null;
-    try {
-      const cleanSym = symbol.toUpperCase().trim().replace(/[^A-Z0-9.-]/g, '');
-      const sym = cleanSym.includes('.') ? cleanSym : `${cleanSym}.NS`;
-      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=1d`;
-      const res = await axios.get(url, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-        timeout: 4000,
-      });
-      if (res.data?.chart?.result?.[0]?.meta) {
-        const meta = res.data.chart.result[0].meta;
-        const price = meta.regularMarketPrice || meta.chartPreviousClose;
-        if (price && !isNaN(price)) return parseFloat(price);
+  async fetchLivePrice(symbol, scripCode = null) {
+    if (!symbol && !scripCode) return null;
+    const candidates = [];
+    const cleanSym = symbol ? symbol.toUpperCase().trim().replace(/[^A-Z0-9.-]/g, '') : '';
+    const cleanScrip = scripCode ? scripCode.toString().trim() : '';
+
+    if (/^\d{6}$/.test(cleanSym)) {
+      candidates.push(`${cleanSym}.BO`);
+    } else if (cleanSym) {
+      if (cleanSym.includes('.')) {
+        candidates.push(cleanSym);
+      } else {
+        candidates.push(`${cleanSym}.NS`);
+        candidates.push(`${cleanSym}.BO`);
       }
-    } catch (_) {}
+    }
+
+    if (cleanScrip && /^\d{6}$/.test(cleanScrip) && !candidates.includes(`${cleanScrip}.BO`)) {
+      candidates.push(`${cleanScrip}.BO`);
+    }
+
+    for (const sym of candidates) {
+      try {
+        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=1d`;
+        const res = await axios.get(url, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+          timeout: 4000,
+        });
+        if (res.data?.chart?.result?.[0]?.meta) {
+          const meta = res.data.chart.result[0].meta;
+          const price = meta.regularMarketPrice || meta.chartPreviousClose;
+          if (price && !isNaN(price)) return parseFloat(price);
+        }
+      } catch (_) {}
+    }
     return null;
   }
 
@@ -79,7 +98,7 @@ class FundamentalsProvider {
     const formattedSymbol = symbol.toUpperCase().trim().replace(/[^A-Z0-9]/g, '');
 
     // Fetch real live market price
-    const liveCmp = await this.fetchLivePrice(formattedSymbol);
+    const liveCmp = await this.fetchLivePrice(formattedSymbol, scripCode);
 
     // Try fetching official BSE header API if scrip code is available
     const bseInfo = await this.fetchBseHeader(scripCode || formattedSymbol);

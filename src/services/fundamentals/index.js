@@ -6,8 +6,8 @@ class FundamentalsService {
    * @param {string} symbol
    * @returns {Promise<{ metrics: object|null, score: number|null, rating: string, valuation: string, isAvailable: boolean }>}
    */
-  async analyze(symbol) {
-    const rawData = await provider.getFundamentals(symbol);
+  async analyze(symbol, scripCode = null) {
+    const rawData = await provider.getFundamentals(symbol, scripCode);
 
     if (!rawData) {
       return {
