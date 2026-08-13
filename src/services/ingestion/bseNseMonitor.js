@@ -9,7 +9,6 @@ const riskEngine = require('../riskEngine');
 const decisionEngine = require('../decisionEngine');
 const tradeStore = require('../tradeStore');
 const angelOne = require('../angelOne');
-const cardGenerator = require('../cardGenerator');
 const config = require('../../config');
 
 /**
@@ -375,30 +374,8 @@ class BseNseMonitorService {
           `*CMP : ${cmpDisplay}* | *${compCategory} (${mcapDisplay})* | *P/E : ${peDisplay}*\n\n` +
           `⏱️ *Result Published:* \`${item.date || 'Live'}\` (⚡ *${timeAgoStr}*)\n` +
           (item.pdfUrl ? `📄 *Filing PDF:* [Download Official Filing PDF](${item.pdfUrl})\n` : '') +
-          `${buyButtonNotice}`;
-
-        const cardPngBuf = cardGenerator.generatePngCard({
-          symbolName: item.symbol,
-          symbol: item.symbol,
-          subtitle: `${item.source} Listed Company`,
-          rating: aiSummary.overallRating || 'GOOD 👍',
-          salesQoQ: sQoQStr,
-          salesYoY: sYoYStr,
-          salesCurr: sCurrStr,
-          salesPrev: sPrevStr,
-          salesYoYVal: sYoYValStr,
-          opm: opmQoQStr,
-          patQoQ: pQoQStr,
-          patYoY: pYoYStr,
-          patCurr: patCurrStr,
-          patPrev: patPrevStr,
-          patYoYVal: patYoYValStr,
-          eps: epsCurrStr,
-          cmp: cmpDisplay,
-          category: compCategory,
-          mcapCr: mcapVal,
-          pe: peDisplay,
-        });
+          `${buyButtonNotice}` +
+          (geminiResult?.markdown || '');
 
         const targetChats = new Set([
           ...config.telegram.authorizedChatIds,
@@ -407,22 +384,19 @@ class BseNseMonitorService {
 
         for (const chatId of targetChats) {
           try {
-            await this.bot.sendPhoto(
-              chatId,
-              cardPngBuf,
-              {
-                caption: telegramMsg,
-                parse_mode: 'Markdown',
-                reply_markup: replyMarkup,
-              },
-              { filename: `${item.symbol}_report_card.png`, contentType: 'image/png' }
-            );
-          } catch (e) {
-            await this.bot.sendMessage(chatId, telegramMsg, {
+            const sentMsg = await this.bot.sendMessage(chatId, telegramMsg, {
               parse_mode: 'Markdown',
-              disable_web_page_preview: false,
               reply_markup: replyMarkup,
+              disable_web_page_preview: true,
             });
+
+            if (sentMsg && tradeRecord && !tradeRecord.telegramMessageId) {
+              tradeRecord.telegramMessageId = sentMsg.message_id.toString();
+              tradeRecord.telegramChatId = chatId.toString();
+              await tradeRecord.save();
+            }
+          } catch (err) {
+            console.error(`[BseNseMonitor] Failed to send Gemini response to Telegram chat ${chatId}: ${err.message}`);
           }
         }
       }
