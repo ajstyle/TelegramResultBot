@@ -172,7 +172,8 @@ async function startServer() {
 
   // Start Express HTTP Server
   const server = app.listen(config.port, () => {
-    console.log(`[Express] HTTP Server running on http://localhost:${config.port}`);
+    const serverUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${config.port}`;
+    console.log(`[Express] HTTP Server running on ${serverUrl}`);
     if (config.nodeEnv !== 'test') {
       startRenderSelfPing(config.port);
       console.log(`[Render Keep-Alive] Self-Ping pinging /health every 3 mins to prevent container sleep.`);
