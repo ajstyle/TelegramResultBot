@@ -222,7 +222,7 @@ Return ONLY valid JSON matching this exact structure:
 }
 `;
 
-    const candidateModels = ['gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-flash-latest'];
+    const candidateModels = ['gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-flash-latest', 'gemini-3.5-flash-lite'];
 
     for (const modelName of candidateModels) {
       try {
@@ -271,7 +271,8 @@ Return ONLY valid JSON matching this exact structure:
           periodLabels: parsedData.period_labels || { q_t: "Jun '26", q_t1: "Mar '26", q_t4: "Jun '25" },
         };
       } catch (err) {
-        console.warn(`[GeminiAnalyzer] Model ${modelName} notice: ${err.message}. Trying next fallback model...`);
+        console.warn(`[GeminiAnalyzer] Model ${modelName} notice: ${err.message}. Retrying next model in 1s...`);
+        await new Promise((r) => setTimeout(r, 1000));
       }
     }
 
