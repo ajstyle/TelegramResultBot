@@ -17,6 +17,7 @@ async function safeAnswerCallback(bot, callbackId, options = {}) {
  * Safely edit Telegram message whether it is a photo caption or a plain text message
  */
 async function safeEditMessage(bot, message, newText, extraOptions = {}) {
+  if (!bot || !message) return;
   const options = {
     chat_id: message.chat.id,
     message_id: message.message_id,
@@ -24,13 +25,13 @@ async function safeEditMessage(bot, message, newText, extraOptions = {}) {
     ...extraOptions,
   };
 
-  if (message && (message.photo || message.caption !== undefined)) {
+  const isPhotoOrCaption = Boolean(message.photo || message.caption !== undefined || !message.text);
+  const captionText = newText.length > 1000 ? `${newText.substring(0, 995)}...` : newText;
+
+  if (isPhotoOrCaption) {
     try {
-      return await bot.editMessageCaption(newText, options);
-    } catch (err) {
-      if (err.message && err.message.includes('there is no text in the message')) {
-        return await bot.editMessageCaption(newText, options);
-      }
+      return await bot.editMessageCaption(captionText, options);
+    } catch (_) {
       try {
         return await bot.editMessageText(newText, options);
       } catch (_) {}
@@ -38,12 +39,9 @@ async function safeEditMessage(bot, message, newText, extraOptions = {}) {
   } else {
     try {
       return await bot.editMessageText(newText, options);
-    } catch (err) {
-      if (err.message && err.message.includes('there is no text in the message')) {
-        return await bot.editMessageCaption(newText, options);
-      }
+    } catch (_) {
       try {
-        return await bot.editMessageCaption(newText, options);
+        return await bot.editMessageCaption(captionText, options);
       } catch (_) {}
     }
   }
