@@ -3,7 +3,7 @@ const config = require('../../config');
 
 /**
  * Universal Stock-Agnostic Gemini Financial Result Analyzer Engine
- * Uses Gemini's fastest Flash model (gemini-2.5-flash / gemini-1.5-flash) to extract 3 comparative periods
+ * Uses Gemini 3.5 Flash / 3.6 Flash / gemini-flash-latest to extract 3 comparative periods
  * (Q_t, Q_t1, Q_t4) from SEBI Ind-AS PDF filings and compute universal scorecard metrics.
  */
 class GeminiFinancialAnalyzer {
@@ -114,12 +114,23 @@ class GeminiFinancialAnalyzer {
   }
 
   /**
-   * Analyze Quarterly Result PDF file/text using Gemini Flash model
+   * Analyze Quarterly Result PDF file/text using Gemini Flash models (gemini-3.5-flash / gemini-3.6-flash / gemini-flash-latest)
    * @param {Buffer|string} pdfInput PDF binary Buffer or extracted text
    * @param {string} symbolName Stock ticker e.g., 'BATAINDIA'
    * @returns {Promise<object>} Scorecard dashboard payload
    */
   async analyzeResultPdf(pdfInput, symbolName = 'STOCK') {
+    const apiKey = config.geminiApiKey || process.env.GEMINI_API_KEY || process.env.GEMINI_KEY || '';
+    if (!apiKey) {
+      console.warn('[GeminiAnalyzer] GEMINI_API_KEY is missing in .env. Falling back to local quantitative parser.');
+      return null;
+    }
+
+    if (!this.ai || this.apiKey !== apiKey) {
+      this.apiKey = apiKey;
+      this.ai = new GoogleGenAI({ apiKey });
+    }
+
     const masterPrompt = `
 Role & Task:
 You are an Expert Quantitative Financial Analyst and Automated Financial Data Extraction Engine. Your task is to process the attached Quarterly Financial Result PDF for ANY company (${symbolName}), extract statutory line items across 3 required reporting periods, calculate key financial metrics, and format the output into a standardized dashboard scorecard and JSON payload.
@@ -162,58 +173,60 @@ Return ONLY valid JSON matching this exact structure:
 }
 `;
 
-    if (!this.ai) {
-      console.warn('[GeminiAnalyzer] GEMINI_API_KEY is missing in .env. Falling back to local quantitative parser.');
-      return null;
-    }
+    const candidateModels = ['gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-flash-latest'];
 
-    try {
-      const contents = [];
+    for (const modelName of candidateModels) {
+      try {
+        const contents = [];
 
-      if (Buffer.isBuffer(pdfInput)) {
-        contents.push({
-          inlineData: {
-            mimeType: 'application/pdf',
-            data: pdfInput.toString('base64'),
+        if (Buffer.isBuffer(pdfInput)) {
+          contents.push({
+            inlineData: {
+              mimeType: 'application/pdf',
+              data: pdfInput.toString('base64'),
+            },
+          });
+        } else if (typeof pdfInput === 'string') {
+          contents.push({ text: `Document Content:\n${pdfInput.substring(0, 30000)}` });
+        }
+
+        contents.push({ text: masterPrompt });
+
+        console.log(`[GeminiAnalyzer] Attempting fast analysis with model: ${modelName}...`);
+
+        const response = await this.ai.models.generateContent({
+          model: modelName,
+          contents,
+          config: {
+            responseMimeType: 'application/json',
+            temperature: 0.1,
           },
         });
-      } else if (typeof pdfInput === 'string') {
-        contents.push({ text: `Document Content:\n${pdfInput.substring(0, 30000)}` });
+
+        const rawJsonText = response.text || '';
+        const parsedData = JSON.parse(rawJsonText);
+
+        const scorecard = this.calculateUniversalScorecard(
+          parsedData.q_t,
+          parsedData.q_t1,
+          parsedData.q_t4,
+          parsedData.is_financial_sector
+        );
+
+        console.log(`[GeminiAnalyzer] Successfully analyzed financial results using ${modelName}!`);
+
+        return {
+          modelUsed: modelName,
+          rawPayload: parsedData,
+          scorecard,
+          periodLabels: parsedData.period_labels || { q_t: "Jun '26", q_t1: "Mar '26", q_t4: "Jun '25" },
+        };
+      } catch (err) {
+        console.warn(`[GeminiAnalyzer] Model ${modelName} notice: ${err.message}. Trying next fallback model...`);
       }
-
-      contents.push({ text: masterPrompt });
-
-      const modelName = 'gemini-2.5-flash';
-      console.log(`[GeminiAnalyzer] Sending PDF to ${modelName} for fast quantitative analysis...`);
-
-      const response = await this.ai.models.generateContent({
-        model: modelName,
-        contents,
-        config: {
-          responseMimeType: 'application/json',
-          temperature: 0.1,
-        },
-      });
-
-      const rawJsonText = response.text || '';
-      const parsedData = JSON.parse(rawJsonText);
-
-      const scorecard = this.calculateUniversalScorecard(
-        parsedData.q_t,
-        parsedData.q_t1,
-        parsedData.q_t4,
-        parsedData.is_financial_sector
-      );
-
-      return {
-        rawPayload: parsedData,
-        scorecard,
-        periodLabels: parsedData.period_labels || { q_t: "Jun '26", q_t1: "Mar '26", q_t4: "Jun '25" },
-      };
-    } catch (err) {
-      console.error(`[GeminiAnalyzer] Gemini API execution notice: ${err.message}`);
-      return null;
     }
+
+    return null;
   }
 }
 
