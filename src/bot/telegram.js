@@ -8,7 +8,8 @@ const bseNseMonitor = require('../services/ingestion/bseNseMonitor');
 let activeBotInstance = null;
 
 /**
- * Initialize Telegram Listener & Event Handlers
+ * Initialize Telegram Bot & Inline Button Handlers
+ * Direct messaging & BSE/NSE live broadcast bot (Channel post listener removed per request).
  */
 function initTelegramBot() {
   if (!config.telegram.botToken) {
@@ -27,7 +28,6 @@ function initTelegramBot() {
     : config.telegram.botToken;
   console.log(`[TelegramBot] Initializing bot with token: ${maskedToken}`);
 
-  // Configure polling interval (5000ms = 5 seconds) with drop_pending_updates: true
   const bot = new TelegramBot(config.telegram.botToken, {
     polling: {
       interval: config.telegram.pollingInterval || 5000,
@@ -42,44 +42,7 @@ function initTelegramBot() {
   activeBotInstance = bot;
   bseNseMonitor.setBotInstance(bot);
 
-  console.log(`[TelegramBot] Listener started with polling (Interval: ${config.telegram.pollingInterval || 5000}ms)...`);
-  if (config.telegram.targetChannel) {
-    console.log(`[TelegramBot] Target Channel Filtering Active: "${config.telegram.targetChannel.toUpperCase()}"`);
-  }
-
-  const botStartTimeSec = Math.floor(Date.now() / 1000);
-
-  const isStaleMessage = msg => {
-    // Never drop private direct messages or forwarded channel posts
-    if (msg && msg.chat && msg.chat.type === 'private') return false;
-    if (msg && (msg.forward_from_chat || msg.forward_from)) return false;
-
-    if (!msg || !msg.date) return false;
-    const nowSec = Math.floor(Date.now() / 1000);
-    return (nowSec - msg.date) > 600; // Drop only if older than 10 minutes
-  };
-
-  const isTargetChannelMessage = msg => {
-    if (isStaleMessage(msg)) return false;
-
-    // Always allow private direct messages to the bot
-    if (msg && msg.chat && msg.chat.type === 'private') return true;
-
-    if (!config.telegram.targetChannel) return true;
-    const target = config.telegram.targetChannel.toLowerCase().replace(/^@/, '');
-
-    const chatUsername = (msg.chat.username || '').toLowerCase().replace(/^@/, '');
-    const chatTitle = (msg.chat.title || '').toLowerCase().replace(/^@/, '');
-    const fwdUsername = (msg.forward_from_chat?.username || '').toLowerCase().replace(/^@/, '');
-    const fwdTitle = (msg.forward_from_chat?.title || '').toLowerCase().replace(/^@/, '');
-
-    return (
-      chatUsername.includes(target) ||
-      chatTitle.includes(target) ||
-      fwdUsername.includes(target) ||
-      fwdTitle.includes(target)
-    );
-  };
+  console.log(`[TelegramBot] Bot initialized cleanly.`);
 
   // Register active chat IDs with bseNseMonitor
   const registerChatId = msg => {
@@ -95,27 +58,25 @@ function initTelegramBot() {
     const helpMsg =
       `🤖 *Telegram Stock Trading Assistant*\n\n` +
       `Mode: \`${config.tradingMode}\`\n` +
-      `Target Channel: \`${config.telegram.targetChannel || 'ALL'}\`\n` +
       `Auto-Execute: \`${config.telegram.autoExecute}\`\n\n` +
-      `*How to use:*\n` +
-      `1. Send a recommendation screenshot or message containing a trade signal.\n` +
-      `2. Messages from channel \`${config.telegram.targetChannel || 'ANY'}\` are automatically ingested every 5 seconds.`;
+      `*Features:*\n` +
+      `⚡ *BSE/NSE 24/7 Live Earnings Broadcasting*\n` +
+      `📊 *Gemini Flash Quantitative Scorecards*\n` +
+      `⚡ *1-Click Direct Order Execution on Angel One*`;
     await bot.sendMessage(chatId, helpMsg, { parse_mode: 'Markdown' });
   });
 
-  // 2. Handle incoming Photos (Direct message, Group, or Channel)
+  // 2. Handle incoming direct Photos / Screenshots
   bot.on('photo', async msg => {
     registerChatId(msg);
-    if (!isTargetChannelMessage(msg)) return;
-    console.log(`[TelegramBot] Photo received from Chat ID: ${msg.chat.id}`);
+    console.log(`[TelegramBot] Direct photo received from Chat ID: ${msg.chat.id}`);
     await handleScreenshot(bot, msg);
   });
 
-  // 3. Handle incoming Text Signals
+  // 3. Handle direct messages
   bot.on('message', async msg => {
     registerChatId(msg);
     if (msg.photo || (msg.text && msg.text.startsWith('/'))) return;
-    if (!isTargetChannelMessage(msg)) return;
 
     if (msg.text || msg.caption) {
       const textToParse = msg.text || msg.caption;
@@ -127,18 +88,7 @@ function initTelegramBot() {
     }
   });
 
-  // 4. Handle incoming Telegram Channel Posts
-  bot.on('channel_post', async msg => {
-    registerChatId(msg);
-    if (!isTargetChannelMessage(msg)) return;
-    console.log(`[TelegramBot] Channel Post received from Channel: ${msg.chat.title || msg.chat.username || msg.chat.id}`);
-    const textToParse = msg.text || msg.caption || '';
-    if (msg.photo || textToParse.length > 0) {
-      await handleScreenshot(bot, msg);
-    }
-  });
-
-  // 4. Handle Inline Keyboard Callbacks (CONFIRM / CANCEL buttons)
+  // 4. Handle Inline Keyboard Callbacks (CONFIRM / CANCEL 1-Click Buy Buttons)
   bot.on('callback_query', async callbackQuery => {
     console.log(`[TelegramBot] Callback Query received: ${callbackQuery.data}`);
     await handleOrderConfirmation(bot, callbackQuery);
