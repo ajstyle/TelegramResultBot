@@ -378,20 +378,11 @@ class BseNseMonitorService {
         const labels = geminiResult?.periodLabels || { q_t: "Jun '26", q_t1: "Mar '26", q_t4: "Jun '25" };
         const computedPulseRating = geminiResult?.scorecard?.pulseRating || aiSummary.overallRating || 'Good 👍';
 
-        // ⚡ Gemini Quantitative Scorecard Dashboard Table
+        // Construct clean compact Telegram message caption (Table is rendered visually in attached PNG Infographic card)
         const telegramMsg =
           `🏢 *${displayHeaderSymbol}*  [ ${hashtagSymbol} ]\n` +
           `📢 *OFFICIAL ${item.source} EARNINGS ANNOUNCEMENT*\n\n` +
           `⚡ *Pulse Rating :* \`${computedPulseRating}\` | 💎 *Valuation:* \`${valuationDisplay}\`\n\n` +
-          `⚡ *Gemini Quantitative Scorecard Dashboard*\n\n` +
-          `| Metric | QoQ | YoY | Current Qtr (${labels.q_t}) | Prev Qtr (${labels.q_t1}) | Prior Year Qtr (${labels.q_t4}) |\n` +
-          `|---|:---:|:---:|:---:|:---:|:---:|\n` +
-          `| **Sales** | ${sQoQStr} | ${sYoYStr} | **${sCurrStr}** | ${sPrevStr} | ${sYoYValStr} |\n` +
-          `| **Other Inc.** | ${othQoQStr} | ${othYoYStr} | **${othCurrStr}** | ${othPrevStr} | ${othYoYValStr} |\n` +
-          `| **OP** | ${opQoQStr} | ${opYoYStr} | **${opCurrStr}** | ${opPrevStr} | ${opYoYValStr} |\n` +
-          `| **OPM (%)** | ${opmQoQStr} | ${opmYoYStr} | **${opmCurrStr}** | ${opmPrevStr} | ${opmYoYValStr} |\n` +
-          `| **PAT** | ${pQoQStr} | ${pYoYStr} | **${patCurrStr}** | ${patPrevStr} | ${patYoYValStr} |\n` +
-          `| **EPS** | ${epsQoQStr} | ${epsYoYStr} | **${epsCurrStr}** | ${epsPrevStr} | ${epsYoYValStr} |\n\n` +
           `*CMP : ${cmpDisplay}* | *${compCategory} (${mcapDisplay})* | *P/E : ${peDisplay}*\n\n` +
           `⏱️ *Result Published:* \`${item.date || 'Live'}\` (⚡ *${timeAgoStr}*)\n` +
           (item.pdfUrl ? `📄 *Filing PDF:* [Download Official Filing PDF](${item.pdfUrl})\n` : '') +
