@@ -97,12 +97,43 @@ async function handleOrderConfirmation(bot, callbackQuery) {
   const tradeId = data.replace('CONFIRM_', '');
 
   try {
-    // 2. Validation & Status check
-    const trade = await tradeStore.findById(tradeId);
+    // 2. Validation & Status check with Dynamic Fallback
+    let trade = await tradeStore.findById(tradeId);
+
+    // Dynamic Fallback: If trade record is missing (e.g. after server restart or DB offline)
+    if (!trade && message) {
+      const msgText = message.caption || message.text || '';
+      const symbolFromTag = msgText.match(/#([A-Z0-9_-]+)/i);
+      const symbolFromBtn = msgText.match(/ANGEL ONE \(([^)]+)\)/i);
+      const symbol = symbolFromTag ? symbolFromTag[1].toUpperCase() : (symbolFromBtn ? symbolFromBtn[1].toUpperCase() : null);
+
+      const entryMatch = msgText.match(/Entry:\s*₹?([\d.]+)/i);
+      const slMatch = msgText.match(/SL:\s*₹?([\d.]+)/i);
+      const qtyMatch = msgText.match(/Qty:\s*(\d+)/i);
+
+      if (symbol && entryMatch) {
+        const entry = parseFloat(entryMatch[1]);
+        const stopLoss = slMatch ? parseFloat(slMatch[1]) : parseFloat((entry * 0.98).toFixed(2));
+        const quantity = qtyMatch ? parseInt(qtyMatch[1], 10) : 1;
+
+        trade = {
+          _id: tradeId,
+          symbol,
+          action: 'BUY',
+          entry,
+          stopLoss,
+          quantity,
+          status: 'ANALYZED',
+          isDynamicFallback: true,
+          save: async function () { return this; },
+        };
+        console.log(`[OrderConfirmation] Dynamically reconstructed trade from Telegram message for ${symbol} @ ₹${entry} (Qty: ${quantity})`);
+      }
+    }
 
     if (!trade) {
       await safeAnswerCallback(bot, callbackId, {
-        text: '❌ Trade record not found in MongoDB.',
+        text: '❌ Trade parameters could not be resolved from message. Order placement aborted.',
         show_alert: true,
       });
       return;
