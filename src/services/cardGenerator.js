@@ -43,9 +43,9 @@ class CardGenerator {
     const symbol = (data.symbol || 'STOCK').toUpperCase();
     const scripCode = data.scripCode ? `(${data.scripCode})` : '';
     const symbolName = data.symbolName || `${symbol} ${scripCode}`;
-    const cmp = data.cmp || '₹500';
+    const cmp = data.cmp || 'Live CMP';
     const category = data.category || 'Listed Stock';
-    const mcapDisplay = data.mcapCr ? `${data.mcapCr} Cr` : '-';
+    const mcapDisplay = data.mcapCr ? (typeof data.mcapCr === 'string' && data.mcapCr.includes('Cr') ? data.mcapCr : `${data.mcapCr} Cr`) : '-';
     const pe = data.pe || '-';
 
     const labels = data.periodLabels || { q_t: "Jun '26", q_t1: "Mar '26", q_t4: "Jun '25" };

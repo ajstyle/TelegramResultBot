@@ -385,7 +385,7 @@ class BseNseMonitorService {
             symbolName: displayHeaderSymbol,
             cmp: cmpDisplay,
             category: compCategory,
-            mcapCr: mcapVal,
+            mcapCr: mcapDisplay,
             pe: peDisplay,
             pulseRating: computedPulseRating,
             periodLabels: labels,
