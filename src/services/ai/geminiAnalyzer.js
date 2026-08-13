@@ -10,6 +10,7 @@ class GeminiFinancialAnalyzer {
   constructor() {
     this.apiKey = config.geminiApiKey || process.env.GEMINI_API_KEY || process.env.GEMINI_KEY || '';
     this.ai = this.apiKey ? new GoogleGenAI({ apiKey: this.apiKey }) : null;
+    this.exhaustedModels = new Map();
   }
 
   /**
@@ -226,6 +227,11 @@ Return ONLY valid JSON matching this exact structure:
 
     for (let i = 0; i < candidateModels.length; i++) {
       const modelName = candidateModels[i];
+      const quotaExpiry = this.exhaustedModels.get(modelName);
+      if (quotaExpiry && Date.now() < quotaExpiry) {
+        continue;
+      }
+
       try {
         const contents = [];
 
@@ -290,10 +296,13 @@ Return ONLY valid JSON matching this exact structure:
         };
       } catch (err) {
         const isRateLimit = err.message && (err.message.includes('429') || err.message.includes('RESOURCE_EXHAUSTED') || err.message.includes('Quota exceeded'));
-        const nextModel = candidateModels[i + 1];
         if (isRateLimit) {
+          // Cache quota exhaustion for 30 minutes to skip repeated 429 rate limit delays
+          this.exhaustedModels.set(modelName, Date.now() + 30 * 60 * 1000);
+          const nextModel = candidateModels[i + 1];
           console.warn(`[GeminiAnalyzer] Rate/Quota limit (429) hit for ${modelName}.${nextModel ? ` Instantly falling back to ${nextModel}...` : ' No more models available.'}`);
         } else {
+          const nextModel = candidateModels[i + 1];
           console.warn(`[GeminiAnalyzer] Model ${modelName} notice: ${err.message}.${nextModel ? ` Retrying with ${nextModel}...` : ''}`);
         }
       }
