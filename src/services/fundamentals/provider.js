@@ -14,22 +14,39 @@ class FundamentalsProvider {
   async fetchLivePrice(symbol, scripCode = null) {
     if (!symbol && !scripCode) return null;
     const candidates = [];
-    const cleanSym = symbol ? symbol.toUpperCase().trim().replace(/[^A-Z0-9.-]/g, '') : '';
-    const cleanScrip = scripCode ? scripCode.toString().trim() : '';
 
-    if (/^\d{6}$/.test(cleanSym)) {
-      candidates.push(`${cleanSym}.BO`);
-    } else if (cleanSym) {
+    const cleanSym = symbol ? symbol.toUpperCase().trim().replace(/[^A-Z0-9.-]/g, '') : '';
+    const numericScrip = (scripCode && /^\d{6}$/.test(scripCode.toString())) 
+      ? scripCode.toString() 
+      : (/^\d{6}$/.test(cleanSym) ? cleanSym : null);
+
+    // 1. If symbol is a valid ticker string (e.g. GICRE, TCS, PANAMAPET), try NSE first
+    if (cleanSym && !/^\d{6}$/.test(cleanSym)) {
       if (cleanSym.includes('.')) {
         candidates.push(cleanSym);
       } else {
         candidates.push(`${cleanSym}.NS`);
-        candidates.push(`${cleanSym}.BO`);
       }
     }
 
-    if (cleanScrip && /^\d{6}$/.test(cleanScrip) && !candidates.includes(`${cleanScrip}.BO`)) {
-      candidates.push(`${cleanScrip}.BO`);
+    // 2. Fetch official BSE SecurityId for numeric scrip code (e.g. 506543 -> MPAGI.BO)
+    if (numericScrip) {
+      try {
+        const bseHeader = await this.fetchBseHeader(numericScrip);
+        if (bseHeader && bseHeader.SecurityId) {
+          const secId = bseHeader.SecurityId.toUpperCase().trim();
+          if (!candidates.includes(`${secId}.BO`)) candidates.push(`${secId}.BO`);
+          if (!candidates.includes(`${secId}.NS`)) candidates.push(`${secId}.NS`);
+        }
+      } catch (_) {}
+    }
+
+    // 3. Fallback candidates
+    if (cleanSym && !/^\d{6}$/.test(cleanSym) && !cleanSym.includes('.')) {
+      if (!candidates.includes(`${cleanSym}.BO`)) candidates.push(`${cleanSym}.BO`);
+    }
+    if (numericScrip && !candidates.includes(`${numericScrip}.BO`)) {
+      candidates.push(`${numericScrip}.BO`);
     }
 
     for (const sym of candidates) {
