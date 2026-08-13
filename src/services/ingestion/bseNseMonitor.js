@@ -355,11 +355,13 @@ class BseNseMonitorService {
         }
 
         const labels = geminiResult?.periodLabels || { q_t: "Jun '26", q_t1: "Mar '26", q_t4: "Jun '25" };
+        const computedPulseRating = geminiResult?.scorecard?.pulseRating || aiSummary.overallRating || 'Good 👍';
 
         // ⚡ Gemini Quantitative Scorecard Dashboard Table
         const telegramMsg =
           `🏢 *${displayHeaderSymbol}*  [ ${hashtagSymbol} ]\n` +
           `📢 *OFFICIAL ${item.source} EARNINGS ANNOUNCEMENT*\n\n` +
+          `⚡ *Pulse Rating :* \`${computedPulseRating}\` | 💎 *Valuation:* \`${valuationDisplay}\`\n\n` +
           `⚡ *Gemini Quantitative Scorecard Dashboard*\n\n` +
           `| Metric | QoQ | YoY | Current Qtr (${labels.q_t}) | Prev Qtr (${labels.q_t1}) | Prior Year Qtr (${labels.q_t4}) |\n` +
           `|---|:---:|:---:|:---:|:---:|:---:|\n` +

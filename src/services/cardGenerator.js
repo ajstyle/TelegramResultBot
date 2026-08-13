@@ -99,6 +99,15 @@ class CardGenerator {
       `;
     });
 
+    const pulseRating = data.pulseRating || data.scorecard?.pulseRating || 'Good 👍';
+
+    const getPulseColor = (rating) => {
+      if (rating.includes('Excellent') || rating.includes('Great')) return '#10b981'; // Green
+      if (rating.includes('Good')) return '#38bdf8'; // Blue
+      if (rating.includes('OK')) return '#f59e0b'; // Amber
+      return '#ef4444'; // Red
+    };
+
     const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="900" height="600" viewBox="0 0 900 600">
       <defs>
@@ -121,6 +130,10 @@ class CardGenerator {
       <rect x="40" y="30" width="340" height="32" rx="16" fill="#1e293b" stroke="#38bdf8" stroke-width="1.5" />
       <circle cx="58" cy="46" r="6" fill="#10b981" />
       <text x="74" y="52" font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="#38bdf8">⚡ GEMINI QUANTITATIVE SCORECARD</text>
+
+      <!-- Pulse Rating Badge Right -->
+      <rect x="580" y="30" width="280" height="32" rx="16" fill="#1e293b" stroke="${getPulseColor(pulseRating)}" stroke-width="1.5" />
+      <text x="600" y="52" font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="${getPulseColor(pulseRating)}">⚡ Pulse Rating: ${pulseRating}</text>
 
       <!-- Header Ticker & Name -->
       <text x="40" y="98" font-family="Helvetica, Arial, sans-serif" font-size="26" font-weight="bold" fill="#f8fafc">${symbolName}</text>

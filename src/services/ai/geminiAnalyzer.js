@@ -4,12 +4,57 @@ const config = require('../../config');
 /**
  * Universal Stock-Agnostic Gemini Financial Result Analyzer Engine
  * Uses Gemini 3.5 Flash / 3.6 Flash / gemini-flash-latest to extract 3 comparative periods
- * (Q_t, Q_t1, Q_t4) from SEBI Ind-AS PDF filings and compute universal scorecard metrics.
+ * (Q_t, Q_t1, Q_t4) from SEBI Ind-AS PDF filings and compute universal scorecard metrics + Pulse Rating.
  */
 class GeminiFinancialAnalyzer {
   constructor() {
     this.apiKey = config.geminiApiKey || process.env.GEMINI_API_KEY || process.env.GEMINI_KEY || '';
     this.ai = this.apiKey ? new GoogleGenAI({ apiKey: this.apiKey }) : null;
+  }
+
+  /**
+   * Deterministic Boolean Logic Engine for Pulse Rating Classification
+   * Tiers: Excellent 🌟 | Great 🚀 | Good 👍 | OK ⚠️ | Weak 🚨
+   */
+  classifyPulseRating(p_t, p_t1, p_t4) {
+    const salesQoQ = p_t.sales_disp - p_t1.sales_disp > 0;
+    const salesYoY = p_t.sales_disp - p_t4.sales_disp > 0;
+    const opQoQ = p_t.op_disp - p_t1.op_disp > 0;
+    const opYoY = p_t.op_disp - p_t4.op_disp > 0;
+    const patQoQ = p_t.pat_disp - p_t1.pat_disp > 0;
+    const patYoY = p_t.pat_disp - p_t4.pat_disp > 0;
+
+    // 6 Core Positivity Vectors
+    const positivityVector = [salesQoQ, salesYoY, opQoQ, opYoY, patQoQ, patYoY];
+    const positivityScore = positivityVector.filter(Boolean).length;
+
+    const marginExpansionQoQ = (p_t.opm_disp - p_t1.opm_disp) > 0;
+    const marginExpansionYoY = (p_t.opm_disp - p_t4.opm_disp) > 0;
+    const severeMarginContraction = (p_t.opm_disp - p_t1.opm_disp) < -2.0; // >200 bps drop
+
+    const isNetLoss = p_t.pat_disp < 0;
+
+    let pulseRating = 'Good 👍';
+
+    if (isNetLoss || positivityScore <= 1) {
+      pulseRating = 'Weak 🚨';
+    } else if (positivityScore === 6 && (marginExpansionQoQ || marginExpansionYoY)) {
+      pulseRating = 'Excellent 🌟';
+    } else if (positivityScore >= 4) {
+      if (severeMarginContraction) {
+        pulseRating = 'Good 👍'; // Downgraded penalty
+      } else {
+        pulseRating = 'Great 🚀';
+      }
+    } else if (salesYoY && opYoY && patYoY) {
+      pulseRating = 'Good 👍';
+    } else if (!salesQoQ && !opQoQ && !patQoQ) {
+      pulseRating = 'OK ⚠️';
+    } else {
+      pulseRating = 'OK ⚠️';
+    }
+
+    return { positivityScore, pulseRating };
   }
 
   /**
@@ -64,10 +109,14 @@ class GeminiFinancialAnalyzer {
       return `${bps >= 0 ? '+' : ''}${bps} bps`;
     };
 
+    const { positivityScore, pulseRating } = this.classifyPulseRating(p_t, p_t1, p_t4);
+
     return {
       p_t,
       p_t1,
       p_t4,
+      positivityScore,
+      pulseRating,
       Sales: {
         QoQ: growthPct(p_t.sales_disp, p_t1.sales_disp),
         YoY: growthPct(p_t.sales_disp, p_t4.sales_disp),
@@ -114,7 +163,7 @@ class GeminiFinancialAnalyzer {
   }
 
   /**
-   * Analyze Quarterly Result PDF file/text using Gemini Flash models (gemini-3.5-flash / gemini-3.6-flash / gemini-flash-latest)
+   * Analyze Quarterly Result PDF file/text using Gemini Flash models
    * @param {Buffer|string} pdfInput PDF binary Buffer or extracted text
    * @param {string} symbolName Stock ticker e.g., 'BATAINDIA'
    * @returns {Promise<object>} Scorecard dashboard payload
@@ -213,7 +262,7 @@ Return ONLY valid JSON matching this exact structure:
           parsedData.is_financial_sector
         );
 
-        console.log(`[GeminiAnalyzer] Successfully analyzed financial results using ${modelName}!`);
+        console.log(`[GeminiAnalyzer] Successfully analyzed financial results using ${modelName}! Pulse Rating: ${scorecard.pulseRating}`);
 
         return {
           modelUsed: modelName,
