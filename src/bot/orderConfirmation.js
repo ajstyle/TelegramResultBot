@@ -14,6 +14,42 @@ async function safeAnswerCallback(bot, callbackId, options = {}) {
 }
 
 /**
+ * Safely edit Telegram message whether it is a photo caption or a plain text message
+ */
+async function safeEditMessage(bot, message, newText, extraOptions = {}) {
+  const options = {
+    chat_id: message.chat.id,
+    message_id: message.message_id,
+    parse_mode: 'Markdown',
+    ...extraOptions,
+  };
+
+  if (message && (message.photo || message.caption !== undefined)) {
+    try {
+      return await bot.editMessageCaption(newText, options);
+    } catch (err) {
+      if (err.message && err.message.includes('there is no text in the message')) {
+        return await bot.editMessageCaption(newText, options);
+      }
+      try {
+        return await bot.editMessageText(newText, options);
+      } catch (_) {}
+    }
+  } else {
+    try {
+      return await bot.editMessageText(newText, options);
+    } catch (err) {
+      if (err.message && err.message.includes('there is no text in the message')) {
+        return await bot.editMessageCaption(newText, options);
+      }
+      try {
+        return await bot.editMessageCaption(newText, options);
+      } catch (_) {}
+    }
+  }
+}
+
+/**
  * Handle trade execution confirmation from Telegram Callback Query
  * @param {object} bot TelegramBot instance
  * @param {object} callbackQuery Telegram callback query event
@@ -47,11 +83,7 @@ async function handleOrderConfirmation(bot, callbackQuery) {
         await trade.save();
       }
       await safeAnswerCallback(bot, callbackId, { text: 'Trade cancelled.' });
-      await bot.editMessageText(`❌ *TRADE CANCELLED*\n\nTrade ID \`${tradeId}\` was cancelled by user.`, {
-        chat_id: chatId,
-        message_id: message.message_id,
-        parse_mode: 'Markdown',
-      });
+      await safeEditMessage(bot, message, `❌ *TRADE CANCELLED*\n\nTrade ID \`${tradeId}\` was cancelled by user.`);
     } catch (err) {
       await safeAnswerCallback(bot, callbackId, { text: `Error: ${err.message}`, show_alert: true });
     }
@@ -122,11 +154,7 @@ async function handleOrderConfirmation(bot, callbackQuery) {
         `SEBI & Angel One restrict automated API orders for stocks under cautionary listings.\n\n` +
         `💡 *Manual Trade:* If you still wish to buy ${trade.symbol}, please place the order manually in your Angel One mobile app.`;
 
-      await bot.editMessageText(cautionaryNotice, {
-        chat_id: chatId,
-        message_id: message.message_id,
-        parse_mode: 'Markdown',
-      });
+      await safeEditMessage(bot, message, cautionaryNotice);
       return;
     }
 
@@ -160,11 +188,7 @@ async function handleOrderConfirmation(bot, callbackQuery) {
         `ℹ️ *Protective Stop-Loss Status:* Calculated SL is logged. Place SL trigger order via Angel One app if desired.\n\n` +
         `✅ Trade Record Updated: \`${trade._id}\``;
 
-      await bot.editMessageText(successMsg, {
-        chat_id: chatId,
-        message_id: message.message_id,
-        parse_mode: 'Markdown',
-      });
+      await safeEditMessage(bot, message, successMsg);
     } else {
       trade.status = 'REJECTED';
       await trade.save();
@@ -175,11 +199,7 @@ async function handleOrderConfirmation(bot, callbackQuery) {
         `*Reason:* ${orderResult.message}\n` +
         `*Trade ID:* \`${trade._id}\``;
 
-      await bot.editMessageText(failMsg, {
-        chat_id: chatId,
-        message_id: message.message_id,
-        parse_mode: 'Markdown',
-      });
+      await safeEditMessage(bot, message, failMsg);
     }
   } catch (error) {
     console.error(`[OrderConfirmation] Error processing trade confirmation: ${error.message}`);
