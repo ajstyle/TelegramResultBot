@@ -14,6 +14,11 @@ function escapeXml(str) {
     .replace(/'/g, '&apos;');
 }
 
+function sanitizeSvgXml(svgStr) {
+  if (!svgStr || typeof svgStr !== 'string') return '';
+  return svgStr.replace(/&(?!amp;|lt;|gt;|quot;|apos;)/g, '&amp;');
+}
+
 class CardGenerator {
   /**
    * Generate PNG Buffer for stock earnings report card photo
@@ -22,7 +27,9 @@ class CardGenerator {
    */
   generatePngCard(data) {
     const svgBuffer = this.generateSvgCard(data);
-    const svgStr = svgBuffer.toString('utf-8');
+    let svgStr = svgBuffer.toString('utf-8');
+    svgStr = sanitizeSvgXml(svgStr);
+
     try {
       const resvg = new Resvg(svgStr, {
         fitTo: { mode: 'width', value: 900 },
