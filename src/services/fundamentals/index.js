@@ -24,8 +24,12 @@ class FundamentalsService {
     const valuation = rawData.valuationRating || this.getValuation(rawData.pe, rawData.sectorPe);
     const companyCategory = rawData.companyCategory || this.getCompanyCategory(rawData.marketCapCr, rawData.price);
 
+    const cmp = rawData.cmp || rawData.price || null;
+
     return {
+      cmp,
       metrics: {
+        cmp,
         pe: rawData.pe,
         pb: rawData.pb,
         roe: rawData.roe,

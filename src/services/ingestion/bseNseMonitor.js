@@ -188,7 +188,15 @@ class BseNseMonitorService {
         scripInfo = { exchange: 'NSE', tradingsymbol: item.symbol, symboltoken: '0' };
       }
 
-      const entryPrice = ltp || fundamentals.cmp || 500;
+      let liveCmp = ltp || fundamentals.cmp || fundamentals.metrics?.cmp;
+      if (!liveCmp) {
+        try {
+          const fundamentalsProvider = require('../fundamentals/provider');
+          liveCmp = await fundamentalsProvider.fetchLivePrice(item.symbol);
+        } catch (_) {}
+      }
+
+      const entryPrice = liveCmp && liveCmp > 0 ? liveCmp : 500;
 
       const atr = (entryPrice * 0.02) / (config.risk.atrMultiplier || 2);
       const { stopLoss, atrUsed } = riskEngine.calculateStopLoss('BUY', entryPrice, null, atr);
