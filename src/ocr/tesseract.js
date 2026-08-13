@@ -35,6 +35,15 @@ class TesseractOcrEngine {
    * @returns {Promise<{ text: string, confidence: number }>}
    */
   async processImage(imageBuffer) {
+    if (!imageBuffer) {
+      return { text: '', confidence: 0 };
+    }
+
+    // Tesseract OCR works on images (PNG/JPG/WebP/BMP). PDF buffers are handled natively by Gemini Multimodal.
+    if (Buffer.isBuffer(imageBuffer) && imageBuffer.toString('utf-8', 0, 5) === '%PDF-') {
+      return { text: '', confidence: 0 };
+    }
+
     let activeWorker = await this.getWorker();
     let isTempWorker = false;
 
