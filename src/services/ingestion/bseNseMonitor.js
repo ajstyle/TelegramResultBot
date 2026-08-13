@@ -301,7 +301,13 @@ class BseNseMonitorService {
         let epsYoYValStr = '-';
 
         const sc = geminiResult?.scorecard;
-        if (sc) {
+        const isScValid = sc && (
+          (typeof sc.Sales?.Qt === 'number' && sc.Sales.Qt !== 0) ||
+          (typeof sc.PAT?.Qt === 'number' && sc.PAT.Qt !== 0) ||
+          (typeof sc.OP?.Qt === 'number' && sc.OP.Qt !== 0)
+        );
+
+        if (isScValid) {
           sQoQStr = sc.Sales.QoQ;
           sYoYStr = sc.Sales.YoY;
           sCurrStr = `${sc.Sales.Qt}`;
@@ -351,7 +357,13 @@ class BseNseMonitorService {
 
           othCurrStr = m.otherIncome !== null && m.otherIncome !== undefined ? m.otherIncome.toLocaleString('en-IN') : '-';
           opCurrStr = m.operatingProfit !== null && m.operatingProfit !== undefined ? m.operatingProfit.toLocaleString('en-IN') : '-';
+          opPrevStr = m.opPrev !== null && m.opPrev !== undefined ? m.opPrev.toLocaleString('en-IN') : '-';
+          opYoYValStr = m.opYoYVal !== null && m.opYoYVal !== undefined ? m.opYoYVal.toLocaleString('en-IN') : '-';
+
           patCurrStr = m.pat !== null && m.pat !== undefined ? m.pat.toLocaleString('en-IN') : '-';
+          patPrevStr = m.patPrev !== null && m.patPrev !== undefined ? m.patPrev.toLocaleString('en-IN') : '-';
+          patYoYValStr = m.patYoYVal !== null && m.patYoYVal !== undefined ? m.patYoYVal.toLocaleString('en-IN') : '-';
+
           epsCurrStr = m.eps !== null && m.eps !== undefined ? m.eps.toString() : '-';
         }
 

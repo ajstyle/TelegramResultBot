@@ -256,6 +256,23 @@ Return ONLY valid JSON matching this exact structure:
         const rawJsonText = response.text || '';
         const parsedData = JSON.parse(rawJsonText);
 
+        const qt = parsedData.q_t || {};
+        const qt1 = parsedData.q_t1 || {};
+        const qt4 = parsedData.q_t4 || {};
+
+        const hasNumbers = 
+          (Math.abs(qt.sales || 0) > 0) || 
+          (Math.abs(qt.pat || 0) > 0) || 
+          (Math.abs(qt.op || 0) > 0) ||
+          (Math.abs(qt1.sales || 0) > 0) ||
+          (Math.abs(qt4.sales || 0) > 0);
+
+        if (!hasNumbers) {
+          const nextModel = candidateModels[i + 1];
+          console.warn(`[GeminiAnalyzer] Model ${modelName} returned 0s for all metrics.${nextModel ? ` Retrying with ${nextModel}...` : ''}`);
+          continue;
+        }
+
         const scorecard = this.calculateUniversalScorecard(
           parsedData.q_t,
           parsedData.q_t1,
