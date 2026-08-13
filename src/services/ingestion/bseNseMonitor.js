@@ -233,13 +233,13 @@ class BseNseMonitorService {
         let replyMarkup = undefined;
         let buyButtonNotice = '';
 
-        if (aiSummary.isPurchaseEligible && tradeRecord) {
+        if (tradeRecord) {
           buyButtonNotice = `\n⚡ *Instant Purchase Enabled (INTRADAY)*\n*Entry:* ₹${tradeRecord.entry} | *SL:* ₹${stopLoss} | *Qty:* ${quantity} shares\n`;
 
           replyMarkup = {
             inline_keyboard: [
               [
-                { text: `⚡ 1-CLICK BUY ON ANGEL ONE (INTRADAY)`, callback_data: `CONFIRM_${tradeRecord._id}` },
+                { text: `⚡ 1-CLICK BUY ON ANGEL ONE (${item.symbol})`, callback_data: `CONFIRM_${tradeRecord._id}` },
               ],
               [
                 { text: `❌ CANCEL`, callback_data: `CANCEL_${tradeRecord._id}` },
