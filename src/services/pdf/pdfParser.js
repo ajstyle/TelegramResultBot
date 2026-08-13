@@ -88,7 +88,8 @@ class PdfParserEngine {
         if (typeof str !== 'string') return false;
         return (
           str.includes('TT:') ||
-          str.includes('Warning: Index') ||
+          str.includes('fontRes') ||
+          str.includes('Warning:') ||
           str.includes('Invalid CMap')
         );
       };
