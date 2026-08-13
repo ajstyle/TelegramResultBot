@@ -9,6 +9,7 @@ const riskEngine = require('../riskEngine');
 const decisionEngine = require('../decisionEngine');
 const tradeStore = require('../tradeStore');
 const angelOne = require('../angelOne');
+const cardGenerator = require('../cardGenerator');
 const config = require('../../config');
 
 /**
