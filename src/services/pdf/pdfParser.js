@@ -23,8 +23,16 @@ class PdfParserEngine {
       // Construct fallback URLs for NSE and BSE
       if (cleanSource.includes('archives.nseindia.com/corporate/announcements/')) {
         urlsToTry.push(encodeURI(cleanSource.replace('archives.nseindia.com/corporate/announcements/', 'www.nseindia.com/content/corporate/announcements/')));
-      } else if (cleanSource.includes('AttachLive')) {
-        urlsToTry.push(encodeURI(cleanSource.replace('AttachLive', 'AttachHis')));
+      } else if (cleanSource.includes('bseindia.com')) {
+        const guidMatch = cleanSource.match(/([a-f0-9-]{36})/i);
+        if (guidMatch) {
+          const guidHyphen = guidMatch[1];
+          const guidUnderscore = guidHyphen.replace(/-/g, '_');
+          urlsToTry.push(`https://www.bseindia.com/xml-data/corpfiling/AttachLive/${guidHyphen}.pdf`);
+          urlsToTry.push(`https://www.bseindia.com/xml-data/corpfiling/AttachLive/${guidUnderscore}.pdf`);
+          urlsToTry.push(`https://www.bseindia.com/xml-data/corpfiling/AttachHis/${guidHyphen}.pdf`);
+          urlsToTry.push(`https://www.bseindia.com/xml-data/corpfiling/AttachHis/${guidUnderscore}.pdf`);
+        }
       }
 
       for (const targetUrl of urlsToTry) {
