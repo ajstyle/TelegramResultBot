@@ -4,6 +4,16 @@ const { Resvg } = require('@resvg/resvg-js');
  * Visual PNG & SVG Report Card Generator Engine
  * Generates High-Resolution Dark-Mode PNG Infographic Image Cards for the Gemini Quantitative Scorecard Dashboard Table.
  */
+function escapeXml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
 class CardGenerator {
   /**
    * Generate PNG Buffer for stock earnings report card photo
@@ -40,15 +50,23 @@ class CardGenerator {
    * @returns {Buffer}
    */
   generateSvgCard(data) {
-    const symbol = (data.symbol || 'STOCK').toUpperCase();
-    const scripCode = data.scripCode ? `(${data.scripCode})` : '';
-    const symbolName = data.symbolName || `${symbol} ${scripCode}`;
-    const cmp = data.cmp || 'Live CMP';
-    const category = data.category || 'Listed Stock';
-    const mcapDisplay = data.mcapCr ? (typeof data.mcapCr === 'string' && data.mcapCr.includes('Cr') ? data.mcapCr : `${data.mcapCr} Cr`) : '-';
-    const pe = data.pe || '-';
+    const symbol = escapeXml((data.symbol || 'STOCK').toUpperCase());
+    const scripCode = data.scripCode ? `(${escapeXml(data.scripCode)})` : '';
+    const rawSymbolName = data.symbolName || `${symbol} ${scripCode}`;
+    const symbolName = escapeXml(rawSymbolName);
+    const cmp = escapeXml(data.cmp || 'Live CMP');
+    const category = escapeXml(data.category || 'Listed Stock');
+    const rawMcap = data.mcapCr ? (typeof data.mcapCr === 'string' && data.mcapCr.includes('Cr') ? data.mcapCr : `${data.mcapCr} Cr`) : '-';
+    const mcapDisplay = escapeXml(rawMcap);
+    const pe = escapeXml(data.pe || '-');
 
-    const labels = data.periodLabels || { q_t: "Jun '26", q_t1: "Mar '26", q_t4: "Jun '25" };
+    const rawLabels = data.periodLabels || { q_t: "Jun '26", q_t1: "Mar '26", q_t4: "Jun '25" };
+    const labels = {
+      q_t: escapeXml(rawLabels.q_t),
+      q_t1: escapeXml(rawLabels.q_t1),
+      q_t4: escapeXml(rawLabels.q_t4),
+    };
+
     const sc = data.scorecard || {
       Sales: { QoQ: '-', YoY: '-', Qt: '-', Qt1: '-', Qt4: '-' },
       'Other Inc.': { QoQ: '-', YoY: '-', Qt: '-', Qt1: '-', Qt4: '-' },
@@ -74,7 +92,7 @@ class CardGenerator {
       const y = startY + idx * 52;
       const bgFill = idx % 2 === 0 ? '#1e293b' : '#0f172a';
 
-      const getItemVal = (obj, key) => (obj && obj[key] !== undefined ? `${obj[key]}` : '-');
+      const getItemVal = (obj, key) => escapeXml(obj && obj[key] !== undefined ? `${obj[key]}` : '-');
 
       const qoq = getItemVal(row.data, 'QoQ');
       const yoy = getItemVal(row.data, 'YoY');
@@ -90,7 +108,7 @@ class CardGenerator {
 
       tableRowsSvg += `
         <rect x="40" y="${y}" width="820" height="48" rx="6" fill="${bgFill}" />
-        <text x="60" y="${y + 30}" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="bold" fill="#f8fafc">${row.name}</text>
+        <text x="60" y="${y + 30}" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="bold" fill="#f8fafc">${escapeXml(row.name)}</text>
         <text x="210" y="${y + 30}" font-family="Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" fill="${getGrowthColor(qoq)}">${qoq}</text>
         <text x="340" y="${y + 30}" font-family="Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" fill="${getGrowthColor(yoy)}">${yoy}</text>
         <text x="490" y="${y + 30}" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="bold" fill="#38bdf8">${qt}</text>
@@ -99,7 +117,8 @@ class CardGenerator {
       `;
     });
 
-    const pulseRating = data.pulseRating || data.scorecard?.pulseRating || 'Good 👍';
+    const rawPulseRating = data.pulseRating || data.scorecard?.pulseRating || 'Good 👍';
+    const pulseRating = escapeXml(rawPulseRating);
 
     const getPulseColor = (rating) => {
       if (rating.includes('Excellent') || rating.includes('Great')) return '#10b981'; // Green
@@ -132,8 +151,8 @@ class CardGenerator {
       <text x="74" y="52" font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="#38bdf8">⚡ GEMINI QUANTITATIVE SCORECARD</text>
 
       <!-- Pulse Rating Badge Right -->
-      <rect x="580" y="30" width="280" height="32" rx="16" fill="#1e293b" stroke="${getPulseColor(pulseRating)}" stroke-width="1.5" />
-      <text x="600" y="52" font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="${getPulseColor(pulseRating)}">⚡ Pulse Rating: ${pulseRating}</text>
+      <rect x="580" y="30" width="280" height="32" rx="16" fill="#1e293b" stroke="${getPulseColor(rawPulseRating)}" stroke-width="1.5" />
+      <text x="600" y="52" font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="${getPulseColor(rawPulseRating)}">⚡ Pulse Rating: ${pulseRating}</text>
 
       <!-- Header Ticker & Name -->
       <text x="40" y="98" font-family="Helvetica, Arial, sans-serif" font-size="26" font-weight="bold" fill="#f8fafc">${symbolName}</text>
