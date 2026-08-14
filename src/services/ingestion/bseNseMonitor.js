@@ -159,6 +159,19 @@ class BseNseMonitorService {
 
   async processAnnouncement(item) {
     try {
+      // 0. Hard Universe Filter Guard: capCategory IN ['LARGE_CAP', 'MID_CAP', 'SMALL_CAP']
+      const fundamentalsService = require('../fundamentals');
+      const marketCapClassifier = require('../universe/marketCapClassifier');
+
+      const fundamentals = await fundamentalsService.analyze(item.symbol, item.scripCode);
+      const mcapCr = fundamentals.metrics?.marketCapCr || fundamentals.marketCapCr || 0;
+      const classification = marketCapClassifier.classifyMarketCap(mcapCr, 'EQUITY');
+
+      if (!classification.isAllowed) {
+        console.warn(`[BseNseMonitor] 🛑 EXCLUDED UNIVERSE: Suppressing scorecard photo card & Telegram broadcast for ${item.symbol} - ${classification.reason}`);
+        return;
+      }
+
       let pdfAnalysis = { rawText: '', metrics: pdfParserEngine.extractEmptyMetrics(), isScanned: false };
 
       if (item.pdfUrl) {
@@ -176,18 +189,6 @@ class BseNseMonitorService {
         } catch (gErr) {
           console.warn(`[BseNseMonitor] Gemini analysis notice for ${item.symbol}: ${gErr.message}`);
         }
-      }
-
-      const fundamentals = await fundamentalsService.analyze(item.symbol, item.scripCode);
-
-      // Hard Universe Filter Guard: capCategory IN ['LARGE_CAP', 'MID_CAP', 'SMALL_CAP']
-      const marketCapClassifier = require('../universe/marketCapClassifier');
-      const mcapCr = fundamentals.metrics?.marketCapCr || fundamentals.marketCapCr || 0;
-      const classification = marketCapClassifier.classifyMarketCap(mcapCr, 'EQUITY');
-
-      if (!classification.isAllowed) {
-        console.warn(`[BseNseMonitor] Excluding announcement for ${item.symbol} - ${classification.reason}`);
-        return;
       }
 
       const combinedMetrics = { ...(fundamentals.metrics || {}), ...(pdfAnalysis.metrics || {}) };

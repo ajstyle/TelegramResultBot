@@ -1,0 +1,14 @@
+[
+  {
+    "_id": "MEM_1786686755341_242",
+    "symbol": "TARIL",
+    "action": "BUY",
+    "entry": 301.15,
+    "ltp": 301.15,
+    "stopLoss": 295.13,
+    "quantity": 166,
+    "status": "ANALYZED",
+    "createdAt": "2026-08-14T05:52:35.341Z",
+    "updatedAt": "2026-08-14T05:52:35.341Z"
+  }
+]
