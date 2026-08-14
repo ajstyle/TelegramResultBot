@@ -18,12 +18,15 @@ class GeminiFinancialAnalyzer {
    * Tiers: Excellent 🌟 | Great 🚀 | Good 👍 | OK ⚠️ | Weak 🚨
    */
   classifyPulseRating(p_t, p_t1, p_t4) {
-    const salesQoQ = p_t.sales_disp - p_t1.sales_disp > 0;
-    const salesYoY = p_t.sales_disp - p_t4.sales_disp > 0;
-    const opQoQ = p_t.op_disp - p_t1.op_disp > 0;
-    const opYoY = p_t.op_disp - p_t4.op_disp > 0;
-    const patQoQ = p_t.pat_disp - p_t1.pat_disp > 0;
-    const patYoY = p_t.pat_disp - p_t4.pat_disp > 0;
+    const isSalesZero = p_t.sales_disp === 0;
+    const isNetLoss = p_t.pat_disp <= 0;
+
+    const salesQoQ = p_t.sales_disp > 0 && (p_t.sales_disp - p_t1.sales_disp > 0);
+    const salesYoY = p_t.sales_disp > 0 && (p_t.sales_disp - p_t4.sales_disp > 0);
+    const opQoQ = p_t.op_disp > 0 && (p_t.op_disp - p_t1.op_disp > 0);
+    const opYoY = p_t.op_disp > 0 && (p_t.op_disp - p_t4.op_disp > 0);
+    const patQoQ = p_t.pat_disp > 0 && (p_t.pat_disp - p_t1.pat_disp > 0);
+    const patYoY = p_t.pat_disp > 0 && (p_t.pat_disp - p_t4.pat_disp > 0);
 
     // 6 Core Positivity Vectors
     const positivityVector = [salesQoQ, salesYoY, opQoQ, opYoY, patQoQ, patYoY];
@@ -33,11 +36,9 @@ class GeminiFinancialAnalyzer {
     const marginExpansionYoY = (p_t.opm_disp - p_t4.opm_disp) > 0;
     const severeMarginContraction = (p_t.opm_disp - p_t1.opm_disp) < -2.0; // >200 bps drop
 
-    const isNetLoss = p_t.pat_disp < 0;
-
     let pulseRating = 'Good 👍';
 
-    if (isNetLoss || positivityScore <= 1) {
+    if (isSalesZero || isNetLoss || positivityScore <= 1) {
       pulseRating = 'Weak 🚨';
     } else if (positivityScore === 6 && (marginExpansionQoQ || marginExpansionYoY)) {
       pulseRating = 'Excellent 🌟';
@@ -49,8 +50,6 @@ class GeminiFinancialAnalyzer {
       }
     } else if (salesYoY && opYoY && patYoY) {
       pulseRating = 'Good 👍';
-    } else if (!salesQoQ && !opQoQ && !patQoQ) {
-      pulseRating = 'OK ⚠️';
     } else {
       pulseRating = 'OK ⚠️';
     }
@@ -195,10 +194,14 @@ Role & Task:
 You are an Expert Quantitative Financial Analyst and Automated Financial Data Extraction Engine. Your task is to process the attached Quarterly Financial Result PDF for ANY company (${symbolName}), extract statutory line items across 3 required reporting periods, calculate key financial metrics, and format the output into a standardized dashboard scorecard and JSON payload.
 
 1. Period Identification
-Identify and extract data for three comparative periods from the financial tables (Default: Consolidated Results; fallback to Standalone if Consolidated is not reported):
- * Q_t: Current Quarter (e.g., Jun '26 / Period ended 30.06.2026)
- * Q_{t-1}: Immediate Previous Quarter (e.g., Mar '26 / Period ended 31.03.2026)
- * Q_{t-4}: Same Quarter Previous Fiscal Year (e.g., Jun '25 / Period ended 30.06.2025)
+Identify and extract data for three comparative 3-month quarterly periods reported in the financial statement (Default: Consolidated Results; fallback to Standalone if Consolidated is not reported):
+ * Q_t: Most Recent Reported 3-Month Quarter in the PDF (e.g. 31.03.2026 if it is a Q4/Annual filing, or 30.06.2026 if it is a Q1 filing)
+ * Q_{t-1}: Immediate Preceding 3-Month Quarter reported in the table (e.g. 31.12.2025 if Q_t is 31.03.2026, or 31.03.2026 if Q_t is 30.06.2026)
+ * Q_{t-4}: Same 3-Month Quarter Previous Fiscal Year reported in the table (e.g. 31.03.2025 if Q_t is 31.03.2026, or 30.06.2025 if Q_t is 30.06.2026)
+
+IMPORTANT:
+- DO NOT default q_t to an empty quarter if the PDF is for an earlier period (e.g., Q4 ended March 31, 2026). Extract the actual latest reported quarter numbers from the table columns!
+- Set period_labels to the exact month and year of the 3 periods extracted (e.g. { "q_t": "Mar '26", "q_t1": "Dec '25", "q_t4": "Mar '25" }).
 
 2. Line Item Extraction Schema
 Extract raw line items in ₹ Crores (convert Lakhs to Crores by dividing by 100 if reported in Lakhs):
@@ -225,7 +228,7 @@ B. Banks / NBFCs / Financial Services:
 Return ONLY valid JSON matching this exact structure:
 {
   "is_financial_sector": false,
-  "period_labels": { "q_t": "Jun '26", "q_t1": "Mar '26", "q_t4": "Jun '25" },
+  "period_labels": { "q_t": "Mar '26", "q_t1": "Dec '25", "q_t4": "Mar '25" },
   "q_t": { "sales": 0, "other_inc": 0, "total_exp": 0, "finance_cost": 0, "depreciation": 0, "op": 0, "pat": 0, "eps": 0 },
   "q_t1": { "sales": 0, "other_inc": 0, "total_exp": 0, "finance_cost": 0, "depreciation": 0, "op": 0, "pat": 0, "eps": 0 },
   "q_t4": { "sales": 0, "other_inc": 0, "total_exp": 0, "finance_cost": 0, "depreciation": 0, "op": 0, "pat": 0, "eps": 0 }

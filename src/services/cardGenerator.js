@@ -202,11 +202,11 @@ class CardGenerator {
       <circle cx="72" cy="62" r="28" fill="#0f6235" />
       <text x="72" y="70" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="20" font-weight="bold" fill="#ffffff">${symbol.substring(0, 4)}</text>
 
-      <text x="118" y="58" font-family="Helvetica, Arial, sans-serif" font-size="28" font-weight="900" fill="#0f172a">${companyDisplayName}</text>
+      <text x="118" y="58" font-family="Helvetica, Arial, sans-serif" font-size="26" font-weight="900" fill="#0f172a">${companyDisplayName}</text>
 
-      <!-- Scrip Code Badge -->
-      <rect x="${Math.min(118 + companyDisplayName.length * 16, 740)}" y="36" width="70" height="28" rx="8" fill="#ffffff" stroke="#1e293b" stroke-width="1.5" />
-      <text x="${Math.min(118 + companyDisplayName.length * 16 + 35, 775)}" y="55" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="#1e293b">${scripCode}</text>
+      <!-- Scrip Code Badge (Top Right Header Alignment) -->
+      <rect x="760" y="36" width="100" height="28" rx="8" fill="#ffffff" stroke="#1e293b" stroke-width="1.5" />
+      <text x="810" y="55" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="#1e293b">${scripCode}</text>
 
       <text x="118" y="80" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#64748b">${industry}</text>
 
