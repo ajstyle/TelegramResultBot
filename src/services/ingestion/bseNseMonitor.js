@@ -384,7 +384,7 @@ class BseNseMonitorService {
         const telegramMsg =
           `📢 ${hashtagSymbol}\n` +
           `⏱️ ⚡ *${timeAgoStr}*\n` +
-          (item.pdfUrl ? `📄 [Download Filing PDF](${item.pdfUrl})\n` : '') +
+          (item.pdfUrl ? `📄 [PDF](${item.pdfUrl})\n` : '') +
           `${buyButtonNotice}`;
 
         // Generate Ultra-High Resolution PNG Infographic Image Card
