@@ -15,7 +15,9 @@ class ScoringEngine {
 
     // 1. Valuation Component (0-100)
     let valSubScore = 50;
-    if (peerEval.peDiscount > 20) valSubScore += 25;
+    if (ratios.pe < 0) {
+      valSubScore = 20; // Severe penalty for negative P/E
+    } else if (peerEval.peDiscount > 20) valSubScore += 25;
     else if (peerEval.peDiscount > 0) valSubScore += 12;
     else if (peerEval.peDiscount < -30) valSubScore -= 25;
     else if (peerEval.peDiscount < 0) valSubScore -= 12;

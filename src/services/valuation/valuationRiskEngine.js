@@ -37,6 +37,12 @@ class ValuationRiskEngine {
       flags.push(`Low Return on Capital (ROCE: ${ratios.roce}%)`);
     }
 
+    // 5. Negative Earnings / Loss-Making Penalty
+    if (ratios.pe < 0 || (financials.eps !== undefined && financials.eps < 0)) {
+      penaltyScore += 25;
+      flags.push('Negative Earnings / Net Loss');
+    }
+
     const riskScore = Math.max(0, Math.min(100, 100 - penaltyScore));
 
     return {
