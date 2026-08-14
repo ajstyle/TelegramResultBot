@@ -160,28 +160,28 @@ class CardGenerator {
     const generateBarChart = (title, unitRange, values, xPos) => {
       const labels5 = ["Jun'25", "Sep'25", "Dec'25", "Mar'26", "Jun'26"];
       const maxVal = Math.max(...values.map(v => Math.abs(v)), 10);
-      const chartHeight = 85;
-      const zeroY = 675;
+      const zeroY = 640;
 
       let barsSvg = '';
       values.forEach((v, i) => {
         const bx = xPos + 16 + i * 47;
-        const bHeight = Math.max(6, Math.min(chartHeight, (Math.abs(v) / maxVal) * chartHeight));
+        const maxBarH = v >= 0 ? 65 : 40;
+        const bHeight = Math.max(6, Math.min(maxBarH, (Math.abs(v) / maxVal) * maxBarH));
         const isLatest = i === 4;
         const barColor = isLatest ? '#4f46e5' : '#c4b5fd';
         const by = v >= 0 ? zeroY - bHeight : zeroY;
-        const textY = v >= 0 ? by - 5 : by + bHeight + 12;
+        const textY = v >= 0 ? by - 5 : Math.min(by + bHeight + 11, 690);
 
         barsSvg += `
           <rect x="${bx}" y="${by}" width="24" height="${bHeight}" rx="3" fill="${barColor}" />
           <text x="${bx + 12}" y="${textY}" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="10" font-weight="bold" fill="${isLatest ? '#4f46e5' : '#475569'}">${v !== 0 ? v : '-'}</text>
-          <text x="${bx + 12}" y="694" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#94a3b8">${labels5[i]}</text>
+          <text x="${bx + 12}" y="704" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#94a3b8">${labels5[i]}</text>
         `;
       });
 
       return `
-        <rect x="${xPos}" y="${zeroY - 125}" width="260" height="152" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5" />
-        <text x="${xPos + 14}" y="${zeroY - 104}" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" fill="#4f46e5">${title} <tspan fill="#94a3b8" font-weight="normal">${unitRange}</tspan></text>
+        <rect x="${xPos}" y="535" width="260" height="185" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5" />
+        <text x="${xPos + 14}" y="558" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" fill="#4f46e5">${title} <tspan fill="#94a3b8" font-weight="normal">${unitRange}</tspan></text>
         <line x1="${xPos + 10}" y1="${zeroY}" x2="${xPos + 250}" y2="${zeroY}" stroke="#e2e8f0" stroke-width="1" />
         ${barsSvg}
       `;
@@ -193,22 +193,24 @@ class CardGenerator {
 
     const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
+    const rawCompanyTitle = companyDisplayName;
+    const displayTitle = rawCompanyTitle.length > 32 ? `${rawCompanyTitle.substring(0, 30)}...` : rawCompanyTitle;
+
     const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="900" height="960" viewBox="0 0 900 960">
       <!-- Background Card -->
       <rect width="900" height="960" rx="20" fill="#ffffff" stroke="#e2e8f0" stroke-width="2" />
 
       <!-- Company Logo & Title Header -->
-      <circle cx="72" cy="62" r="28" fill="#0f6235" />
-      <text x="72" y="70" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="20" font-weight="bold" fill="#ffffff">${symbol.substring(0, 4)}</text>
+      <circle cx="65" cy="58" r="25" fill="#0f6235" />
+      <text x="65" y="65" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" fill="#ffffff">${symbol.substring(0, 4)}</text>
 
-      <text x="118" y="58" font-family="Helvetica, Arial, sans-serif" font-size="26" font-weight="900" fill="#0f172a">${companyDisplayName}</text>
+      <text x="106" y="54" font-family="Helvetica, Arial, sans-serif" font-size="24" font-weight="900" fill="#0f172a">${displayTitle}</text>
+      <text x="106" y="78" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#64748b">${industry}</text>
 
       <!-- Scrip Code Badge (Top Right Header Alignment) -->
       <rect x="760" y="36" width="100" height="28" rx="8" fill="#ffffff" stroke="#1e293b" stroke-width="1.5" />
       <text x="810" y="55" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="#1e293b">${scripCode}</text>
-
-      <text x="118" y="80" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#64748b">${industry}</text>
 
       <!-- Pulse Rating Section -->
       <text x="40" y="132" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#64748b">Q1 FY27</text>
