@@ -416,6 +416,10 @@ class BseNseMonitorService {
           ...Array.from(this.activeChatIds),
         ]);
 
+        if (config.telegram.targetChannel) {
+          targetChats.add(config.telegram.targetChannel);
+        }
+
         for (const chatId of targetChats) {
           try {
             let sentMsg = null;
