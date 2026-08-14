@@ -1,0 +1,28 @@
+{
+  "sector": "Metals",
+  "displayName": "Metals & Mining (Cyclical)",
+  "primaryValuationModel": "MidCycle_EV_EBITDA",
+  "secondaryValuationModel": "PB_Normalized",
+  "weights": {
+    "valuation": 0.35,
+    "growth": 0.15,
+    "profitability": 0.15,
+    "financialHealth": 0.20,
+    "risk": 0.15
+  },
+  "keyMetrics": [
+    "evEbitda",
+    "pb",
+    "debtToEbitda",
+    "capacityUtilization",
+    "realizationPerTon"
+  ],
+  "peerRules": {
+    "grouping": "CommoditySubtype",
+    "minPeers": 3
+  },
+  "riskRules": {
+    "highDebtToEbitdaThreshold": 4.0,
+    "cyclicalPeakMultiplier": 1.5
+  }
+}

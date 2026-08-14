@@ -9,10 +9,15 @@ const { initTelegramBot } = require('./bot/telegram');
 const angelOne = require('./services/angelOne');
 const bseNseMonitor = require('./services/ingestion/bseNseMonitor');
 
+const valuationRouter = require('./api/valuationRouter');
+
 const app = express();
 
 app.use(express.json());
 app.use(cors());
+app.use('/api/valuation', valuationRouter);
+app.use('/valuation', valuationRouter);
+app.use('/stocks', valuationRouter);
 
 // Global Exception & Rejection Guard to prevent process termination on Render Cloud
 process.on('unhandledRejection', (reason) => {

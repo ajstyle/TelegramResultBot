@@ -1,0 +1,27 @@
+{
+  "sector": "RealEstate",
+  "displayName": "Real Estate & Infrastructure",
+  "primaryValuationModel": "NAV",
+  "secondaryValuationModel": "PB_Debt",
+  "weights": {
+    "valuation": 0.35,
+    "growth": 0.20,
+    "financialHealth": 0.25,
+    "cashFlow": 0.10,
+    "risk": 0.10
+  },
+  "keyMetrics": [
+    "navDiscount",
+    "debtToEquity",
+    "presalesGrowth",
+    "collectionEfficiency"
+  ],
+  "peerRules": {
+    "grouping": "GeographyRegion",
+    "minPeers": 3
+  },
+  "riskRules": {
+    "highDebtToEquityThreshold": 1.5,
+    "inventoryDaysThreshold": 730
+  }
+}

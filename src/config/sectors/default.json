@@ -1,0 +1,28 @@
+{
+  "sector": "Default",
+  "displayName": "General Corporate",
+  "primaryValuationModel": "DCF",
+  "secondaryValuationModel": "PE_EV_EBITDA",
+  "weights": {
+    "valuation": 0.30,
+    "growth": 0.20,
+    "profitability": 0.20,
+    "financialHealth": 0.15,
+    "risk": 0.15
+  },
+  "keyMetrics": [
+    "pe",
+    "evEbitda",
+    "roce",
+    "roe",
+    "debtToEquity"
+  ],
+  "peerRules": {
+    "grouping": "MarketCapCategory",
+    "minPeers": 3
+  },
+  "riskRules": {
+    "highDebtToEquityThreshold": 1.2,
+    "promoterPledgeThreshold": 15.0
+  }
+}

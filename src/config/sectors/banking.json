@@ -1,0 +1,30 @@
+{
+  "sector": "Banking",
+  "displayName": "Banking & Financial Services",
+  "primaryValuationModel": "ResidualIncome",
+  "secondaryValuationModel": "PB_ROE",
+  "weights": {
+    "valuation": 0.35,
+    "growth": 0.20,
+    "profitability": 0.20,
+    "financialHealth": 0.15,
+    "risk": 0.10
+  },
+  "keyMetrics": [
+    "pb",
+    "roe",
+    "nim",
+    "gnpa",
+    "nnpa",
+    "car"
+  ],
+  "peerRules": {
+    "grouping": "MarketCapCategory",
+    "minPeers": 3
+  },
+  "riskRules": {
+    "highGnpaThreshold": 5.0,
+    "lowCarThreshold": 11.5,
+    "promoterPledgeThreshold": 20.0
+  }
+}

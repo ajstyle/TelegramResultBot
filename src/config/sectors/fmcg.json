@@ -1,0 +1,28 @@
+{
+  "sector": "FMCG",
+  "displayName": "Fast Moving Consumer Goods & Consumer Staples",
+  "primaryValuationModel": "DCF",
+  "secondaryValuationModel": "PE_ROCE",
+  "weights": {
+    "valuation": 0.25,
+    "growth": 0.25,
+    "profitability": 0.30,
+    "financialHealth": 0.10,
+    "risk": 0.10
+  },
+  "keyMetrics": [
+    "pe",
+    "roce",
+    "grossMargin",
+    "volumeGrowth",
+    "dividendYield"
+  ],
+  "peerRules": {
+    "grouping": "MarketCapCategory",
+    "minPeers": 3
+  },
+  "riskRules": {
+    "inputCostVolatilityThreshold": 15.0,
+    "promoterPledgeThreshold": 15.0
+  }
+}

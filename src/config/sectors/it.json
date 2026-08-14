@@ -1,0 +1,28 @@
+{
+  "sector": "IT",
+  "displayName": "Information Technology & Software Services",
+  "primaryValuationModel": "DCF",
+  "secondaryValuationModel": "PE_PEG",
+  "weights": {
+    "valuation": 0.30,
+    "growth": 0.25,
+    "profitability": 0.25,
+    "cashFlow": 0.10,
+    "risk": 0.10
+  },
+  "keyMetrics": [
+    "pe",
+    "peg",
+    "opm",
+    "fcfConversion",
+    "attritionRate"
+  ],
+  "peerRules": {
+    "grouping": "MarketCapCategory",
+    "minPeers": 3
+  },
+  "riskRules": {
+    "revenueConcentrationThreshold": 40.0,
+    "promoterPledgeThreshold": 10.0
+  }
+}
