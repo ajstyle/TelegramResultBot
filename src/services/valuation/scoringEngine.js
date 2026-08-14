@@ -17,14 +17,20 @@ class ScoringEngine {
     let valSubScore = 50;
     if (ratios.pe < 0) {
       valSubScore = 20; // Severe penalty for negative P/E
+    } else if (ratios.pe > 50) {
+      valSubScore = 15; // Heavy penalty for super high P/E (>50x)
+    } else if (ratios.pe > 38) {
+      valSubScore = 30; // High P/E penalty (>38x)
     } else if (peerEval.peDiscount > 20) valSubScore += 25;
     else if (peerEval.peDiscount > 0) valSubScore += 12;
     else if (peerEval.peDiscount < -30) valSubScore -= 25;
     else if (peerEval.peDiscount < 0) valSubScore -= 12;
 
-    if (dcfEval.marginOfSafetyPct > 20) valSubScore += 25;
-    else if (dcfEval.marginOfSafetyPct > 0) valSubScore += 12;
-    else if (dcfEval.marginOfSafetyPct < -20) valSubScore -= 25;
+    if (ratios.pe > 0 && ratios.pe <= 38) {
+      if (dcfEval.marginOfSafetyPct > 20) valSubScore += 25;
+      else if (dcfEval.marginOfSafetyPct > 0) valSubScore += 12;
+      else if (dcfEval.marginOfSafetyPct < -20) valSubScore -= 25;
+    }
 
     valSubScore = Math.max(0, Math.min(100, valSubScore));
 
