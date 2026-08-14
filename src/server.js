@@ -10,6 +10,7 @@ const angelOne = require('./services/angelOne');
 const bseNseMonitor = require('./services/ingestion/bseNseMonitor');
 
 const valuationRouter = require('./api/valuationRouter');
+const qualityRouter = require('./api/qualityRouter');
 
 const app = express();
 
@@ -18,6 +19,8 @@ app.use(cors());
 app.use('/api/valuation', valuationRouter);
 app.use('/valuation', valuationRouter);
 app.use('/stocks', valuationRouter);
+app.use('/api/quality', qualityRouter);
+app.use('/quality', qualityRouter);
 
 // Global Exception & Rejection Guard to prevent process termination on Render Cloud
 process.on('unhandledRejection', (reason) => {
