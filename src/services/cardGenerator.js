@@ -64,7 +64,8 @@ class CardGenerator {
     // Clean company display name (strip scrip code if appended in parentheses)
     const companyDisplayName = escapeXml(rawSymbolName.replace(/\(\d+\)/, '').trim());
     
-    const cmp = escapeXml(data.cmp || '-');
+    const rawCmp = data.cmp ? String(data.cmp).trim() : '-';
+    const cmp = escapeXml(rawCmp.startsWith('₹') || rawCmp === '-' ? rawCmp : `₹${rawCmp}`);
     const category = escapeXml(data.category || 'Listed Stock');
     const rawMcap = data.mcapCr ? (typeof data.mcapCr === 'string' && data.mcapCr.includes('Cr') ? data.mcapCr : `${data.mcapCr} Cr`) : '-';
     const mcapDisplay = escapeXml(rawMcap);

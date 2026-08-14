@@ -10,29 +10,38 @@ class FundamentalsProvider {
   /**
    * Fetch 100% exact real live fundamentals directly from Screener.in
    */
-  async fetchScreenerLiveFundamentals(symbol) {
+  async fetchScreenerLiveFundamentals(symbol, scripCode = null) {
     try {
       const cleanSym = symbol.toUpperCase().trim().replace(/[^A-Z0-9.&-]/g, '');
-      let url = `https://www.screener.in/company/${cleanSym}/consolidated/`;
-      let res;
-      try {
-        res = await axios.get(url, {
-          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-          timeout: 5000,
-        });
-      } catch (_) {
-        url = `https://www.screener.in/company/${cleanSym}/`;
-        res = await axios.get(url, {
-          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-          timeout: 5000,
-        });
+      const candidateUrls = [
+        `https://www.screener.in/company/${cleanSym}/consolidated/`,
+        `https://www.screener.in/company/${cleanSym}/`,
+      ];
+
+      if (scripCode && /^\d+$/.test(String(scripCode).trim())) {
+        const cleanScrip = String(scripCode).trim();
+        candidateUrls.push(`https://www.screener.in/company/${cleanScrip}/consolidated/`);
+        candidateUrls.push(`https://www.screener.in/company/${cleanScrip}/`);
       }
+
+      let res = null;
+      for (const url of candidateUrls) {
+        try {
+          res = await axios.get(url, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+            timeout: 5000,
+          });
+          if (res.data && res.data.includes('Market Cap')) break;
+        } catch (_) {}
+      }
+
+      if (!res || !res.data) return null;
 
       const html = res.data;
       const findRatio = (name) => {
         const idx = html.indexOf(name);
         if (idx === -1) return null;
-        const sub = html.substring(idx, idx + 350);
+        const sub = html.substring(idx, idx + 800);
         const m = sub.match(/<span class="number">([\d.,]+)<\/span>/);
         return m ? parseFloat(m[1].replace(/,/g, '')) : null;
       };
@@ -50,14 +59,16 @@ class FundamentalsProvider {
           cmp,
           marketCapCr: mcap,
           pe,
-          bookValue,
-          pb: cmp && bookValue && bookValue > 0 ? Math.round((cmp / bookValue) * 10) / 10 : null,
           roce,
           roe,
+          bookValue,
+          pb: cmp && bookValue && bookValue > 0 ? Math.round((cmp / bookValue) * 10) / 10 : null,
         };
       }
-    } catch (_) {}
-    return null;
+      return null;
+    } catch (_) {
+      return null;
+    }
   }
 
   /**
@@ -139,16 +150,22 @@ class FundamentalsProvider {
 
     // 1. Fetch exact live Screener.in data and BSE Header API
     const [screenerData, bseInfo] = await Promise.all([
-      this.fetchScreenerLiveFundamentals(formattedSymbol),
+      this.fetchScreenerLiveFundamentals(formattedSymbol, resolvedScripCode),
       this.fetchBseHeader(resolvedScripCode),
     ]);
 
-    const liveCmp = screenerData?.cmp || (bseInfo?.LTP ? parseFloat(bseInfo.LTP) : 100);
+    const liveCmp = screenerData?.cmp !== null && screenerData?.cmp !== undefined
+      ? screenerData.cmp
+      : (bseInfo?.LTP ? parseFloat(bseInfo.LTP) : null);
+
     const pe = screenerData?.pe !== null && screenerData?.pe !== undefined
       ? screenerData.pe
       : (bseInfo?.PE && !isNaN(parseFloat(bseInfo.PE)) ? parseFloat(bseInfo.PE) : 20.0);
 
-    const mcap = screenerData?.marketCapCr || (liveCmp ? Math.round(liveCmp * 15) : 5000);
+    const mcap = screenerData?.marketCapCr !== null && screenerData?.marketCapCr !== undefined
+      ? screenerData.marketCapCr
+      : null;
+
     const roce = screenerData?.roce !== null && screenerData?.roce !== undefined ? screenerData.roce : 15.0;
     const roe = screenerData?.roe !== null && screenerData?.roe !== undefined ? screenerData.roe : 14.0;
     const bvps = screenerData?.bookValue || (liveCmp ? Math.round(liveCmp / 2.5) : 40);
