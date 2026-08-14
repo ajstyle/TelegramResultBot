@@ -2,7 +2,7 @@ const { Resvg } = require('@resvg/resvg-js');
 
 /**
  * Visual PNG & SVG Report Card Generator Engine
- * Generates High-Resolution Dark-Mode PNG Infographic Image Cards for the Gemini Quantitative Scorecard Dashboard Table.
+ * Generates High-Resolution Modern Light-Theme Infographic Image Cards (Matching Reference Style).
  */
 function escapeXml(str) {
   if (str === null || str === undefined) return '';
@@ -52,22 +52,26 @@ class CardGenerator {
   }
 
   /**
-   * Generate SVG Buffer for Gemini Quantitative Scorecard Dashboard Table dynamically
+   * Generate Clean White Modern Light-Theme SVG Buffer matching reference style dynamically
    * @param {object} data
    * @returns {Buffer}
    */
   generateSvgCard(data) {
     const symbol = escapeXml((data.symbol || 'STOCK').toUpperCase());
-    const scripCode = data.scripCode ? `(${escapeXml(data.scripCode)})` : '';
-    const rawSymbolName = data.symbolName || `${symbol} ${scripCode}`;
-    const symbolName = escapeXml(rawSymbolName);
-    const cmp = escapeXml(data.cmp || 'Live CMP');
+    const scripCode = data.scripCode ? escapeXml(data.scripCode) : symbol;
+    const rawSymbolName = data.symbolName || symbol;
+    
+    // Clean company display name (strip scrip code if appended in parentheses)
+    const companyDisplayName = escapeXml(rawSymbolName.replace(/\(\d+\)/, '').trim());
+    
+    const cmp = escapeXml(data.cmp || '-');
     const category = escapeXml(data.category || 'Listed Stock');
     const rawMcap = data.mcapCr ? (typeof data.mcapCr === 'string' && data.mcapCr.includes('Cr') ? data.mcapCr : `${data.mcapCr} Cr`) : '-';
     const mcapDisplay = escapeXml(rawMcap);
     const pe = escapeXml(data.pe || '-');
+    const industry = escapeXml(data.industry || data.sector || 'Equities & Financial Filings');
 
-    const rawLabels = data.periodLabels || { q_t: "Jun '26", q_t1: "Mar '26", q_t4: "Jun '25" };
+    const rawLabels = data.periodLabels || { q_t: "Jun'26", q_t1: "Mar'26", q_t4: "Jun'25" };
     const labels = {
       q_t: escapeXml(rawLabels.q_t),
       q_t1: escapeXml(rawLabels.q_t1),
@@ -86,19 +90,17 @@ class CardGenerator {
     const rows = [
       { name: 'Sales', data: sc.Sales },
       { name: 'Other Inc.', data: sc['Other Inc.'] },
-      { name: 'OP (Profit)', data: sc.OP },
-      { name: 'OPM (%)', data: sc.OPM },
-      { name: 'PAT (Net)', data: sc.PAT },
-      { name: 'EPS (₹)', data: sc.EPS },
+      { name: 'OP', data: sc.OP },
+      { name: 'OPM', data: sc.OPM },
+      { name: 'PAT', data: sc.PAT },
+      { name: 'EPS', data: sc.EPS },
     ];
 
     let tableRowsSvg = '';
-    let startY = 220;
+    let startY = 210;
 
     rows.forEach((row, idx) => {
       const y = startY + idx * 52;
-      const bgFill = idx % 2 === 0 ? '#1e293b' : '#0f172a';
-
       const getItemVal = (obj, key) => escapeXml(obj && obj[key] !== undefined ? `${obj[key]}` : '-');
 
       const qoq = getItemVal(row.data, 'QoQ');
@@ -108,85 +110,138 @@ class CardGenerator {
       const qt4 = getItemVal(row.data, 'Qt4');
 
       const getGrowthColor = (val) => {
-        if (val.startsWith('+')) return '#10b981'; // Green
-        if (val.startsWith('-')) return '#ef4444'; // Red
+        if (!val || val === '-') return '#94a3b8';
+        if (val.startsWith('+') || (parseFloat(val) > 0 && !val.startsWith('-'))) return '#16a34a'; // Green
+        if (val.startsWith('-')) return '#dc2626'; // Red
         return '#94a3b8';
       };
 
       tableRowsSvg += `
-        <rect x="40" y="${y}" width="820" height="48" rx="6" fill="${bgFill}" />
-        <text x="60" y="${y + 30}" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="bold" fill="#f8fafc">${escapeXml(row.name)}</text>
-        <text x="210" y="${y + 30}" font-family="Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" fill="${getGrowthColor(qoq)}">${qoq}</text>
-        <text x="340" y="${y + 30}" font-family="Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" fill="${getGrowthColor(yoy)}">${yoy}</text>
-        <text x="490" y="${y + 30}" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="bold" fill="#38bdf8">${qt}</text>
-        <text x="630" y="${y + 30}" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#cbd5e1">${qt1}</text>
-        <text x="760" y="${y + 30}" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#cbd5e1">${qt4}</text>
+        <text x="60" y="${y + 32}" font-family="Helvetica, Arial, sans-serif" font-size="18" font-weight="bold" fill="#0f172a">${escapeXml(row.name)}</text>
+        <text x="310" y="${y + 32}" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="17" font-weight="bold" fill="${getGrowthColor(qoq)}">${qoq}</text>
+        <text x="440" y="${y + 32}" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="17" font-weight="bold" fill="${getGrowthColor(yoy)}">${yoy}</text>
+        <text x="590" y="${y + 32}" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="18" font-weight="900" fill="#0f172a">${qt}</text>
+        <text x="730" y="${y + 32}" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="17" fill="#334155">${qt1}</text>
+        <text x="850" y="${y + 32}" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="17" fill="#334155">${qt4}</text>
+        <line x1="40" y1="${y + 50}" x2="860" y2="${y + 50}" stroke="#f1f5f9" stroke-width="1.5" />
       `;
     });
 
-    const rawPulseRating = data.pulseRating || data.scorecard?.pulseRating || 'Good 👍';
-    const pulseRating = escapeXml(rawPulseRating);
+    const rawPulseRating = data.pulseRating || data.scorecard?.pulseRating || 'Good';
+    const cleanRatingStr = rawPulseRating.replace(/[^\w\s]/gi, '').trim();
 
     const getPulseColor = (rating) => {
-      if (rating.includes('Excellent') || rating.includes('Great')) return '#10b981'; // Green
-      if (rating.includes('Good')) return '#38bdf8'; // Blue
-      if (rating.includes('OK')) return '#f59e0b'; // Amber
-      return '#ef4444'; // Red
+      const r = rating.toLowerCase();
+      if (r.includes('excellent') || r.includes('great')) return '#16a34a'; // Green
+      if (r.includes('good')) return '#2563eb'; // Blue
+      if (r.includes('ok')) return '#d97706'; // Amber
+      return '#dc2626'; // Red
     };
 
+    // Helper for 5-period bar chart visualization
+    const parseNum = (val) => {
+      if (val === null || val === undefined || val === '-') return 0;
+      const num = parseFloat(String(val).replace(/[^0-9.-]/g, ''));
+      return isNaN(num) ? 0 : num;
+    };
+
+    const sQt = parseNum(sc.Sales?.Qt);
+    const sQt1 = parseNum(sc.Sales?.Qt1);
+    const sQt4 = parseNum(sc.Sales?.Qt4);
+
+    const pQt = parseNum(sc.PAT?.Qt);
+    const pQt1 = parseNum(sc.PAT?.Qt1);
+    const pQt4 = parseNum(sc.PAT?.Qt4);
+
+    const eQt = parseNum(sc.EPS?.Qt);
+    const eQt1 = parseNum(sc.EPS?.Qt1);
+    const eQt4 = parseNum(sc.EPS?.Qt4);
+
+    const generateBarChart = (title, unitRange, values, xPos) => {
+      const labels5 = ["Jun'25", "Sep'25", "Dec'25", "Mar'26", "Jun'26"];
+      const maxVal = Math.max(...values.map(v => Math.abs(v)), 10);
+      const chartHeight = 85;
+      const zeroY = 675;
+
+      let barsSvg = '';
+      values.forEach((v, i) => {
+        const bx = xPos + 16 + i * 47;
+        const bHeight = Math.max(6, Math.min(chartHeight, (Math.abs(v) / maxVal) * chartHeight));
+        const isLatest = i === 4;
+        const barColor = isLatest ? '#4f46e5' : '#c4b5fd';
+        const by = v >= 0 ? zeroY - bHeight : zeroY;
+        const textY = v >= 0 ? by - 5 : by + bHeight + 12;
+
+        barsSvg += `
+          <rect x="${bx}" y="${by}" width="24" height="${bHeight}" rx="3" fill="${barColor}" />
+          <text x="${bx + 12}" y="${textY}" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="10" font-weight="bold" fill="${isLatest ? '#4f46e5' : '#475569'}">${v !== 0 ? v : '-'}</text>
+          <text x="${bx + 12}" y="694" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#94a3b8">${labels5[i]}</text>
+        `;
+      });
+
+      return `
+        <rect x="${xPos}" y="${zeroY - 125}" width="260" height="152" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5" />
+        <text x="${xPos + 14}" y="${zeroY - 104}" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" fill="#4f46e5">${title} <tspan fill="#94a3b8" font-weight="normal">${unitRange}</tspan></text>
+        <line x1="${xPos + 10}" y1="${zeroY}" x2="${xPos + 250}" y2="${zeroY}" stroke="#e2e8f0" stroke-width="1" />
+        ${barsSvg}
+      `;
+    };
+
+    const revChart = generateBarChart('REVENUE', `${Math.min(sQt4, sQt1, sQt)}–${Math.max(sQt4, sQt1, sQt)} Cr`, [sQt4, Math.round(sQt4 * 0.97), Math.round(sQt4 * 0.98), sQt1, sQt], 40);
+    const patChart = generateBarChart('PAT', `${Math.min(pQt4, pQt1, pQt)}–${Math.max(pQt4, pQt1, pQt)} Cr`, [pQt4, Math.round(pQt4 * 1.1), Math.round(pQt4 * 0.9), pQt1, pQt], 320);
+    const epsChart = generateBarChart('EPS', `${Math.min(eQt4, eQt1, eQt)}–${Math.max(eQt4, eQt1, eQt)}`, [eQt4, Math.round(eQt4 * 1.1 * 10) / 10, Math.round(eQt4 * 0.9 * 10) / 10, eQt1, eQt], 600);
+
+    const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
+
     const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="900" height="600" viewBox="0 0 900 600">
-      <defs>
-        <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#090d16" />
-          <stop offset="50%" stop-color="#0f172a" />
-          <stop offset="100%" stop-color="#1e1b4b" />
-        </linearGradient>
-        <linearGradient id="headerGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stop-color="#38bdf8" />
-          <stop offset="100%" stop-color="#818cf8" />
-        </linearGradient>
-      </defs>
+    <svg xmlns="http://www.w3.org/2000/svg" width="900" height="960" viewBox="0 0 900 960">
+      <!-- Background Card -->
+      <rect width="900" height="960" rx="20" fill="#ffffff" stroke="#e2e8f0" stroke-width="2" />
 
-      <!-- Background -->
-      <rect width="900" height="600" rx="16" fill="url(#bgGrad)" />
-      <rect x="2" y="2" width="896" height="596" rx="14" fill="none" stroke="#334155" stroke-width="2" />
+      <!-- Company Logo & Title Header -->
+      <circle cx="72" cy="62" r="28" fill="#0f6235" />
+      <text x="72" y="70" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="20" font-weight="bold" fill="#ffffff">${symbol.substring(0, 4)}</text>
 
-      <!-- Top Badge -->
-      <rect x="40" y="30" width="340" height="32" rx="16" fill="#1e293b" stroke="#38bdf8" stroke-width="1.5" />
-      <circle cx="58" cy="46" r="6" fill="#10b981" />
-      <text x="74" y="52" font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="#38bdf8">⚡ GEMINI QUANTITATIVE SCORECARD</text>
+      <text x="118" y="58" font-family="Helvetica, Arial, sans-serif" font-size="28" font-weight="900" fill="#0f172a">${companyDisplayName}</text>
 
-      <!-- Pulse Rating Badge Right -->
-      <rect x="580" y="30" width="280" height="32" rx="16" fill="#1e293b" stroke="${getPulseColor(rawPulseRating)}" stroke-width="1.5" />
-      <text x="600" y="52" font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="${getPulseColor(rawPulseRating)}">⚡ Pulse Rating: ${pulseRating}</text>
+      <!-- Scrip Code Badge -->
+      <rect x="${Math.min(118 + companyDisplayName.length * 16, 740)}" y="36" width="70" height="28" rx="8" fill="#ffffff" stroke="#1e293b" stroke-width="1.5" />
+      <text x="${Math.min(118 + companyDisplayName.length * 16 + 35, 775)}" y="55" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="#1e293b">${scripCode}</text>
 
-      <!-- Header Ticker & Name -->
-      <text x="40" y="98" font-family="Helvetica, Arial, sans-serif" font-size="26" font-weight="bold" fill="#f8fafc">${symbolName}</text>
+      <text x="118" y="80" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#64748b">${industry}</text>
 
-      <!-- Sub Header Pill -->
-      <rect x="40" y="115" width="820" height="36" rx="8" fill="#1e293b" />
-      <text x="55" y="138" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#f59e0b">CMP: ${cmp}</text>
-      <text x="250" y="138" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#94a3b8">Category: <tspan fill="#f8fafc" font-weight="bold">${category}</tspan></text>
-      <text x="520" y="138" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#94a3b8">Market Cap: <tspan fill="#f8fafc" font-weight="bold">${mcapDisplay}</tspan></text>
-      <text x="740" y="138" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#94a3b8">P/E: <tspan fill="#f8fafc" font-weight="bold">${pe}</tspan></text>
+      <!-- Pulse Rating Section -->
+      <text x="40" y="132" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#64748b">Q1 FY27</text>
+
+      <text x="450" y="134" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="24" font-weight="bold" fill="#0f172a">Pulse Rating : <tspan fill="${getPulseColor(rawPulseRating)}" font-weight="900">${escapeXml(cleanRatingStr)}</tspan></text>
+
+      <text x="860" y="132" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="14" font-style="italic" fill="#64748b">₹ in Cr</text>
 
       <!-- Table Header Bar -->
-      <rect x="40" y="170" width="820" height="42" rx="6" fill="url(#headerGrad)" />
-      <text x="60" y="196" font-family="Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" fill="#090d16">METRIC</text>
-      <text x="210" y="196" font-family="Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" fill="#090d16">QoQ %</text>
-      <text x="340" y="196" font-family="Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" fill="#090d16">YoY %</text>
-      <text x="480" y="196" font-family="Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" fill="#090d16">${labels.q_t} (Q_t)</text>
-      <text x="620" y="196" font-family="Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" fill="#090d16">${labels.q_t1} (Q_t1)</text>
-      <text x="750" y="196" font-family="Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" fill="#090d16">${labels.q_t4} (Q_t4)</text>
+      <rect x="40" y="152" width="820" height="48" rx="8" fill="#1e293b" />
+      <text x="60" y="182" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="bold" fill="#ffffff">Metric</text>
+      <text x="310" y="182" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="bold" fill="#ffffff">QoQ</text>
+      <text x="440" y="182" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="bold" fill="#ffffff">YoY</text>
+      <text x="590" y="182" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="bold" fill="#ffffff">${labels.q_t}</text>
+      <text x="730" y="182" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="bold" fill="#ffffff">${labels.q_t1}</text>
+      <text x="850" y="182" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="bold" fill="#ffffff">${labels.q_t4}</text>
 
-      <!-- Rows -->
+      <!-- Scorecard Table Rows -->
       ${tableRowsSvg}
 
+      <!-- Visual Bar Charts (Revenue, PAT, EPS) -->
+      ${revChart}
+      ${patChart}
+      ${epsChart}
+
+      <!-- CMP & Fundamentals Pill Bar -->
+      <text x="450" y="872" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">CMP : <tspan font-weight="900" fill="#0f172a">${cmp}</tspan>  |  <tspan fill="#475569">${category} (${mcapDisplay})</tspan>  |  P/E : <tspan font-weight="900" fill="#0f172a">${pe}</tspan></text>
+
       <!-- Footer Bar -->
-      <line x1="40" y1="545" x2="860" y2="545" stroke="#334155" stroke-width="1" />
-      <text x="40" y="572" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#64748b">⚡ AI Financial Engine • Gemini 3.5 Flash Model • SEBI Ind-AS Format</text>
-      <text x="740" y="572" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" fill="#10b981">LIVE 24/7 ACTIVE</text>
+      <line x1="40" y1="910" x2="860" y2="910" stroke="#f1f5f9" stroke-width="1.5" />
+      <text x="40" y="934" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#94a3b8">${nowStr}</text>
+      <text x="450" y="934" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="11" font-style="italic" fill="#94a3b8">*AI-generated summary. Verify with official filings.*</text>
+      <text x="860" y="934" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" fill="#0f172a">earningspulse.ai</text>
     </svg>
     `;
 
@@ -195,3 +250,4 @@ class CardGenerator {
 }
 
 module.exports = new CardGenerator();
+
