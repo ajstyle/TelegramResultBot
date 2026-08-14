@@ -443,7 +443,12 @@ class BseNseMonitorService {
         if (isScValid) {
           try {
             const qualityScoringEngine = require('../quality/qualityScoringEngine');
-            const qualityRes = await qualityScoringEngine.calculateQualityScore(item.symbol, fundamentals.metrics || fundamentals);
+            const adaptiveValuationEngine = require('../valuation/adaptiveValuationEngine');
+
+            const [qualityRes, dynamicValuationLabel] = await Promise.all([
+              qualityScoringEngine.calculateQualityScore(item.symbol, fundamentals.metrics || fundamentals),
+              adaptiveValuationEngine.evaluateStockLabel(item.symbol, fundamentals.metrics || fundamentals),
+            ]);
 
             cardPngBuf = cardGenerator.generatePngCard({
               symbol: item.symbol,
@@ -455,6 +460,7 @@ class BseNseMonitorService {
               pe: peDisplay,
               qualityScore: qualityRes.qualityScore,
               qualityStatus: qualityRes.statusLabel,
+              valuationLabel: dynamicValuationLabel,
               pulseRating: computedPulseRating,
               periodLabels: labels,
               scorecard: sc,

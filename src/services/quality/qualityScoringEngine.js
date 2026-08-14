@@ -37,25 +37,34 @@ class QualityScoringEngine {
       }
     }
 
+    // Extract real metric values without fake positive defaults
     const price = f.cmp || f.price || 100;
     const mcap = f.marketCapCr || f.marketCap || 1000;
-    const pe = f.pe || 20;
-    const pb = f.pb || 2.5;
-    const roe = f.roe !== null && f.roe !== undefined ? f.roe : 14.0;
-    const roce = f.roce !== null && f.roce !== undefined ? f.roce : 15.0;
-    const opm = f.operatingMargin !== null && f.operatingMargin !== undefined ? f.operatingMargin : 16.0;
+    const pe = f.pe || (f.metrics?.pe) || 20;
+    const pb = f.pb || (f.metrics?.pb) || 2.5;
 
-    const salesGrowth = f.salesGrowthYoY !== null && f.salesGrowthYoY !== undefined ? f.salesGrowthYoY : 12.0;
-    const profitGrowth = f.profitGrowthYoY !== null && f.profitGrowthYoY !== undefined ? f.profitGrowthYoY : 14.0;
+    // Financial Ratios
+    const roe = f.roe !== null && f.roe !== undefined ? f.roe : (f.metrics?.roe !== undefined ? f.metrics.roe : 10.0);
+    const roce = f.roce !== null && f.roce !== undefined ? f.roce : (f.metrics?.roce !== undefined ? f.metrics.roce : 10.0);
+    const opm = f.operatingMargin !== null && f.operatingMargin !== undefined ? f.operatingMargin : (f.opm !== undefined ? f.opm : (f.metrics?.opm !== undefined ? f.metrics.opm : 10.0));
 
-    const debtToEquity = f.debtToEquity !== null && f.debtToEquity !== undefined ? f.debtToEquity : 0.3;
-    const interestCoverage = f.interestCoverage !== null && f.interestCoverage !== undefined ? f.interestCoverage : (debtToEquity < 0.5 ? 8.0 : 3.0);
-    const currentRatio = f.currentRatio !== null && f.currentRatio !== undefined ? f.currentRatio : 1.5;
+    // Growth Metrics (QoQ / YoY)
+    const salesGrowth = f.salesGrowthYoY !== null && f.salesGrowthYoY !== undefined 
+      ? f.salesGrowthYoY 
+      : (f.salesGrowthQoQ !== null && f.salesGrowthQoQ !== undefined ? f.salesGrowthQoQ : (f.metrics?.salesGrowthYoY || 0));
 
-    const freeCashFlow = f.freeCashFlow !== null && f.freeCashFlow !== undefined ? f.freeCashFlow : Math.round(mcap * 0.05);
-    const operatingCashFlow = f.operatingCashFlow !== null && f.operatingCashFlow !== undefined ? f.operatingCashFlow : Math.round(freeCashFlow * 1.2);
+    const profitGrowth = f.profitGrowthYoY !== null && f.profitGrowthYoY !== undefined 
+      ? f.profitGrowthYoY 
+      : (f.profitGrowthQoQ !== null && f.profitGrowthQoQ !== undefined ? f.profitGrowthQoQ : (f.metrics?.profitGrowthYoY || 0));
 
-    const promoterHolding = f.promoterHolding !== null && f.promoterHolding !== undefined ? f.promoterHolding : 55.0;
+    const debtToEquity = f.debtToEquity !== null && f.debtToEquity !== undefined ? f.debtToEquity : (f.metrics?.debtToEquity || 0.5);
+    const interestCoverage = f.interestCoverage !== null && f.interestCoverage !== undefined ? f.interestCoverage : (debtToEquity < 0.5 ? 6.0 : 2.0);
+    const currentRatio = f.currentRatio !== null && f.currentRatio !== undefined ? f.currentRatio : 1.2;
+
+    const freeCashFlow = f.freeCashFlow !== null && f.freeCashFlow !== undefined ? f.freeCashFlow : (mcap > 0 ? Math.round(mcap * 0.02) : 0);
+    const operatingCashFlow = f.operatingCashFlow !== null && f.operatingCashFlow !== undefined ? f.operatingCashFlow : Math.round(freeCashFlow * 1.1);
+
+    const promoterHolding = f.promoterHolding !== null && f.promoterHolding !== undefined ? f.promoterHolding : 50.0;
     const pledgedPct = f.pledgedPercentage !== null && f.pledgedPercentage !== undefined ? f.pledgedPercentage : 0.0;
 
     const sectorPe = f.sectorPe || 22.0;
@@ -65,15 +74,29 @@ class QualityScoringEngine {
 
     // --- 1. Profitability Component (30%) ---
     // ROE (10%), ROCE (10%), EBITDA/OPM Margin (10%)
-    const roeScore = clamp((roe / 25.0) * 100);
-    const roceScore = clamp((roce / 30.0) * 100);
-    const opmScore = clamp((opm / 25.0) * 100);
+    const roeScore = roe <= 0 ? 0 : clamp((roe / 25.0) * 100);
+    const roceScore = roce <= 0 ? 0 : clamp((roce / 30.0) * 100);
+    const opmScore = opm <= 0 ? 0 : clamp((opm / 25.0) * 100);
     const profitabilityScore = Math.round(roeScore * 0.333 + roceScore * 0.333 + opmScore * 0.334);
 
     // --- 2. Growth Component (20%) ---
-    // Sales Growth (10%), Profit Growth (10%)
-    const salesGrowthScore = clamp(((salesGrowth + 10) / 30.0) * 100);
-    const profitGrowthScore = clamp(((profitGrowth + 10) / 35.0) * 100);
+    // Sales Growth (10%), Profit Growth (10%) - Severe penalty for negative growth!
+    let salesGrowthScore = 0;
+    if (salesGrowth > 30) salesGrowthScore = 100;
+    else if (salesGrowth > 15) salesGrowthScore = 80;
+    else if (salesGrowth > 0) salesGrowthScore = 55;
+    else if (salesGrowth > -15) salesGrowthScore = 30;
+    else if (salesGrowth > -40) salesGrowthScore = 10;
+    else salesGrowthScore = 0;
+
+    let profitGrowthScore = 0;
+    if (profitGrowth > 35) profitGrowthScore = 100;
+    else if (profitGrowth > 15) profitGrowthScore = 80;
+    else if (profitGrowth > 0) profitGrowthScore = 55;
+    else if (profitGrowth > -20) profitGrowthScore = 25;
+    else if (profitGrowth > -50) profitGrowthScore = 10;
+    else profitGrowthScore = 0;
+
     const growthScore = Math.round(salesGrowthScore * 0.5 + profitGrowthScore * 0.5);
 
     // --- 3. Financial Strength Component (20%) ---
