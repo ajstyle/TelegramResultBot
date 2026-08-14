@@ -156,6 +156,19 @@ class FundamentalsProvider {
     const eps = liveCmp && pe > 0 ? Math.round((liveCmp / pe) * 100) / 100 : 10;
     const sector = bseInfo?.Sector || bseInfo?.Industry || 'General';
 
+    // SEBI / AMFI Indian Market Cap Classification
+    const marketCapClassifier = require('../universe/marketCapClassifier');
+    const classification = marketCapClassifier.classifyMarketCap(mcap, 'EQUITY');
+
+    const categoryMap = {
+      LARGE_CAP: 'Large-Cap',
+      MID_CAP: 'Mid-Cap',
+      SMALL_CAP: 'Small-Cap',
+      MICRO_CAP: 'Micro-Cap',
+      UNVERIFIED: 'Unverified',
+      EXCLUDED_SECURITY: 'Excluded Instrument',
+    };
+
     return {
       symbol: formattedSymbol,
       cmp: liveCmp,
@@ -176,7 +189,12 @@ class FundamentalsProvider {
       freeCashFlow: Math.round(liveCmp * 2.5),
       sectorPe: 22.0,
       marketCapCr: mcap,
-      companyCategory: 'Listed Stock',
+      marketCap: mcap,
+      capCategory: classification.capCategory,
+      classificationSource: classification.classificationSource,
+      classificationDate: classification.classificationDate,
+      isAllowedUniverse: classification.isAllowed,
+      companyCategory: categoryMap[classification.capCategory] || 'Listed Stock',
       sector,
     };
   }

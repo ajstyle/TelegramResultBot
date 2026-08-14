@@ -179,6 +179,17 @@ class BseNseMonitorService {
       }
 
       const fundamentals = await fundamentalsService.analyze(item.symbol, item.scripCode);
+
+      // Hard Universe Filter Guard: capCategory IN ['LARGE_CAP', 'MID_CAP', 'SMALL_CAP']
+      const marketCapClassifier = require('../universe/marketCapClassifier');
+      const mcapCr = fundamentals.metrics?.marketCapCr || fundamentals.marketCapCr || 0;
+      const classification = marketCapClassifier.classifyMarketCap(mcapCr, 'EQUITY');
+
+      if (!classification.isAllowed) {
+        console.warn(`[BseNseMonitor] Excluding announcement for ${item.symbol} - ${classification.reason}`);
+        return;
+      }
+
       const combinedMetrics = { ...(fundamentals.metrics || {}), ...(pdfAnalysis.metrics || {}) };
       const aiSummary = aiSummaryEngine.generateSummary(item.symbol, pdfAnalysis.rawText, combinedMetrics);
 

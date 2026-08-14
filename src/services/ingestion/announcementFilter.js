@@ -91,6 +91,16 @@ class AnnouncementFilter {
 
     return true;
   }
+
+  /**
+   * Enforce hard filter: capCategory IN ['LARGE_CAP', 'MID_CAP', 'SMALL_CAP']
+   * Rejects Micro Cap (< ₹500 Cr), Nano Cap, Unlisted, ETFs, Mutual Funds, Bonds, Indices.
+   */
+  isAllowedUniverse(marketCapCr, instrumentType = 'EQUITY') {
+    const marketCapClassifier = require('../universe/marketCapClassifier');
+    const classification = marketCapClassifier.classifyMarketCap(marketCapCr, instrumentType);
+    return classification.isAllowed;
+  }
 }
 
 module.exports = new AnnouncementFilter();

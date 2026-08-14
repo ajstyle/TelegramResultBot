@@ -59,6 +59,17 @@ class AdaptiveValuationEngine {
         financials.price = financials.price || financials.cmp || 100;
       }
 
+      // 1b. Market Cap Universe Hard Filter Guard (LARGE_CAP, MID_CAP, SMALL_CAP only)
+      const mcapToValidate = (financials.marketCapCr !== undefined && financials.marketCapCr !== null && financials.marketCapCr > 0)
+        ? financials.marketCapCr
+        : (financials.price ? Math.round(financials.price * 15) : 1000);
+
+      const marketCapClassifier = require('../universe/marketCapClassifier');
+      const classification = marketCapClassifier.classifyMarketCap(mcapToValidate, 'EQUITY');
+      if (!classification.isAllowed) {
+        return 'Excluded Universe';
+      }
+
       // 2. Sector System Auto-Detection
       const sectorConfig = sectorRegistry.detectSector(financials.industry || '', symbol);
 
