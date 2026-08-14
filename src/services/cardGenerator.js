@@ -102,7 +102,16 @@ class CardGenerator {
 
     rows.forEach((row, idx) => {
       const y = startY + idx * 52;
-      const getItemVal = (obj, key) => escapeXml(obj && obj[key] !== undefined ? `${obj[key]}` : '-');
+      const getItemVal = (obj, key) => {
+        if (!obj || obj[key] === undefined || obj[key] === null || obj[key] === '' || obj[key] === 'undefined' || obj[key] === 'null' || obj[key] === 'NaN') {
+          return '-';
+        }
+        const valStr = `${obj[key]}`.trim();
+        if (valStr === '' || valStr === 'null' || valStr === 'undefined' || valStr === '0%' || valStr === '+0%') {
+          return '-';
+        }
+        return escapeXml(valStr);
+      };
 
       const qoq = getItemVal(row.data, 'QoQ');
       const yoy = getItemVal(row.data, 'YoY');

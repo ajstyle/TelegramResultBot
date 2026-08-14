@@ -37,34 +37,33 @@ class QualityScoringEngine {
       }
     }
 
-    // Extract real metric values without fake positive defaults
-    const price = f.cmp || f.price || 100;
-    const mcap = f.marketCapCr || f.marketCap || 1000;
-    const pe = f.pe || (f.metrics?.pe) || 20;
-    const pb = f.pb || (f.metrics?.pb) || 2.5;
+    // Extract real metric values without ANY fake defaults
+    const price = f.cmp || f.price || null;
+    const mcap = f.marketCapCr || f.marketCap || null;
+    const pe = f.pe || f.metrics?.pe || null;
 
-    // Financial Ratios
-    const roe = f.roe !== null && f.roe !== undefined ? f.roe : (f.metrics?.roe !== undefined ? f.metrics.roe : 10.0);
-    const roce = f.roce !== null && f.roce !== undefined ? f.roce : (f.metrics?.roce !== undefined ? f.metrics.roce : 10.0);
-    const opm = f.operatingMargin !== null && f.operatingMargin !== undefined ? f.operatingMargin : (f.opm !== undefined ? f.opm : (f.metrics?.opm !== undefined ? f.metrics.opm : 10.0));
+    // Financial Ratios (Keep null if missing)
+    const roe = f.roe !== null && f.roe !== undefined ? f.roe : (f.metrics?.roe !== undefined ? f.metrics.roe : null);
+    const roce = f.roce !== null && f.roce !== undefined ? f.roce : (f.metrics?.roce !== undefined ? f.metrics.roce : null);
+    const opm = f.operatingMargin !== null && f.operatingMargin !== undefined ? f.operatingMargin : (f.opm !== undefined ? f.opm : (f.metrics?.opm !== undefined ? f.metrics.opm : null));
 
     // Growth Metrics (QoQ / YoY)
     const salesGrowth = f.salesGrowthYoY !== null && f.salesGrowthYoY !== undefined 
       ? f.salesGrowthYoY 
-      : (f.salesGrowthQoQ !== null && f.salesGrowthQoQ !== undefined ? f.salesGrowthQoQ : (f.metrics?.salesGrowthYoY || 0));
+      : (f.salesGrowthQoQ !== null && f.salesGrowthQoQ !== undefined ? f.salesGrowthQoQ : (f.metrics?.salesGrowthYoY !== undefined ? f.metrics.salesGrowthYoY : null));
 
     const profitGrowth = f.profitGrowthYoY !== null && f.profitGrowthYoY !== undefined 
       ? f.profitGrowthYoY 
-      : (f.profitGrowthQoQ !== null && f.profitGrowthQoQ !== undefined ? f.profitGrowthQoQ : (f.metrics?.profitGrowthYoY || 0));
+      : (f.profitGrowthQoQ !== null && f.profitGrowthQoQ !== undefined ? f.profitGrowthQoQ : (f.metrics?.profitGrowthYoY !== undefined ? f.metrics.profitGrowthYoY : null));
 
-    const debtToEquity = f.debtToEquity !== null && f.debtToEquity !== undefined ? f.debtToEquity : (f.metrics?.debtToEquity || 0.5);
-    const interestCoverage = f.interestCoverage !== null && f.interestCoverage !== undefined ? f.interestCoverage : (debtToEquity < 0.5 ? 6.0 : 2.0);
-    const currentRatio = f.currentRatio !== null && f.currentRatio !== undefined ? f.currentRatio : 1.2;
+    const debtToEquity = f.debtToEquity !== null && f.debtToEquity !== undefined ? f.debtToEquity : (f.metrics?.debtToEquity !== undefined ? f.metrics.debtToEquity : null);
+    const interestCoverage = f.interestCoverage !== null && f.interestCoverage !== undefined ? f.interestCoverage : (debtToEquity !== null && debtToEquity < 0.5 ? 6.0 : null);
+    const currentRatio = f.currentRatio !== null && f.currentRatio !== undefined ? f.currentRatio : null;
 
-    const freeCashFlow = f.freeCashFlow !== null && f.freeCashFlow !== undefined ? f.freeCashFlow : (mcap > 0 ? Math.round(mcap * 0.02) : 0);
-    const operatingCashFlow = f.operatingCashFlow !== null && f.operatingCashFlow !== undefined ? f.operatingCashFlow : Math.round(freeCashFlow * 1.1);
+    const freeCashFlow = f.freeCashFlow !== null && f.freeCashFlow !== undefined ? f.freeCashFlow : null;
+    const operatingCashFlow = f.operatingCashFlow !== null && f.operatingCashFlow !== undefined ? f.operatingCashFlow : (freeCashFlow !== null ? Math.round(freeCashFlow * 1.1) : null);
 
-    const promoterHolding = f.promoterHolding !== null && f.promoterHolding !== undefined ? f.promoterHolding : 50.0;
+    const promoterHolding = f.promoterHolding !== null && f.promoterHolding !== undefined ? f.promoterHolding : (f.metrics?.promoterHolding !== undefined ? f.metrics.promoterHolding : null);
     const pledgedPct = f.pledgedPercentage !== null && f.pledgedPercentage !== undefined ? f.pledgedPercentage : 0.0;
 
     const sectorPe = f.sectorPe || 22.0;
