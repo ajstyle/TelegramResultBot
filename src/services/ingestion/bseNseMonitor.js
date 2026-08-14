@@ -309,10 +309,12 @@ class BseNseMonitorService {
         let epsYoYValStr = '-';
 
         const sc = geminiResult?.scorecard;
-        const isScValid = sc && (
-          (typeof sc.Sales?.Qt === 'number' && sc.Sales.Qt !== 0) ||
-          (typeof sc.PAT?.Qt === 'number' && sc.PAT.Qt !== 0) ||
-          (typeof sc.OP?.Qt === 'number' && sc.OP.Qt !== 0)
+        const isScValid = Boolean(
+          sc && (
+            (sc.Sales && sc.Sales.Qt !== undefined && sc.Sales.Qt !== '-' && sc.Sales.Qt !== null) ||
+            (sc.PAT && sc.PAT.Qt !== undefined && sc.PAT.Qt !== '-' && sc.PAT.Qt !== null) ||
+            (sc.OP && sc.OP.Qt !== undefined && sc.OP.Qt !== '-' && sc.OP.Qt !== null)
+          )
         );
 
         if (isScValid) {
