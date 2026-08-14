@@ -196,6 +196,25 @@ class CardGenerator {
     const rawCompanyTitle = companyDisplayName;
     const displayTitle = rawCompanyTitle.length > 32 ? `${rawCompanyTitle.substring(0, 30)}...` : rawCompanyTitle;
 
+    const rawValuation = data.valuationLabel || data.valuationRating || 'Fairly Valued';
+    const getValuationStyle = (label) => {
+      const l = (label || '').toLowerCase();
+      if (l.includes('deeply undervalued')) {
+        return { bg: '#059669', text: '#ffffff', title: 'DEEPLY UNDERVALUED' };
+      }
+      if (l.includes('undervalued')) {
+        return { bg: '#16a34a', text: '#ffffff', title: 'UNDERVALUED (CHEAP)' };
+      }
+      if (l.includes('overvalued')) {
+        return { bg: '#dc2626', text: '#ffffff', title: 'OVERVALUED' };
+      }
+      if (l.includes('expensive')) {
+        return { bg: '#d97706', text: '#ffffff', title: 'SLIGHTLY EXPENSIVE' };
+      }
+      return { bg: '#2563eb', text: '#ffffff', title: 'FAIRLY VALUED' };
+    };
+    const valStyle = getValuationStyle(rawValuation);
+
     const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="900" height="960" viewBox="0 0 900 960">
       <!-- Background Card -->
@@ -207,6 +226,10 @@ class CardGenerator {
 
       <text x="106" y="54" font-family="Helvetica, Arial, sans-serif" font-size="24" font-weight="900" fill="#0f172a">${displayTitle}</text>
       <text x="106" y="78" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#64748b">${industry}</text>
+
+      <!-- Valuation Badge (Top Right Header) -->
+      <rect x="540" y="36" width="205" height="28" rx="8" fill="${valStyle.bg}" />
+      <text x="642" y="55" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="900" fill="#ffffff">${escapeXml(valStyle.title)}</text>
 
       <!-- Scrip Code Badge (Top Right Header Alignment) -->
       <rect x="760" y="36" width="100" height="28" rx="8" fill="#ffffff" stroke="#1e293b" stroke-width="1.5" />
@@ -237,7 +260,8 @@ class CardGenerator {
       ${epsChart}
 
       <!-- CMP & Fundamentals Pill Bar -->
-      <text x="450" y="872" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">CMP : <tspan font-weight="900" fill="#0f172a">${cmp}</tspan>  |  <tspan fill="#475569">${category} (${mcapDisplay})</tspan>  |  P/E : <tspan font-weight="900" fill="#0f172a">${pe}</tspan></text>
+      <rect x="40" y="852" width="820" height="38" rx="10" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.5" />
+      <text x="450" y="876" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" fill="#0f172a">CMP : <tspan font-weight="900">${cmp}</tspan>  |  <tspan fill="#475569">${category} (${mcapDisplay})</tspan>  |  P/E : <tspan font-weight="900">${pe}</tspan>  |  Valuation : <tspan font-weight="900" fill="${valStyle.bg}">${escapeXml(valStyle.title)}</tspan></text>
 
       <!-- Footer Bar -->
       <line x1="40" y1="910" x2="860" y2="910" stroke="#f1f5f9" stroke-width="1.5" />
