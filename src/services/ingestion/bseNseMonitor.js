@@ -388,30 +388,27 @@ class BseNseMonitorService {
           `📢 ${hashtagSymbol}   |   ⏱️ ⚡ *${timeAgoStr}*` +
           (item.pdfUrl ? `   |   📄 [PDF](${item.pdfUrl})` : '');
 
-        // Generate Ultra-High Resolution PNG Infographic Image Card
+        // Generate Ultra-High Resolution PNG Infographic Image Card (ONLY if valid financial numbers exist)
         let cardPngBuf = null;
-        try {
-          cardPngBuf = cardGenerator.generatePngCard({
-            symbol: item.symbol,
-            scripCode: item.scripCode,
-            symbolName: displayHeaderSymbol,
-            cmp: cmpDisplay,
-            category: compCategory,
-            mcapCr: mcapDisplay,
-            pe: peDisplay,
-            pulseRating: computedPulseRating,
-            periodLabels: labels,
-            scorecard: sc || {
-              Sales: { QoQ: sQoQStr, YoY: sYoYStr, Qt: sCurrStr, Qt1: sPrevStr, Qt4: sYoYValStr },
-              'Other Inc.': { QoQ: othQoQStr, YoY: othYoYStr, Qt: othCurrStr, Qt1: othPrevStr, Qt4: othYoYValStr },
-              OP: { QoQ: opQoQStr, YoY: opYoYStr, Qt: opCurrStr, Qt1: opPrevStr, Qt4: opYoYValStr },
-              OPM: { QoQ: opmQoQStr, YoY: opmYoYStr, Qt: opmCurrStr, Qt1: opmPrevStr, Qt4: opmYoYValStr },
-              PAT: { QoQ: pQoQStr, YoY: pYoYStr, Qt: patCurrStr, Qt1: patPrevStr, Qt4: patYoYValStr },
-              EPS: { QoQ: epsQoQStr, YoY: epsYoYStr, Qt: epsCurrStr, Qt1: epsPrevStr, Qt4: epsYoYValStr },
-            },
-          });
-        } catch (cardErr) {
-          console.warn(`[BseNseMonitor] Card generator notice: ${cardErr.message}`);
+        if (isScValid) {
+          try {
+            cardPngBuf = cardGenerator.generatePngCard({
+              symbol: item.symbol,
+              scripCode: item.scripCode,
+              symbolName: displayHeaderSymbol,
+              cmp: cmpDisplay,
+              category: compCategory,
+              mcapCr: mcapDisplay,
+              pe: peDisplay,
+              pulseRating: computedPulseRating,
+              periodLabels: labels,
+              scorecard: sc,
+            });
+          } catch (cardErr) {
+            console.warn(`[BseNseMonitor] Card generator notice: ${cardErr.message}`);
+          }
+        } else {
+          console.warn(`[BseNseMonitor] Suppressed blank card generation for ${item.symbol} - no valid quarterly numbers available.`);
         }
 
         const targetChats = new Set([
