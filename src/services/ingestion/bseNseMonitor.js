@@ -332,7 +332,36 @@ class BseNseMonitorService {
         let epsPrevStr = '-';
         let epsYoYValStr = '-';
 
-        const sc = geminiResult?.scorecard;
+        let sc = geminiResult?.scorecard;
+
+        // Fallback Scorecard Construction: If Gemini scorecard is missing, construct from extracted PDF metrics
+        if (!sc && m) {
+          const sQt = m.sales || 0;
+          const sQt1 = m.salesPrev || 0;
+          const sQt4 = m.salesYoYVal || 0;
+          const pQt = m.pat || 0;
+          const pQt1 = m.patPrev || 0;
+          const pQt4 = m.patYoYVal || 0;
+          const opQt = m.operatingProfit || 0;
+          const opQt1 = m.opPrev || 0;
+          const opQt4 = m.opYoYVal || 0;
+
+          if (sQt > 0 || pQt > 0 || opQt > 0) {
+            const calculateQoQ = (curr, prev) => (prev > 0 ? `${curr >= prev ? '+' : ''}${Math.round(((curr - prev) / prev) * 100)}%` : '-');
+            const calculateYoY = (curr, yoy) => (yoy > 0 ? `${curr >= yoy ? '+' : ''}${Math.round(((curr - yoy) / yoy) * 100)}%` : '-');
+
+            sc = {
+              pulseRating: 'Good 👍',
+              Sales: { QoQ: calculateQoQ(sQt, sQt1), YoY: calculateYoY(sQt, sQt4), Qt: sQt, Qt1: sQt1, Qt4: sQt4 },
+              'Other Inc.': { QoQ: '-', YoY: '-', Qt: m.otherIncome || 0, Qt1: 0, Qt4: 0 },
+              OP: { QoQ: calculateQoQ(opQt, opQt1), YoY: calculateYoY(opQt, opQt4), Qt: opQt, Qt1: opQt1, Qt4: opQt4 },
+              OPM: { QoQ: m.opm ? `${m.opm}%` : '-', YoY: '-', Qt: m.opm ? `${m.opm}%` : '-', Qt1: '-', Qt4: '-' },
+              PAT: { QoQ: calculateQoQ(pQt, pQt1), YoY: calculateYoY(pQt, pQt4), Qt: pQt, Qt1: pQt1, Qt4: pQt4 },
+              EPS: { QoQ: '-', YoY: '-', Qt: m.eps || 0, Qt1: 0, Qt4: 0 },
+            };
+          }
+        }
+
         const isScValid = Boolean(
           sc && (
             (sc.Sales && sc.Sales.Qt !== undefined && sc.Sales.Qt !== '-' && sc.Sales.Qt !== null) ||
@@ -402,7 +431,7 @@ class BseNseMonitorService {
         }
 
         const labels = geminiResult?.periodLabels || { q_t: "Jun '26", q_t1: "Mar '26", q_t4: "Jun '25" };
-        const computedPulseRating = geminiResult?.scorecard?.pulseRating || aiSummary.overallRating || 'Good 👍';
+        const computedPulseRating = sc?.pulseRating || aiSummary.overallRating || 'Good 👍';
 
         // Construct ultra-clean single-line horizontal Telegram message caption
         const telegramMsg =
@@ -433,8 +462,11 @@ class BseNseMonitorService {
           } catch (cardErr) {
             console.warn(`[BseNseMonitor] Card generator notice: ${cardErr.message}`);
           }
-        } else {
-          console.warn(`[BseNseMonitor] Suppressed blank card generation for ${item.symbol} - no valid quarterly numbers available.`);
+        }
+
+        if (!cardPngBuf) {
+          console.warn(`[BseNseMonitor] Suppressed card-less broadcast for ${item.symbol} - photo card is strictly required.`);
+          return;
         }
 
         const targetChats = new Set([
@@ -464,16 +496,8 @@ class BseNseMonitorService {
                 );
                 console.log(`[BseNseMonitor] Sent Scorecard Photo Card for ${item.symbol} to Telegram chat ${chatId}!`);
               } catch (photoErr) {
-                console.warn(`[BseNseMonitor] sendPhoto notice for ${item.symbol}: ${photoErr.message}. Falling back to sendMessage...`);
+                console.warn(`[BseNseMonitor] sendPhoto notice for ${item.symbol}: ${photoErr.message}`);
               }
-            }
-
-            if (!sentMsg) {
-              sentMsg = await this.bot.sendMessage(chatId, telegramMsg, {
-                parse_mode: 'Markdown',
-                reply_markup: replyMarkup,
-                disable_web_page_preview: true,
-              });
             }
 
             if (sentMsg && tradeRecord && !tradeRecord.telegramMessageId) {
