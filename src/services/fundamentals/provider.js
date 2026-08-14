@@ -93,10 +93,33 @@ class FundamentalsProvider {
     if (!symbol) return this.getEmptyFundamentals();
     const formattedSymbol = symbol.toUpperCase().trim().replace(/[^A-Z0-9.&-]/g, '');
 
+    const bseScripMap = {
+      PRICOLLTD: '540293',
+      BEL: '500049',
+      FREDUN: '539730',
+      AWFIS: '544186',
+      GENUSPOWER: '532341',
+      ZENTEC: '533339',
+      SANDHAR: '541163',
+      EASEMYTRIP: '543272',
+      GALAXYSURF: '541019',
+      JINDALPOLY: '500227',
+      RELIANCE: '500325',
+      TCS: '532540',
+      INFY: '500209',
+      HDFCBANK: '500180',
+      DIXON: '540699',
+      SUZLON: '532667',
+      ZOMATO: '543320',
+      ADANIENT: '512599',
+    };
+
+    const resolvedScripCode = scripCode || bseScripMap[formattedSymbol] || formattedSymbol;
+
     // 1. Run Live API Requests to Yahoo Finance & BSE
     const [yahooData, bseInfo] = await Promise.all([
       this.queryYahooMarketData(formattedSymbol),
-      this.fetchBseHeader(scripCode || formattedSymbol),
+      this.fetchBseHeader(resolvedScripCode),
     ]);
 
     const liveCmp = yahooData?.cmp || (bseInfo?.LTP ? parseFloat(bseInfo.LTP) : null);
