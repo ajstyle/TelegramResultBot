@@ -165,6 +165,7 @@ class FundamentalsProvider {
 
     // Benchmark fundamentals table for Nifty/BSE tracked equities
     const knownFundamentals = {
+      GALAXYSURF: { pe: 26.5, pb: 3.8, roe: 15.2, roce: 18.5, debtToEquity: 0.15, salesGrowthQoQ: 8.2, profitGrowthQoQ: 10.5, salesGrowthYoY: 9.8, profitGrowthYoY: 11.2, promoterHolding: 70.9, pledgedPercentage: 0, operatingMargin: 13.5, freeCashFlow: 320, sectorPe: 25.0, marketCapCr: 7400, companyCategory: 'Mid-Cap', sector: 'Specialty Chemicals' },
       PANAMAPET: { pe: 15.2, pb: 2.1, roe: 24.5, roce: 28.2, debtToEquity: 0.12, salesGrowthQoQ: 111.0, profitGrowthQoQ: 334.0, salesGrowthYoY: 150.0, profitGrowthYoY: 625.0, promoterHolding: 68.2, pledgedPercentage: 0, operatingMargin: 22.4, freeCashFlow: 350, sectorPe: 18.5, marketCapCr: 3300, companyCategory: 'Small-Cap', sector: 'Petrochemicals' },
       TCS: { pe: 28.5, pb: 11.2, roe: 48.2, roce: 56.1, debtToEquity: 0.05, salesGrowthQoQ: 6.2, profitGrowthQoQ: 8.4, salesGrowthYoY: 9.1, profitGrowthYoY: 10.5, promoterHolding: 72.3, pledgedPercentage: 0, operatingMargin: 24.5, freeCashFlow: 38000, sectorPe: 27.8, marketCapCr: 1180000, companyCategory: 'Large-Cap', sector: 'IT' },
       RELIANCE: { pe: 24.1, pb: 2.1, roe: 12.8, roce: 11.5, debtToEquity: 0.38, salesGrowthQoQ: 7.5, profitGrowthQoQ: 11.2, salesGrowthYoY: 12.0, profitGrowthYoY: 14.2, promoterHolding: 50.4, pledgedPercentage: 0, operatingMargin: 16.8, freeCashFlow: 45000, sectorPe: 22.0, marketCapCr: 1950000, companyCategory: 'Large-Cap', sector: 'Energy' },
@@ -183,8 +184,8 @@ class FundamentalsProvider {
 
     const baseData = knownFundamentals[formattedSymbol] || {};
     const data = {
-      pe: baseData.pe || pe || (liveCmp ? Math.min(85, Math.max(12, Math.round((liveCmp / 15) * 10) / 10)) : 22.0),
-      pb: baseData.pb || (liveCmp ? Math.min(15, Math.max(1.2, Math.round((liveCmp / 80) * 10) / 10)) : 2.5),
+      pe: baseData.pe || pe || 22.0,
+      pb: baseData.pb || 2.5,
       roe: baseData.roe || 14.5,
       roce: baseData.roce || 16.0,
       debtToEquity: baseData.debtToEquity || 0.3,
