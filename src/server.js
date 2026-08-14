@@ -117,22 +117,28 @@ app.post('/api/trades/:id/confirm', async (req, res) => {
 // --- SERVER INITIALIZATION & RENDER KEEP-ALIVE ---
 
 function startRenderSelfPing(port) {
-  // Self-ping local & external Render URL every 3 minutes (180,000ms) to prevent container sleep
+  // Periodic 5-minute heartbeat logger and Render Cloud keep-alive ping
   setInterval(() => {
     try {
-      http.get(`http://localhost:${port}/health`, (res) => {
-        // Keeps local HTTP server active
-      }).on('error', () => {});
+      const memUsage = Math.round(process.memoryUsage().rss / (1024 * 1024));
+      const uptimeMins = Math.floor(process.uptime() / 60);
+      const uptimeHours = (uptimeMins / 60).toFixed(1);
+
+      console.log(
+        `[Heartbeat] 🟢 24/7 Engine Active | Uptime: ${uptimeHours}h (${uptimeMins}m) | RAM: ${memUsage}MB | Mode: ${config.tradingMode}`
+      );
+
+      http.get(`http://localhost:${port}/health`, (res) => {}).on('error', () => {});
 
       const externalUrl = process.env.RENDER_EXTERNAL_URL;
       if (externalUrl && externalUrl.startsWith('http')) {
         const client = externalUrl.startsWith('https') ? https : http;
-        client.get(`${externalUrl}/health`, (res) => {
-          // Keeps Render public URL active 24/7
-        }).on('error', () => {});
+        client.get(`${externalUrl}/health`, (res) => {}).on('error', (e) => {
+          console.warn(`[Render Keep-Alive] Notice pinging ${externalUrl}: ${e.message}`);
+        });
       }
     } catch (_) {}
-  }, 180000);
+  }, 300000); // Every 5 mins (300,000ms)
 }
 
 async function startServer() {
