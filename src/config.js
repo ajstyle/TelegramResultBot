@@ -12,8 +12,13 @@ const config = {
     authorizedChatIds: (process.env.AUTHORIZED_TELEGRAM_CHAT_IDS || '')
       .split(',')
       .map(id => id.trim())
+      .map(id => (id && !id.startsWith('@') && !id.startsWith('-') && !/^-?\d+$/.test(id) ? `@${id}` : id))
       .filter(Boolean),
-    targetChannel: (process.env.TARGET_TELEGRAM_CHANNEL || '').trim().toLowerCase(),
+    targetChannel: (() => {
+      const raw = (process.env.TARGET_TELEGRAM_CHANNEL || '').trim();
+      if (!raw) return '';
+      return (raw.startsWith('@') || raw.startsWith('-') || /^-?\d+$/.test(raw)) ? raw : `@${raw}`;
+    })(),
     pollingInterval: parseInt(process.env.POLLING_INTERVAL_MS || '5000', 10),
     autoExecute: process.env.AUTO_EXECUTE_ORDER === 'true',
   },

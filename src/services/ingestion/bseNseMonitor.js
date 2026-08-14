@@ -481,7 +481,11 @@ class BseNseMonitorService {
         ]);
 
         if (config.telegram.targetChannel) {
-          targetChats.add(config.telegram.targetChannel);
+          const rawCh = config.telegram.targetChannel.trim();
+          if (rawCh) {
+            const formattedCh = (rawCh.startsWith('@') || rawCh.startsWith('-') || /^-?\d+$/.test(rawCh)) ? rawCh : `@${rawCh}`;
+            targetChats.add(formattedCh);
+          }
         }
 
         for (const chatId of targetChats) {
