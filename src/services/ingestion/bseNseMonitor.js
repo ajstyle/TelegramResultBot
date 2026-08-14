@@ -502,7 +502,12 @@ class BseNseMonitorService {
                 );
                 console.log(`[BseNseMonitor] Sent Scorecard Photo Card for ${item.symbol} to Telegram chat ${chatId}!`);
               } catch (photoErr) {
-                console.warn(`[BseNseMonitor] sendPhoto notice for ${item.symbol}: ${photoErr.message}`);
+                const errMsg = photoErr.message || '';
+                console.warn(`[BseNseMonitor] sendPhoto notice for ${item.symbol} (chat ${chatId}): ${errMsg}`);
+                if (errMsg.includes('chat not found') || errMsg.includes('bot was blocked') || errMsg.includes('user is deactivated') || errMsg.includes('Forbidden')) {
+                  this.activeChatIds.delete(chatId);
+                  console.warn(`[BseNseMonitor] Evicted invalid or non-existent Telegram chat target ${chatId}.`);
+                }
               }
             }
 
@@ -512,7 +517,11 @@ class BseNseMonitorService {
               await tradeRecord.save();
             }
           } catch (err) {
-            console.error(`[BseNseMonitor] Failed to send Gemini response to Telegram chat ${chatId}: ${err.message}`);
+            const errMsg = err.message || '';
+            console.error(`[BseNseMonitor] Failed to send Gemini response to Telegram chat ${chatId}: ${errMsg}`);
+            if (errMsg.includes('chat not found') || errMsg.includes('bot was blocked') || errMsg.includes('user is deactivated') || errMsg.includes('Forbidden')) {
+              this.activeChatIds.delete(chatId);
+            }
           }
         }
       }
