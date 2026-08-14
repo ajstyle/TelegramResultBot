@@ -31,11 +31,11 @@ class AdaptiveValuationEngine {
       if (!financials) {
         try {
           const liveData = await fundamentalsProvider.getFundamentals(symbol);
-          const price = liveData.cmp || liveData.metrics?.cmp || 100;
-          const pe = liveData.pe || liveData.metrics?.pe || 20;
-          const pb = liveData.pb || liveData.metrics?.pb || 2.5;
-          const eps = liveData.eps || (pe > 0 ? Math.round((price / pe) * 100) / 100 : Math.round((price / 20) * 100) / 100);
-          const bvps = liveData.bvps || (pb > 0 ? Math.round((price / pb) * 100) / 100 : Math.round((price / 3) * 100) / 100);
+          const price = liveData.cmp || liveData.metrics?.cmp || null;
+          const pe = liveData.pe || liveData.metrics?.pe || null;
+          const pb = liveData.pb || liveData.metrics?.pb || null;
+          const eps = liveData.eps || (price && pe && pe > 0 ? Math.round((price / pe) * 100) / 100 : null);
+          const bvps = liveData.bvps || (price && pb && pb > 0 ? Math.round((price / pb) * 100) / 100 : null);
 
           financials = {
             price,
@@ -43,26 +43,24 @@ class AdaptiveValuationEngine {
             pb,
             eps,
             bvps,
-            marketCapCr: liveData.marketCapCr || liveData.metrics?.marketCapCr || 1000,
-            roe: liveData.roe !== null && liveData.roe !== undefined ? liveData.roe : 14.5,
-            roce: liveData.roce !== null && liveData.roce !== undefined ? liveData.roce : 16.0,
-            debtCr: liveData.debtCr || 0,
-            debtToEquity: liveData.debtToEquity || 0.3,
+            marketCapCr: liveData.marketCapCr || liveData.metrics?.marketCapCr || null,
+            roe: liveData.roe !== null && liveData.roe !== undefined ? liveData.roe : (liveData.metrics?.roe || null),
+            roce: liveData.roce !== null && liveData.roce !== undefined ? liveData.roce : (liveData.metrics?.roce || null),
+            debtCr: liveData.debtCr || null,
+            debtToEquity: liveData.debtToEquity !== null && liveData.debtToEquity !== undefined ? liveData.debtToEquity : (liveData.metrics?.debtToEquity || null),
             industry: liveData.sector || liveData.companyCategory || '',
           };
         } catch (_) {
-          financials = { price: 100, pe: 20, pb: 2.5, roe: 14.5, roce: 16.0, eps: 5, bvps: 40 };
+          financials = null;
         }
       }
 
-      if (financials) {
-        financials.price = financials.price || financials.cmp || 100;
+      if (!financials || (!financials.price && !financials.cmp && !financials.marketCapCr)) {
+        return 'Unverified';
       }
 
       // 1b. Market Cap Universe Hard Filter Guard (LARGE_CAP, MID_CAP, SMALL_CAP only)
-      const mcapToValidate = (financials.marketCapCr !== undefined && financials.marketCapCr !== null && financials.marketCapCr > 0)
-        ? financials.marketCapCr
-        : (financials.price ? Math.round(financials.price * 15) : 1000);
+      const mcapToValidate = financials.marketCapCr || (financials.price ? Math.max(25000, financials.price * 50) : null);
 
       const marketCapClassifier = require('../universe/marketCapClassifier');
       const classification = marketCapClassifier.classifyMarketCap(mcapToValidate, 'EQUITY');

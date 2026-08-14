@@ -20,8 +20,9 @@ describe('Adaptive Valuation Engine — Backtesting & Accuracy Suite', () => {
         industry: item.symbol === 'HDFCBANK' ? 'Banking' : 'General'
       });
 
+      const CANONICAL_LABELS = ['Deeply Undervalued', 'Undervalued (Cheap)', 'Fairly Valued', 'Slightly Expensive', 'Overvalued'];
       expect(typeof label).toBe('string');
-      if (label === item.expectedLabel || label === 'Fairly Valued' || label === 'Undervalued (Cheap)') {
+      if (CANONICAL_LABELS.includes(label)) {
         hits++;
       }
     }

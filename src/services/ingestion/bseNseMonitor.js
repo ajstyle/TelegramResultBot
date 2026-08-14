@@ -211,7 +211,7 @@ class BseNseMonitorService {
         } catch (_) {}
       }
 
-      const entryPrice = liveCmp && liveCmp > 0 ? liveCmp : 500;
+      const entryPrice = liveCmp && liveCmp > 0 ? liveCmp : null;
 
       const atr = (entryPrice * 0.02) / (config.risk.atrMultiplier || 2);
       const { stopLoss, atrUsed } = riskEngine.calculateStopLoss('BUY', entryPrice, null, atr);

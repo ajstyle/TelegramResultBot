@@ -209,18 +209,20 @@ async function handleScreenshot(bot, msg) {
     const hashtagSymbol = `#${signal.symbol.toUpperCase().replace(/[^A-Z0-9_]/g, '')}`;
     const pulseRatingStr = signal.cardRating || (isExcellent ? 'EXCELLENT' : 'GOOD');
     const valuationDisplay = fundamentals.valuation || 'FAIRLY VALUED ⚖️';
-    const cmpDisplay = effectiveEntry ? effectiveEntry.toFixed(1) : '563.8';
-    const capCategory = signal.cardCategory || fundamentals.companyCategory || 'Small-Cap';
+    const cmpDisplay = effectiveEntry ? `₹${effectiveEntry.toFixed(1)}` : '-';
+    const capCategory = signal.cardCategory || fundamentals.companyCategory || 'Listed Stock';
 
-    const mcapVal = fundamentals.metrics?.marketCapCr || 3300;
-    const mcapDisplay = mcapVal >= 100000 ? `${(mcapVal / 100000).toFixed(1)}L Cr` : `${(mcapVal / 1000).toFixed(1)}K Cr`;
-    const peDisplay = signal.cardPe || fundamentals.metrics?.pe || '15.2';
+    const mcapVal = fundamentals.metrics?.marketCapCr || null;
+    const mcapDisplay = mcapVal
+      ? (mcapVal >= 100000 ? `${(mcapVal / 100000).toFixed(1)}L Cr` : mcapVal >= 1000 ? `${(mcapVal / 1000).toFixed(1)}K Cr` : `${mcapVal} Cr`)
+      : '-';
+    const peDisplay = signal.cardPe || fundamentals.metrics?.pe ? `${signal.cardPe || fundamentals.metrics.pe}` : '-';
 
-    const salesQoQStr = fundamentals.metrics?.salesGrowthQoQ ? `${fundamentals.metrics.salesGrowthQoQ}` : '15';
-    const salesYoYStr = fundamentals.metrics?.salesGrowthYoY ? `${fundamentals.metrics.salesGrowthYoY}` : '25';
-    const patQoQStr = fundamentals.metrics?.profitGrowthQoQ ? `${fundamentals.metrics.profitGrowthQoQ}` : '20';
-    const patYoYStr = fundamentals.metrics?.profitGrowthYoY ? `${fundamentals.metrics.profitGrowthYoY}` : '35';
-    const opmStr = fundamentals.metrics?.operatingMargin ? `${fundamentals.metrics.operatingMargin}` : '18.5';
+    const salesQoQStr = fundamentals.metrics?.salesGrowthQoQ !== undefined && fundamentals.metrics?.salesGrowthQoQ !== null ? `${fundamentals.metrics.salesGrowthQoQ}%` : '-';
+    const salesYoYStr = fundamentals.metrics?.salesGrowthYoY !== undefined && fundamentals.metrics?.salesGrowthYoY !== null ? `${fundamentals.metrics.salesGrowthYoY}%` : '-';
+    const patQoQStr = fundamentals.metrics?.profitGrowthQoQ !== undefined && fundamentals.metrics?.profitGrowthQoQ !== null ? `${fundamentals.metrics.profitGrowthQoQ}%` : '-';
+    const patYoYStr = fundamentals.metrics?.profitGrowthYoY !== undefined && fundamentals.metrics?.profitGrowthYoY !== null ? `${fundamentals.metrics.profitGrowthYoY}%` : '-';
+    const opmStr = fundamentals.metrics?.operatingMargin !== undefined && fundamentals.metrics?.operatingMargin !== null ? `${fundamentals.metrics.operatingMargin}%` : '-';
 
     // Generate Visual PNG Photo Image Card Buffer
     const cardPngBuf = cardGenerator.generatePngCard({

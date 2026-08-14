@@ -15,8 +15,8 @@ class RatioEngine {
     const debt = financials.debtCr || 0;
     const equity = financials.equityCr || (bvps > 0 && price > 0 ? (mcap / price) * bvps : mcap);
     const roe = financials.roe !== undefined ? financials.roe : (equity > 0 ? (pat / equity) * 100 : 0);
-    const roce = financials.roce !== undefined ? financials.roce : 15.0;
-    const earningsGrowth = financials.epsGrowth5Yr || financials.patGrowthYoY || 10.0;
+    const roce = financials.roce !== undefined && financials.roce !== null ? financials.roce : (roe || 0);
+    const earningsGrowth = financials.epsGrowth5Yr || financials.patGrowthYoY || financials.salesGrowthYoY || 0;
 
     const pe = eps > 0 ? price / eps : (pat > 0 ? mcap / pat : 0);
     const pb = bvps > 0 ? price / bvps : (equity > 0 ? mcap / equity : 0);

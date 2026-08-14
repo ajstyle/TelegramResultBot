@@ -225,8 +225,8 @@ class CardGenerator {
     };
     const valStyle = getValuationStyle(rawValuation);
 
-    const qualityScore = data.qualityScore || 75;
-    const qualityStatus = escapeXml(data.qualityStatus || data.qualityLabel || 'Good');
+    const qualityScoreDisplay = data.qualityScore !== null && data.qualityScore !== undefined ? `${data.qualityScore}/100` : '-';
+    const qualityStatus = escapeXml(data.qualityStatus || data.qualityLabel || 'Unverified');
 
     const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="900" height="960" viewBox="0 0 900 960">
@@ -251,7 +251,7 @@ class CardGenerator {
       <!-- Pulse Rating & Quality Score Sub-Header Section -->
       <text x="40" y="132" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#64748b">Q1 FY27</text>
 
-      <text x="450" y="134" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="20" font-weight="bold" fill="#0f172a">Pulse : <tspan fill="${getPulseColor(rawPulseRating)}" font-weight="900">${escapeXml(cleanRatingStr)}</tspan>  |  Quality : <tspan fill="#4f46e5" font-weight="900">${qualityScore}/100 (${qualityStatus})</tspan></text>
+      <text x="450" y="134" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="20" font-weight="bold" fill="#0f172a">Pulse : <tspan fill="${getPulseColor(rawPulseRating)}" font-weight="900">${escapeXml(cleanRatingStr)}</tspan>  |  Quality : <tspan fill="#4f46e5" font-weight="900">${qualityScoreDisplay} (${qualityStatus})</tspan></text>
 
       <text x="860" y="132" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="14" font-style="italic" fill="#64748b">₹ in Cr</text>
 

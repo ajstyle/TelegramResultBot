@@ -4,10 +4,19 @@
  */
 class DcfEngine {
   calculateIntrinsicValue(financials, sectorConfig) {
-    const price = financials.price || 100;
-    const eps = financials.eps || (price > 0 ? price / 20 : 5);
-    const bvps = financials.bvps || (price > 0 ? price / 3 : 30);
-    const growthRate = Math.min(Math.max((financials.epsGrowth5Yr || 12) / 100, 0.04), 0.25);
+    if (!financials || !financials.price) {
+      return { intrinsicValue: null, marginOfSafetyPct: 0, modelUsed: sectorConfig.primaryValuationModel };
+    }
+
+    const price = financials.price;
+    const eps = financials.eps || (financials.pe && financials.pe > 0 ? price / financials.pe : null);
+    const bvps = financials.bvps || (financials.pb && financials.pb > 0 ? price / financials.pb : null);
+
+    if (!eps || eps <= 0) {
+      return { intrinsicValue: null, marginOfSafetyPct: 0, modelUsed: sectorConfig.primaryValuationModel };
+    }
+
+    const growthRate = Math.min(Math.max(((financials.epsGrowth5Yr || financials.salesGrowthYoY || 8) / 100), 0.02), 0.25);
     const wacc = 0.115; // 11.5% Cost of Capital for Indian Market
     const terminalGrowth = 0.045; // 4.5% Terminal GDP Growth
     const projectionYears = 5;
@@ -16,8 +25,8 @@ class DcfEngine {
 
     if (sectorConfig.primaryValuationModel === 'ResidualIncome') {
       // Residual Income Model for Financial Services (Banks/NBFCs)
-      const roe = (financials.roe || 14) / 100;
-      let currentBvps = bvps;
+      const roe = (financials.roe || 12) / 100;
+      let currentBvps = bvps || (price / 3);
       let residualIncomePVSum = 0;
 
       for (let yr = 1; yr <= projectionYears; yr++) {
