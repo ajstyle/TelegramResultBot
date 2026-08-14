@@ -380,8 +380,8 @@ Return ONLY valid JSON matching this exact structure:
       const axios = require('axios');
       const cleanSym = symbol.toUpperCase().trim().replace(/[^A-Z0-9.&-]/g, '');
       const urls = [
-        `https://www.screener.in/company/${cleanSym}/`,
         `https://www.screener.in/company/${cleanSym}/consolidated/`,
+        `https://www.screener.in/company/${cleanSym}/`,
       ];
 
       let html = '';
