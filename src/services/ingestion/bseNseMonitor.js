@@ -99,14 +99,14 @@ class BseNseMonitorService {
     if (!this.watchdogId) {
       this.watchdogId = setInterval(() => {
         const timeSinceLastPoll = Date.now() - (this.lastPollTimestamp || Date.now());
-        if (timeSinceLastPoll > 20000 || !this.intervalId) {
+        if (timeSinceLastPoll > 60000 || !this.intervalId) {
           console.warn(`[BseNseMonitor Watchdog] Polling loop stalled (${Math.round(timeSinceLastPoll / 1000)}s since last poll). Auto-restarting ingestion loop...`);
           this.isPolling = false;
           if (this.intervalId) clearInterval(this.intervalId);
           this.intervalId = setInterval(() => this.pollAnnouncements(), pollingIntervalMs);
           this.pollAnnouncements();
         }
-      }, 15000);
+      }, 20000);
     }
   }
 
@@ -119,6 +119,7 @@ class BseNseMonitorService {
       clearInterval(this.watchdogId);
       this.watchdogId = null;
     }
+    this.isPolling = false;
     console.log('[BseNseMonitor] Ingestion loop stopped.');
   }
 
@@ -144,7 +145,9 @@ class BseNseMonitorService {
 
         if (announcementFilter.isEarningsAnnouncement(item)) {
           console.log(`[BseNseMonitor] Live earnings announcement detected: [${item.source}] ${item.symbol} - ${item.title}`);
+          this.lastPollTimestamp = Date.now();
           await this.processAnnouncement(item);
+          this.lastPollTimestamp = Date.now();
         }
       }
     } catch (error) {

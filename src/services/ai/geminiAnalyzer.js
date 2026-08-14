@@ -270,7 +270,7 @@ Return ONLY valid JSON matching this exact structure:
 
         console.log(`[GeminiAnalyzer] Attempting fast analysis with model: ${modelName}...`);
 
-        const response = await this.ai.models.generateContent({
+        const generatePromise = this.ai.models.generateContent({
           model: modelName,
           contents,
           config: {
@@ -278,6 +278,12 @@ Return ONLY valid JSON matching this exact structure:
             temperature: 0.1,
           },
         });
+
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error(`Timeout: ${modelName} did not respond within 12s`)), 12000)
+        );
+
+        const response = await Promise.race([generatePromise, timeoutPromise]);
 
         const rawJsonText = response.text || '';
         const parsedData = JSON.parse(rawJsonText);
