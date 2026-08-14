@@ -31,20 +31,27 @@ class AdaptiveValuationEngine {
       if (!financials) {
         try {
           const liveData = await fundamentalsProvider.getFundamentals(symbol);
+          const price = liveData.cmp || liveData.metrics?.cmp || 100;
+          const pe = liveData.pe || liveData.metrics?.pe || 20;
+          const pb = liveData.pb || liveData.metrics?.pb || 2.5;
+          const eps = liveData.eps || (pe > 0 ? Math.round((price / pe) * 100) / 100 : Math.round((price / 20) * 100) / 100);
+          const bvps = liveData.bvps || (pb > 0 ? Math.round((price / pb) * 100) / 100 : Math.round((price / 3) * 100) / 100);
+
           financials = {
-            price: liveData.metrics?.cmp || 100,
-            marketCapCr: liveData.metrics?.marketCapCr || 1000,
-            pe: liveData.metrics?.pe || 20,
-            pb: liveData.metrics?.pb || 3,
-            roe: liveData.metrics?.roe || 15,
-            roce: liveData.metrics?.roce || 16,
-            eps: liveData.metrics?.eps || 10,
-            bvps: liveData.metrics?.bvps || 50,
-            debtCr: liveData.metrics?.debtCr || 0,
+            price,
+            pe,
+            pb,
+            eps,
+            bvps,
+            marketCapCr: liveData.marketCapCr || liveData.metrics?.marketCapCr || 1000,
+            roe: liveData.roe !== null && liveData.roe !== undefined ? liveData.roe : 14.5,
+            roce: liveData.roce !== null && liveData.roce !== undefined ? liveData.roce : 16.0,
+            debtCr: liveData.debtCr || 0,
+            debtToEquity: liveData.debtToEquity || 0.3,
             industry: liveData.sector || liveData.companyCategory || '',
           };
         } catch (_) {
-          financials = { price: 100, pe: 20, pb: 3, roe: 15, roce: 15 };
+          financials = { price: 100, pe: 20, pb: 2.5, roe: 14.5, roce: 16.0, eps: 5, bvps: 40 };
         }
       }
 
