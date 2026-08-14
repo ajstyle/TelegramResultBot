@@ -17,6 +17,8 @@ class ScoringEngine {
     let valSubScore = 50;
     if (ratios.pe < 0) {
       valSubScore = 20; // Severe penalty for negative P/E
+    } else if (ratios.pe > 80) {
+      valSubScore = 5; // Extreme penalty for P/E >80x (e.g. ZENTEC, AVANTEL)
     } else if (ratios.pe > 50) {
       valSubScore = 15; // Heavy penalty for super high P/E (>50x)
     } else if (ratios.pe > 38) {

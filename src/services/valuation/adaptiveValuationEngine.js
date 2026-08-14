@@ -55,6 +55,10 @@ class AdaptiveValuationEngine {
         }
       }
 
+      if (financials) {
+        financials.price = financials.price || financials.cmp || 100;
+      }
+
       // 2. Sector System Auto-Detection
       const sectorConfig = sectorRegistry.detectSector(financials.industry || '', symbol);
 

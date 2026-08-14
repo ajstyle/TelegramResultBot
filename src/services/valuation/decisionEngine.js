@@ -5,8 +5,8 @@
  */
 class DecisionEngine {
   determineValuationLabel(compositeScore, marginOfSafetyPct, riskFlags = []) {
-    // 1. Deeply Undervalued: High composite score & strong margin of safety (+20%+)
-    if (compositeScore >= 76 && marginOfSafetyPct >= 20.0) {
+    // 1. Deeply Undervalued: High composite score & strong margin of safety (+15%+)
+    if (compositeScore >= 72 && marginOfSafetyPct >= 15.0) {
       return 'Deeply Undervalued';
     }
 
