@@ -274,8 +274,17 @@ class BseNseMonitorService {
 
         const timeAgoStr = this.getTimeAgo(item.date);
         const compCategory = fundamentals.companyCategory || 'Listed Stock';
-        const mcapVal = fundamentals.metrics?.marketCapCr;
-        const mcapDisplay = mcapVal ? (mcapVal >= 100000 ? `${(mcapVal / 100000).toFixed(1)}L Cr` : `${(mcapVal / 1000).toFixed(1)}K Cr`) : '-';
+        const mcapVal = fundamentals.metrics?.marketCapCr !== undefined && fundamentals.metrics?.marketCapCr !== null
+          ? fundamentals.metrics.marketCapCr
+          : fundamentals.marketCapCr;
+
+        const mcapDisplay = mcapVal
+          ? (mcapVal >= 100000
+              ? `${(mcapVal / 100000).toFixed(1)}L Cr`
+              : mcapVal >= 1000
+                ? `${(mcapVal / 1000).toFixed(1)}K Cr`
+                : `${mcapVal} Cr`)
+          : '-';
         const peDisplay = fundamentals.metrics?.pe ? `${fundamentals.metrics.pe}` : '-';
         const cmpDisplay = entryPrice ? `₹${entryPrice.toFixed(1)}` : '-';
         const valuationDisplay = fundamentals.valuation || 'FAIRLY VALUED ⚖️';

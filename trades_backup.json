@@ -10,5 +10,17 @@
     "status": "ANALYZED",
     "createdAt": "2026-08-14T05:52:35.341Z",
     "updatedAt": "2026-08-14T05:52:35.341Z"
+  },
+  {
+    "_id": "MEM_1786696903220_772",
+    "symbol": "ANURAS",
+    "action": "BUY",
+    "entry": 1208.3,
+    "ltp": 1208.3,
+    "stopLoss": 1184.13,
+    "quantity": 41,
+    "status": "ANALYZED",
+    "createdAt": "2026-08-14T08:41:43.220Z",
+    "updatedAt": "2026-08-14T08:41:43.220Z"
   }
 ]

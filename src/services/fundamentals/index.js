@@ -62,15 +62,17 @@ class FundamentalsService {
    * @returns {string} LARGE CAP 🏛️ | MID CAP 📈 | SMALL CAP 🚀 | PENNY STOCK ⚠️
    */
   getCompanyCategory(marketCapCr, price) {
-    if (price && price < 25 && (!marketCapCr || marketCapCr < 500)) {
-      return 'PENNY STOCK ⚠️';
+    if (!marketCapCr || isNaN(marketCapCr) || marketCapCr <= 0) {
+      return 'Unverified';
     }
-    if (!marketCapCr) return 'MID CAP 📈';
+    if (price && price < 25 && marketCapCr < 500) {
+      return 'Penny Stock';
+    }
 
-    if (marketCapCr >= 20000) return 'LARGE CAP 🏛️';
-    if (marketCapCr >= 5000) return 'MID CAP 📈';
-    if (marketCapCr >= 500) return 'SMALL CAP 🚀';
-    return 'PENNY STOCK ⚠️';
+    if (marketCapCr >= 20000) return 'Large-Cap';
+    if (marketCapCr >= 5000) return 'Mid-Cap';
+    if (marketCapCr >= 500) return 'Small-Cap';
+    return 'Micro-Cap';
   }
 
   /**
