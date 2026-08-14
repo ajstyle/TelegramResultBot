@@ -404,6 +404,9 @@ class BseNseMonitorService {
         let cardPngBuf = null;
         if (isScValid) {
           try {
+            const qualityScoringEngine = require('../quality/qualityScoringEngine');
+            const qualityRes = await qualityScoringEngine.calculateQualityScore(item.symbol, fundamentals.metrics || fundamentals);
+
             cardPngBuf = cardGenerator.generatePngCard({
               symbol: item.symbol,
               scripCode: item.scripCode,
@@ -412,6 +415,8 @@ class BseNseMonitorService {
               category: compCategory,
               mcapCr: mcapDisplay,
               pe: peDisplay,
+              qualityScore: qualityRes.qualityScore,
+              qualityStatus: qualityRes.statusLabel,
               pulseRating: computedPulseRating,
               periodLabels: labels,
               scorecard: sc,
