@@ -380,12 +380,10 @@ class BseNseMonitorService {
         const labels = geminiResult?.periodLabels || { q_t: "Jun '26", q_t1: "Mar '26", q_t4: "Jun '25" };
         const computedPulseRating = geminiResult?.scorecard?.pulseRating || aiSummary.overallRating || 'Good 👍';
 
-        // Construct clean compact Telegram message caption (Table is rendered visually in attached PNG Infographic card)
+        // Construct clean compact Telegram message caption (Metrics, Pulse Rating, CMP & Mcap are rendered in attached PNG Infographic card)
         const telegramMsg =
           `🏢 *${displayHeaderSymbol}*  [ ${hashtagSymbol} ]\n` +
           `📢 *OFFICIAL ${item.source} EARNINGS ANNOUNCEMENT*\n\n` +
-          `⚡ *Pulse Rating :* \`${computedPulseRating}\` | 💎 *Valuation:* \`${valuationDisplay}\`\n\n` +
-          `*CMP : ${cmpDisplay}* | *${compCategory} (${mcapDisplay})* | *P/E : ${peDisplay}*\n\n` +
           `⏱️ *Result Published:* \`${item.date || 'Live'}\` (⚡ *${timeAgoStr}*)\n` +
           (item.pdfUrl ? `📄 *Filing PDF:* [Download Official Filing PDF](${item.pdfUrl})\n` : '') +
           `${buyButtonNotice}`;
