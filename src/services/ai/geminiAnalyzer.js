@@ -60,7 +60,39 @@ class GeminiFinancialAnalyzer {
   /**
    * Universal Stock-Agnostic Scorecard Calculator Engine (Handles Net Losses & Basis Points)
    */
+  /**
+   * Universal Stock-Agnostic Scorecard Calculator Engine (Handles Net Losses, Basis Points & Unscaled Lakhs Outliers)
+   */
   calculateUniversalScorecard(q_t, q_t1, q_t4, is_financial_sector = false) {
+    // 0. Auto-detect & Normalize Unscaled Lakhs Outliers (e.g., 20027 Lakhs extracted as 20027 Cr when adjacent quarters are ~250-400 Cr)
+    const normalizeOutliers = (rawQt, rawQt1, rawQt4) => {
+      const fields = ['sales', 'other_inc', 'total_exp', 'finance_cost', 'depreciation', 'op', 'pat'];
+      const norm = (item, ref1, ref2) => {
+        if (!item) return {};
+        const copy = { ...item };
+        fields.forEach((f) => {
+          const val = copy[f] || 0;
+          const r1 = ref1 ? (ref1[f] || 0) : 0;
+          const r2 = ref2 ? (ref2[f] || 0) : 0;
+          const validRefs = [r1, r2].filter((v) => v !== 0 && !isNaN(v));
+          if (validRefs.length > 0) {
+            const avgRef = validRefs.reduce((a, b) => Math.abs(a) + Math.abs(b), 0) / validRefs.length;
+            if (avgRef > 0 && Math.abs(val) > avgRef * 20) {
+              copy[f] = Math.round((val / 100) * 100) / 100;
+            }
+          }
+        });
+        return copy;
+      };
+
+      const nQt = norm(rawQt, rawQt1, rawQt4);
+      const nQt1 = norm(rawQt1, nQt, rawQt4);
+      const nQt4 = norm(rawQt4, nQt, nQt1);
+      return { nQt, nQt1, nQt4 };
+    };
+
+    const { nQt, nQt1, nQt4 } = normalizeOutliers(q_t, q_t1, q_t4);
+
     const processPeriod = (data) => {
       if (!data) data = {};
       const sales = data.sales || 0;
@@ -102,12 +134,12 @@ class GeminiFinancialAnalyzer {
       };
     };
 
-    const p_t = processPeriod(q_t);
-    const p_t1 = processPeriod(q_t1);
-    const p_t4 = processPeriod(q_t4);
+    const p_t = processPeriod(nQt);
+    const p_t1 = processPeriod(nQt1);
+    const p_t4 = processPeriod(nQt4);
 
     const growthPct = (curr, base) => {
-      if (!base || base === 0) return '0%';
+      if (!base || base === 0) return '-';
       // Absolute value in denominator handles negative profit/loss transitions
       const pct = Math.round(((curr - base) / Math.abs(base)) * 100);
       return `${pct >= 0 ? '+' : ''}${pct}%`;
@@ -129,44 +161,44 @@ class GeminiFinancialAnalyzer {
       Sales: {
         QoQ: growthPct(p_t.sales_disp, p_t1.sales_disp),
         YoY: growthPct(p_t.sales_disp, p_t4.sales_disp),
-        Qt: p_t.sales_disp,
-        Qt1: p_t1.sales_disp,
-        Qt4: p_t4.sales_disp,
+        Qt: p_t.sales_disp || '-',
+        Qt1: p_t1.sales_disp || '-',
+        Qt4: p_t4.sales_disp || '-',
       },
       'Other Inc.': {
         QoQ: growthPct(p_t.other_inc_disp, p_t1.other_inc_disp),
         YoY: growthPct(p_t.other_inc_disp, p_t4.other_inc_disp),
-        Qt: p_t.other_inc_disp,
-        Qt1: p_t1.other_inc_disp,
-        Qt4: p_t4.other_inc_disp,
+        Qt: p_t.other_inc_disp || '-',
+        Qt1: p_t1.other_inc_disp || '-',
+        Qt4: p_t4.other_inc_disp || '-',
       },
       OP: {
         QoQ: growthPct(p_t.op_disp, p_t1.op_disp),
         YoY: growthPct(p_t.op_disp, p_t4.op_disp),
-        Qt: p_t.op_disp,
-        Qt1: p_t1.op_disp,
-        Qt4: p_t4.op_disp,
+        Qt: p_t.op_disp || '-',
+        Qt1: p_t1.op_disp || '-',
+        Qt4: p_t4.op_disp || '-',
       },
       OPM: {
         QoQ: bpsChange(p_t.opm_disp, p_t1.opm_disp),
         YoY: bpsChange(p_t.opm_disp, p_t4.opm_disp),
-        Qt: `${p_t.opm_disp}%`,
-        Qt1: `${p_t1.opm_disp}%`,
-        Qt4: `${p_t4.opm_disp}%`,
+        Qt: p_t.opm_disp ? `${p_t.opm_disp}%` : '-',
+        Qt1: p_t1.opm_disp ? `${p_t1.opm_disp}%` : '-',
+        Qt4: p_t4.opm_disp ? `${p_t4.opm_disp}%` : '-',
       },
       PAT: {
         QoQ: growthPct(p_t.pat_disp, p_t1.pat_disp),
         YoY: growthPct(p_t.pat_disp, p_t4.pat_disp),
-        Qt: p_t.pat_disp,
-        Qt1: p_t1.pat_disp,
-        Qt4: p_t4.pat_disp,
+        Qt: p_t.pat_disp || '-',
+        Qt1: p_t1.pat_disp || '-',
+        Qt4: p_t4.pat_disp || '-',
       },
       EPS: {
         QoQ: growthPct(p_t.eps_disp, p_t1.eps_disp),
         YoY: growthPct(p_t.eps_disp, p_t4.eps_disp),
-        Qt: p_t.eps_disp,
-        Qt1: p_t1.eps_disp,
-        Qt4: p_t4.eps_disp,
+        Qt: p_t.eps_disp || '-',
+        Qt1: p_t1.eps_disp || '-',
+        Qt4: p_t4.eps_disp || '-',
       },
     };
   }
@@ -194,14 +226,15 @@ Role & Task:
 You are an Expert Quantitative Financial Analyst and Automated Financial Data Extraction Engine. Your task is to process the attached Quarterly Financial Result PDF for ANY company (${symbolName}), extract statutory line items across 3 required reporting periods, calculate key financial metrics, and format the output into a standardized dashboard scorecard and JSON payload.
 
 1. Period Identification
-Identify and extract data for three comparative 3-month quarterly periods reported in the financial statement (Default: Consolidated Results; fallback to Standalone if Consolidated is not reported):
+Identify and extract data for three comparative 3-Month Quarterly periods reported in the financial statement table (Default: Consolidated Results; fallback to Standalone if Consolidated is not reported):
  * Q_t: Most Recent Reported 3-Month Quarter in the PDF (e.g. 31.03.2026 if it is a Q4/Annual filing, or 30.06.2026 if it is a Q1 filing)
  * Q_{t-1}: Immediate Preceding 3-Month Quarter reported in the table (e.g. 31.12.2025 if Q_t is 31.03.2026, or 31.03.2026 if Q_t is 30.06.2026)
  * Q_{t-4}: Same 3-Month Quarter Previous Fiscal Year reported in the table (e.g. 31.03.2025 if Q_t is 31.03.2026, or 30.06.2025 if Q_t is 30.06.2026)
 
-IMPORTANT:
-- DO NOT default q_t to an empty quarter if the PDF is for an earlier period (e.g., Q4 ended March 31, 2026). Extract the actual latest reported quarter numbers from the table columns!
-- Set period_labels to the exact month and year of the 3 periods extracted (e.g. { "q_t": "Mar '26", "q_t1": "Dec '25", "q_t4": "Mar '25" }).
+MANDATORY DATA EXTRACTION RULES:
+- EXTRACT 3-MONTH QUARTERLY NUMBERS ONLY! DO NOT extract 12-Month Full Year / Annual numbers for Q_{t-1} or Q_t!
+- CONVERT ALL NUMBERS TO ₹ CRORES! If the table is reported in ₹ Lakhs, divide ALL values by 100! DO NOT leave Q_{t-1} or Q_{t-4} in Lakhs!
+- DO NOT LEAVE BLANK OR DUMMY COLUMNS if the numbers exist in the PDF table. Extract all 3 periods (Q_t, Q_{t-1}, Q_{t-4}) for ALL line items!
 
 2. Line Item Extraction Schema
 Extract raw line items in ₹ Crores (convert Lakhs to Crores by dividing by 100 if reported in Lakhs):
