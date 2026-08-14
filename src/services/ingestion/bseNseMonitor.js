@@ -380,12 +380,10 @@ class BseNseMonitorService {
         const labels = geminiResult?.periodLabels || { q_t: "Jun '26", q_t1: "Mar '26", q_t4: "Jun '25" };
         const computedPulseRating = geminiResult?.scorecard?.pulseRating || aiSummary.overallRating || 'Good 👍';
 
-        // Construct ultra-minimal Telegram message caption
+        // Construct ultra-clean single-line horizontal Telegram message caption
         const telegramMsg =
-          `📢 ${hashtagSymbol}\n` +
-          `⏱️ ⚡ *${timeAgoStr}*\n` +
-          (item.pdfUrl ? `📄 [PDF](${item.pdfUrl})\n` : '') +
-          `${buyButtonNotice}`;
+          `📢 ${hashtagSymbol}   |   ⏱️ ⚡ *${timeAgoStr}*` +
+          (item.pdfUrl ? `   |   📄 [PDF](${item.pdfUrl})` : '');
 
         // Generate Ultra-High Resolution PNG Infographic Image Card
         let cardPngBuf = null;
