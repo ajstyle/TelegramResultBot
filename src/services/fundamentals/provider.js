@@ -111,6 +111,7 @@ class FundamentalsProvider {
     const formattedSymbol = symbol.toUpperCase().trim().replace(/[^A-Z0-9.&-]/g, '');
 
     const bseScripMap = {
+      AVANTEL: '532407',
       GANDHAR: '544029',
       TARIL: '532928',
       TRIL: '532928',
