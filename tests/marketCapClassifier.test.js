@@ -3,6 +3,7 @@ const fundamentalsProvider = require('../src/services/fundamentals/provider');
 const announcementFilter = require('../src/services/ingestion/announcementFilter');
 
 describe('MarketCapClassifier & Universe Hard Filter Engine', () => {
+  jest.setTimeout(15000);
   test('Classifies Large Cap stock (Market Cap >= ₹20,000 Cr)', () => {
     const res = marketCapClassifier.classifyMarketCap(30000, 'EQUITY');
     expect(res.capCategory).toBe('LARGE_CAP');

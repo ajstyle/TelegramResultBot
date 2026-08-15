@@ -23,18 +23,54 @@ class AnnouncementDeduplicator {
   }
 
   /**
+   * Resolve symbol/scripCode to a canonical key for cross-exchange matching
+   */
+  getCanonicalKey(item) {
+    const scripMap = {
+      '500227': 'JINDALPOLY',
+      'JINDALPOLY': 'JINDALPOLY',
+      '534675': 'PROZONER',
+      'PROZONER': 'PROZONER',
+      'PROZONE': 'PROZONER',
+      '532540': 'TCS',
+      'TCS': 'TCS',
+      '500209': 'INFY',
+      'INFY': 'INFY',
+      '500180': 'HDFCBANK',
+      'HDFCBANK': 'HDFCBANK',
+      '532667': 'SUZLON',
+      'SUZLON': 'SUZLON',
+    };
+
+    const rawSym = (item.symbol || '').toUpperCase().trim();
+    const rawScrip = (item.scripCode || '').toString().trim();
+
+    if (scripMap[rawScrip]) return scripMap[rawScrip];
+    if (scripMap[rawSym]) return scripMap[rawSym];
+
+    // Fallback: extract first 7 clean alphanumeric characters of symbol/title
+    const cleanSym = rawSym.replace(/[^A-Z0-9]/g, '');
+    if (cleanSym.length >= 3) return cleanSym.slice(0, 10);
+    
+    const cleanTitle = (item.title || item.text || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    return cleanTitle.slice(0, 12);
+  }
+
+  /**
    * Generate normalized SHA-256 hash for an announcement
-   * @param {object} item { symbol, text, source, date }
+   * @param {object} item { symbol, scripCode, text, title, date }
    * @returns {string}
    */
   generateHash(item) {
-    const symbol = (item.symbol || '').toUpperCase().trim();
-    const cleanText = (item.text || item.title || item.caption || '')
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, '');
+    const canonicalKey = this.getCanonicalKey(item);
+    const dateStr = item.date ? new Date(item.date).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
     
-    // Hash first 150 normalized characters + symbol
-    const contentKey = `${symbol}:${cleanText.slice(0, 150)}`;
+    // Extract quarter indicator if present (e.g. Q1, Q2, Q3, Q4, Financial Results, Outcome of Board Meeting)
+    const rawText = (item.title || item.text || item.caption || '').toLowerCase();
+    const isQuarterResult = rawText.includes('financial result') || rawText.includes('board meeting') || rawText.includes('outcome') || rawText.includes('quarter');
+    const resultTag = isQuarterResult ? 'earnings_result' : rawText.slice(0, 50);
+
+    const contentKey = `${canonicalKey}:${dateStr}:${resultTag}`;
     return crypto.createHash('sha256').update(contentKey).digest('hex');
   }
 

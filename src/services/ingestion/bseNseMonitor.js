@@ -144,6 +144,11 @@ class BseNseMonitorService {
         this.processedAnnouncementIds.add(item.announcementId);
 
         if (announcementFilter.isEarningsAnnouncement(item)) {
+          const deduplicator = require('./deduplicator');
+          if (!deduplicator.isUnique(item)) {
+            console.log(`[BseNseMonitor] 🛑 Suppressed duplicate announcement for ${item.symbol} (${item.announcementId})`);
+            continue;
+          }
           console.log(`[BseNseMonitor] Live earnings announcement detected: [${item.source}] ${item.symbol} - ${item.title}`);
           this.lastPollTimestamp = Date.now();
           await this.processAnnouncement(item);
