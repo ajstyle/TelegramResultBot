@@ -228,6 +228,17 @@ class CardGenerator {
     const qualityScoreDisplay = data.qualityScore !== null && data.qualityScore !== undefined ? `${data.qualityScore}/100` : '-';
     const qualityStatus = escapeXml(data.qualityStatus || data.qualityLabel || 'Unverified');
 
+    const getPeriodBadge = (q_t_label) => {
+      const l = (q_t_label || '').toLowerCase();
+      if (l.includes('jun') && l.includes('26')) return 'Q1 FY27';
+      if (l.includes('jun') && l.includes('25')) return 'Q1 FY26';
+      if (l.includes('sep')) return 'Q2 FY26';
+      if (l.includes('dec')) return 'Q3 FY26';
+      if (l.includes('mar')) return 'Q4 FY26';
+      return 'Q1 FY27';
+    };
+    const periodBadgeStr = getPeriodBadge(labels.q_t);
+
     const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="900" height="960" viewBox="0 0 900 960">
       <!-- Background Card -->
@@ -249,7 +260,7 @@ class CardGenerator {
       <text x="810" y="55" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="#1e293b">${scripCode}</text>
 
       <!-- Pulse Rating & Quality Score Sub-Header Section -->
-      <text x="40" y="132" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#64748b">Q1 FY27</text>
+      <text x="40" y="132" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#64748b">${periodBadgeStr}</text>
 
       <text x="450" y="134" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="20" font-weight="bold" fill="#0f172a">Pulse : <tspan fill="${getPulseColor(rawPulseRating)}" font-weight="900">${escapeXml(cleanRatingStr)}</tspan>  |  Quality : <tspan fill="#4f46e5" font-weight="900">${qualityScoreDisplay} (${qualityStatus})</tspan></text>
 
