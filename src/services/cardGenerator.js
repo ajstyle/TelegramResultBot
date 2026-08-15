@@ -212,7 +212,11 @@ class CardGenerator {
     const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
     const rawCompanyTitle = stripEmojis(companyDisplayName);
-    const displayTitle = rawCompanyTitle.length > 32 ? `${rawCompanyTitle.substring(0, 30)}...` : rawCompanyTitle;
+    const displayTitle = escapeXml(rawCompanyTitle.length > 55 ? `${rawCompanyTitle.substring(0, 52)}...` : rawCompanyTitle);
+    
+    let titleFontSize = 24;
+    if (displayTitle.length > 38) titleFontSize = 17;
+    else if (displayTitle.length > 25) titleFontSize = 20;
 
     const rawValuation = data.valuationLabel || data.valuationRating || 'Fairly Valued';
     const getValuationStyle = (label) => {
@@ -304,16 +308,12 @@ class CardGenerator {
       <circle cx="65" cy="58" r="25" fill="#0f6235" />
       <text x="65" y="65" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" fill="#ffffff">${symbol.substring(0, 4)}</text>
 
-      <text x="106" y="54" font-family="Helvetica, Arial, sans-serif" font-size="24" font-weight="900" fill="#0f172a">${displayTitle}</text>
+      <text x="106" y="54" font-family="Helvetica, Arial, sans-serif" font-size="${titleFontSize}" font-weight="900" fill="#0f172a">${displayTitle}</text>
       <text x="106" y="78" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#64748b">${industry}</text>
 
-      <!-- Valuation Badge (Top Right Header) -->
-      <rect x="540" y="36" width="205" height="28" rx="8" fill="${valStyle.bg}" />
-      <text x="642" y="55" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="900" fill="#ffffff">${escapeXml(valStyle.title)}</text>
-
-      <!-- Scrip Code Badge (Top Right Header Alignment) -->
-      <rect x="760" y="36" width="100" height="28" rx="8" fill="#ffffff" stroke="#1e293b" stroke-width="1.5" />
-      <text x="810" y="55" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="#1e293b">${scripCode}</text>
+      <!-- Valuation Badge (Top Right Header Alignment) -->
+      <rect x="655" y="36" width="205" height="28" rx="8" fill="${valStyle.bg}" />
+      <text x="757" y="55" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="900" fill="#ffffff">${escapeXml(valStyle.title)}</text>
 
       <!-- Pulse Rating & Health & Quality Sub-Header Section -->
       <text x="40" y="132" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#64748b">${periodBadgeStr}</text>
