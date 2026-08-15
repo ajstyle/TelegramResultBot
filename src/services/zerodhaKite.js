@@ -166,7 +166,7 @@ class ZerodhaKiteService {
       const errMsg = error.response?.data?.message || error.message;
       console.error(`[ZerodhaKite] Order placement notice for ${formattedSymbol}: ${errMsg}`);
 
-      if (errMsg.includes('No IPs configured') || errMsg.includes('PermissionException')) {
+      if (errMsg.includes('No IPs configured')) {
         if (config.tradingMode !== 'LIVE') {
           const mockOrderId = `KITE_PAPER_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
           console.log(`[ZerodhaKite] Seamless PAPER mode fallback executed for ${formattedSymbol} | Order ID: ${mockOrderId}`);
@@ -183,10 +183,10 @@ class ZerodhaKiteService {
             isSimulated: true,
           };
         }
-        throw new Error(`Zerodha IP Whitelist Required: Zerodha requires server IP whitelisting for Live order placement. Set TRADING_MODE=PAPER in .env for simulated orders or add your server IP in Zerodha Console.`);
+        throw new Error(`Zerodha IP Whitelist Required: Zerodha requires server IP whitelisting for Live order placement. Add your IP in Zerodha Developer Console Profile.`);
       }
 
-      throw new Error(`Zerodha Kite Order Error: ${errMsg}`);
+      throw new Error(`Zerodha Order Error: ${errMsg}`);
     }
   }
 }

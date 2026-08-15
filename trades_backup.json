@@ -34,5 +34,17 @@
     "status": "ANALYZED",
     "createdAt": "2026-08-15T09:51:54.996Z",
     "updatedAt": "2026-08-15T09:51:54.996Z"
+  },
+  {
+    "_id": "MEM_1786787894534_310",
+    "symbol": "SHALPAINTS",
+    "action": "BUY",
+    "entry": 145,
+    "ltp": 145,
+    "stopLoss": 142.1,
+    "quantity": 15,
+    "status": "ANALYZED",
+    "createdAt": "2026-08-15T09:58:14.534Z",
+    "updatedAt": "2026-08-15T09:58:14.534Z"
   }
 ]
