@@ -160,17 +160,17 @@ class FundamentalsProvider {
 
     const pe = screenerData?.pe !== null && screenerData?.pe !== undefined
       ? screenerData.pe
-      : (bseInfo?.PE && !isNaN(parseFloat(bseInfo.PE)) ? parseFloat(bseInfo.PE) : 20.0);
+      : (bseInfo?.PE && !isNaN(parseFloat(bseInfo.PE)) ? parseFloat(bseInfo.PE) : null);
 
     const mcap = screenerData?.marketCapCr !== null && screenerData?.marketCapCr !== undefined
       ? screenerData.marketCapCr
       : null;
 
-    const roce = screenerData?.roce !== null && screenerData?.roce !== undefined ? screenerData.roce : 15.0;
-    const roe = screenerData?.roe !== null && screenerData?.roe !== undefined ? screenerData.roe : 14.0;
-    const bvps = screenerData?.bookValue || (liveCmp ? Math.round(liveCmp / 2.5) : 40);
-    const pb = screenerData?.pb || (liveCmp && bvps > 0 ? Math.round((liveCmp / bvps) * 10) / 10 : 2.5);
-    const eps = liveCmp && pe > 0 ? Math.round((liveCmp / pe) * 100) / 100 : 10;
+    const roce = screenerData?.roce !== null && screenerData?.roce !== undefined ? screenerData.roce : null;
+    const roe = screenerData?.roe !== null && screenerData?.roe !== undefined ? screenerData.roe : null;
+    const bvps = screenerData?.bookValue || null;
+    const pb = screenerData?.pb || (liveCmp && bvps > 0 ? Math.round((liveCmp / bvps) * 10) / 10 : null);
+    const eps = liveCmp && pe && pe > 0 ? Math.round((liveCmp / pe) * 100) / 100 : null;
     const sector = bseInfo?.Sector || bseInfo?.Industry || 'General';
 
     // SEBI / AMFI Indian Market Cap Classification
