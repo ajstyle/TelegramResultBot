@@ -55,29 +55,67 @@ app.get('/health', (req, res) => {
 
 /**
  * GET /kite/callback
- * Zerodha Kite Connect login callback endpoint
+ * Zerodha Kite Connect login callback & auto access token exchange endpoint
  */
-app.get('/kite/callback', (req, res) => {
-  const requestToken = req.query.request_token || req.query.action || '';
+app.get('/kite/callback', async (req, res) => {
+  const requestToken = req.query.request_token || '';
   if (requestToken) {
+    let accessToken = null;
+    let errorMsg = null;
+
+    if (config.kite.apiKey && config.kite.apiSecret) {
+      try {
+        const crypto = require('crypto');
+        const axios = require('axios');
+        const checksum = crypto.createHash('sha256')
+          .update(config.kite.apiKey + requestToken + config.kite.apiSecret)
+          .digest('hex');
+
+        const params = new URLSearchParams();
+        params.append('api_key', config.kite.apiKey);
+        params.append('request_token', requestToken);
+        params.append('checksum', checksum);
+
+        const tokenRes = await axios.post('https://api.kite.trade/session/token', params.toString(), {
+          headers: {
+            'X-Kite-Version': '3',
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          timeout: 10000,
+        });
+
+        if (tokenRes.data && tokenRes.data.status === 'success' && tokenRes.data.data?.access_token) {
+          accessToken = tokenRes.data.data.access_token;
+        }
+      } catch (err) {
+        errorMsg = err.response?.data?.message || err.message;
+      }
+    }
+
     return res.send(`
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Zerodha Kite Callback</title>
+        <title>Zerodha Kite Token Exchange</title>
         <style>
           body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #f8fafc; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-          .card { background: #1e293b; border-radius: 12px; padding: 32px; border: 1px stroke #334155; box-shadow: 0 10px 25px rgba(0,0,0,0.5); max-width: 500px; text-align: center; }
+          .card { background: #1e293b; border-radius: 12px; padding: 32px; border: 1px stroke #334155; box-shadow: 0 10px 25px rgba(0,0,0,0.5); max-width: 550px; text-align: center; }
           h2 { color: #10b981; margin-top: 0; }
-          code { background: #090d16; color: #38bdf8; padding: 8px 16px; border-radius: 6px; font-size: 16px; display: inline-block; margin: 12px 0; word-break: break-all; }
+          code { background: #090d16; color: #38bdf8; padding: 10px 16px; border-radius: 6px; font-size: 15px; display: inline-block; margin: 10px 0; word-break: break-all; }
         </style>
       </head>
       <body>
         <div class="card">
           <h2>🪁 Zerodha Kite Login Successful!</h2>
-          <p>Your Zerodha <code>request_token</code> is:</p>
-          <code>${requestToken}</code>
-          <p style="color: #94a3b8; font-size: 14px;">Copy this token to generate your <code>KITE_ACCESS_TOKEN</code> in .env</p>
+          ${accessToken ? `
+            <p>Your generated <code>KITE_ACCESS_TOKEN</code> is:</p>
+            <code>${accessToken}</code>
+            <p style="color: #10b981; font-weight: bold; margin-top: 15px;">✅ Copy this KITE_ACCESS_TOKEN into your .env file!</p>
+          ` : `
+            <p>Your Zerodha <code>request_token</code> is:</p>
+            <code>${requestToken}</code>
+            ${errorMsg ? `<p style="color: #ef4444; font-size: 13px;">Auto-exchange notice: ${errorMsg}</p>` : ''}
+          `}
         </div>
       </body>
       </html>
