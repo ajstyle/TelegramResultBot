@@ -1,5 +1,6 @@
 const tradeStore = require('../services/tradeStore');
 const angelOne = require('../services/angelOne');
+const zerodhaKite = require('../services/zerodhaKite');
 const config = require('../config');
 
 /**
@@ -71,7 +72,7 @@ async function handleOrderConfirmation(bot, callbackQuery) {
     return;
   }
 
-  // Action can be CONFIRM_<tradeId> or CANCEL_<tradeId>
+  // Action can be CANCEL_<tradeId>
   if (data.startsWith('CANCEL_')) {
     const tradeId = data.replace('CANCEL_', '');
     try {
@@ -88,11 +89,12 @@ async function handleOrderConfirmation(bot, callbackQuery) {
     return;
   }
 
-  if (!data.startsWith('CONFIRM_')) {
+  if (!data.startsWith('CONFIRM_') && !data.startsWith('CONFIRM_ANGEL_') && !data.startsWith('CONFIRM_KITE_')) {
     return;
   }
 
-  const tradeId = data.replace('CONFIRM_', '');
+  const isKiteOrder = data.startsWith('CONFIRM_KITE_');
+  const tradeId = data.replace('CONFIRM_KITE_', '').replace('CONFIRM_ANGEL_', '').replace('CONFIRM_', '');
 
   try {
     // 2. Validation & Status check with Dynamic Fallback
@@ -102,9 +104,9 @@ async function handleOrderConfirmation(bot, callbackQuery) {
     if (!trade && message) {
       const msgText = `${message.caption || ''} ${message.text || ''}`;
       
-      // 1. Extract Symbol from Hashtag (#PURVA), Button Text (ANGEL ONE (PURVA)), or Caption
+      // 1. Extract Symbol from Hashtag (#PURVA), Button Text (ANGEL ONE / ZERODHA (PURVA)), or Caption
       const symbolFromTag = msgText.match(/#([A-Z0-9_-]+)/i);
-      const symbolFromBtn = msgText.match(/ANGEL ONE \(([^)]+)\)/i);
+      const symbolFromBtn = msgText.match(/(?:ANGEL ONE|ZERODHA KITE)\s*\(([^)]+)\)/i);
       let symbol = symbolFromTag ? symbolFromTag[1].toUpperCase() : (symbolFromBtn ? symbolFromBtn[1].toUpperCase().split(' ')[0] : null);
 
       if (symbol) {
@@ -124,7 +126,7 @@ async function handleOrderConfirmation(bot, callbackQuery) {
       // If price is missing from caption, fetch live price dynamically
       if (symbol && (!entry || isNaN(entry) || entry <= 0)) {
         try {
-          const fundamentalsProvider = require('../fundamentals/provider');
+          const fundamentalsProvider = require('../services/fundamentals/provider');
           entry = await fundamentalsProvider.fetchLivePrice(symbol);
         } catch (_) {}
       }
@@ -138,7 +140,7 @@ async function handleOrderConfirmation(bot, callbackQuery) {
         let quantity = qtyMatch ? parseInt(qtyMatch[1], 10) : 1;
         if (!qtyMatch) {
           try {
-            const riskEngine = require('../riskEngine');
+            const riskEngine = require('../services/riskEngine');
             const capital = config.risk?.accountCapital || 100000;
             const riskPerTrade = config.risk?.riskPerTrade || 2000;
             const sizeResult = riskEngine.calculatePositionSize(entry, stopLoss, capital, riskPerTrade);
@@ -202,58 +204,74 @@ async function handleOrderConfirmation(bot, callbackQuery) {
       return;
     }
 
-    // 5. Look up symbol token dynamically from Angel One & Check Cautionary / ESM Status
-    const scripInfo = await angelOne.searchScrip(trade.symbol, 'NSE');
-    const isCautionary = angelOne.isCautionaryStock(trade.symbol, scripInfo);
+    let orderResult;
+    let brokerName = 'Angel One';
 
-    // Automatic Product Type Routing:
-    // Standard stocks -> INTRADAY
-    // ESM / ASM / GSM / Trade-for-Trade (BE Series) stocks -> DELIVERY (CNC 100% Cash) to pass SEBI & Angel One RMS checks cleanly!
-    const productType = isCautionary ? 'DELIVERY' : 'INTRADAY';
-    const esmNotice = isCautionary ? '\nℹ️ *ESM / Surveillance Stock*: Auto-routed as 100% Cash `DELIVERY` (CNC) order on Angel One SmartAPI.' : '';
+    if (isKiteOrder) {
+      brokerName = 'Zerodha Kite';
+      console.log(`[OrderConfirmation] Submitting ${trade.action} order for ${trade.symbol} on Zerodha Kite...`);
+      try {
+        orderResult = await zerodhaKite.placeOrder({
+          symbol: trade.symbol,
+          action: trade.action,
+          quantity: trade.quantity,
+          price: trade.entry,
+          product: 'MIS',
+          orderType: 'MARKET',
+        });
+      } catch (err) {
+        orderResult = { success: false, message: err.message };
+      }
+    } else {
+      // Angel One Execution
+      const scripInfo = await angelOne.searchScrip(trade.symbol, 'NSE');
+      const isCautionary = angelOne.isCautionaryStock(trade.symbol, scripInfo);
+      const productType = isCautionary ? 'DELIVERY' : 'INTRADAY';
 
-    console.log(`[OrderConfirmation] Submitting ${trade.action} order for ${trade.symbol} (Product: ${productType}, isCautionary: ${isCautionary})...`);
+      console.log(`[OrderConfirmation] Submitting ${trade.action} order for ${trade.symbol} on Angel One (Product: ${productType})...`);
 
-    // 6. Place Order with Angel One
-    const orderResult = await angelOne.placeOrder({
-      tradingsymbol: scripInfo.tradingsymbol,
-      symboltoken: scripInfo.symboltoken,
-      transactiontype: trade.action,
-      quantity: trade.quantity,
-      price: trade.entry,
-      orderType: 'LIMIT',
-      productType,
-      exchange: 'NSE',
-    });
+      orderResult = await angelOne.placeOrder({
+        tradingsymbol: scripInfo.tradingsymbol,
+        symboltoken: scripInfo.symboltoken,
+        transactiontype: trade.action,
+        quantity: trade.quantity,
+        price: trade.entry,
+        orderType: 'LIMIT',
+        productType,
+        exchange: 'NSE',
+      });
+    }
 
     if (orderResult.success) {
       trade.status = 'ORDER_PLACED';
-      trade.angelOrderId = orderResult.orderId;
+      trade.broker = brokerName;
+      trade.orderId = orderResult.orderId;
       await trade.save();
 
       const modeBadge = config.tradingMode === 'PAPER' ? '📝 [PAPER TRADING]' : '⚡ [LIVE TRADING]';
 
       const successMsg =
-        `${modeBadge} *ORDER PLACED SUCCESSFULLY*\n\n` +
+        `${modeBadge} *ORDER PLACED SUCCESSFULLY (${brokerName.toUpperCase()})*\n\n` +
         `*Stock:* ${trade.symbol}\n` +
+        `*Broker:* ${brokerName}\n` +
         `*Action:* ${trade.action}\n` +
-        `*Product Mode:* \`${productType}\`${esmNotice}\n` +
         `*Quantity:* ${trade.quantity}\n` +
         `*Price:* ₹${trade.entry}\n` +
         `*Calculated SL:* ₹${trade.stopLoss}\n` +
-        `*Angel Order ID:* \`${trade.angelOrderId}\`\n\n` +
-        `ℹ️ *Protective Stop-Loss Status:* Calculated SL is logged. Place SL trigger order via Angel One app if desired.\n\n` +
+        `*Order ID:* \`${orderResult.orderId}\`\n\n` +
+        `ℹ️ *Order Status:* Submitted to ${brokerName}. Check broker app for execution status.\n\n` +
         `✅ Trade Record Updated: \`${trade._id}\``;
 
       await safeEditMessage(bot, message, successMsg);
     } else {
       trade.status = 'REJECTED';
-      await trade.save();
+      trade.save();
 
       const failMsg =
-        `❌ *ORDER PLACEMENT REJECTED*\n\n` +
+        `❌ *ORDER PLACEMENT REJECTED (${brokerName.toUpperCase()})*\n\n` +
         `*Stock:* ${trade.symbol}\n` +
-        `*Reason:* ${orderResult.message}\n` +
+        `*Broker:* ${brokerName}\n` +
+        `*Reason:* ${orderResult.message || 'Order failed'}\n` +
         `*Trade ID:* \`${trade._id}\``;
 
       await safeEditMessage(bot, message, failMsg);

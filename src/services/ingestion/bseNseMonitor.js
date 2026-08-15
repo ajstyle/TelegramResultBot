@@ -268,7 +268,10 @@ class BseNseMonitorService {
           replyMarkup = {
             inline_keyboard: [
               [
-                { text: `⚡ 1-CLICK BUY ON ANGEL ONE (${item.symbol})`, callback_data: `CONFIRM_${tradeRecord._id}` },
+                { text: `⚡ 1-CLICK BUY ON ANGEL ONE (${item.symbol})`, callback_data: `CONFIRM_ANGEL_${tradeRecord._id}` },
+              ],
+              [
+                { text: `🪁 1-CLICK BUY ON ZERODHA KITE (${item.symbol})`, callback_data: `CONFIRM_KITE_${tradeRecord._id}` },
               ],
               [
                 { text: `❌ CANCEL`, callback_data: `CANCEL_${tradeRecord._id}` },

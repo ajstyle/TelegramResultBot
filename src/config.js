@@ -31,6 +31,13 @@ const config = {
     baseUrl: 'https://apiconnect.angelone.in',
   },
 
+  kite: {
+    apiKey: process.env.KITE_API_KEY || '',
+    apiSecret: process.env.KITE_API_SECRET || '',
+    accessToken: process.env.KITE_ACCESS_TOKEN || '',
+    baseUrl: 'https://api.kite.trade',
+  },
+
   risk: {
     accountCapital: parseFloat(process.env.ACCOUNT_CAPITAL || '100000'),
     riskPerTrade: parseFloat(process.env.RISK_PER_TRADE || '0.01'),
