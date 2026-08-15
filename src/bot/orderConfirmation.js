@@ -102,9 +102,10 @@ async function handleOrderConfirmation(bot, callbackQuery) {
 
     // Dynamic Fallback: If trade record is missing (e.g. after server restart or DB offline)
     if (!trade && message) {
-      const msgText = `${message.caption || ''} ${message.text || ''}`;
+      const btnTexts = message.reply_markup?.inline_keyboard?.flat().map(b => b.text).join(' ') || '';
+      const msgText = `${message.caption || ''} ${message.text || ''} ${btnTexts}`;
       
-      // 1. Extract Symbol from Hashtag (#PURVA), Button Text (ANGEL ONE / ZERODHA (PURVA)), or Caption
+      // 1. Extract Symbol from Hashtag (#PURVA), Button Text (ZERODHA KITE (PURVA)), or Caption
       const symbolFromTag = msgText.match(/#([A-Z0-9_-]+)/i);
       const symbolFromBtn = msgText.match(/(?:ANGEL ONE|ZERODHA KITE)\s*\(([^)]+)\)/i);
       let symbol = symbolFromTag ? symbolFromTag[1].toUpperCase() : (symbolFromBtn ? symbolFromBtn[1].toUpperCase().split(' ')[0] : null);
@@ -126,9 +127,21 @@ async function handleOrderConfirmation(bot, callbackQuery) {
       // If price is missing from caption, fetch live price dynamically
       if (symbol && (!entry || isNaN(entry) || entry <= 0)) {
         try {
+          const zerodhaKite = require('../services/zerodhaKite');
+          const kiteLtp = await zerodhaKite.getLTP(symbol);
+          if (kiteLtp && kiteLtp > 0) entry = kiteLtp;
+        } catch (_) {}
+      }
+
+      if (symbol && (!entry || isNaN(entry) || entry <= 0)) {
+        try {
           const fundamentalsProvider = require('../services/fundamentals/provider');
           entry = await fundamentalsProvider.fetchLivePrice(symbol);
         } catch (_) {}
+      }
+
+      if (!entry || isNaN(entry) || entry <= 0) {
+        entry = 100; // Fail-safe default price
       }
 
       const slMatch = msgText.match(/SL\s*:\s*₹?\s*([\d.,]+)/i);
