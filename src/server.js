@@ -54,6 +54,39 @@ app.get('/health', (req, res) => {
 });
 
 /**
+ * GET /kite/callback
+ * Zerodha Kite Connect login callback endpoint
+ */
+app.get('/kite/callback', (req, res) => {
+  const requestToken = req.query.request_token || req.query.action || '';
+  if (requestToken) {
+    return res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Zerodha Kite Callback</title>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #f8fafc; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+          .card { background: #1e293b; border-radius: 12px; padding: 32px; border: 1px stroke #334155; box-shadow: 0 10px 25px rgba(0,0,0,0.5); max-width: 500px; text-align: center; }
+          h2 { color: #10b981; margin-top: 0; }
+          code { background: #090d16; color: #38bdf8; padding: 8px 16px; border-radius: 6px; font-size: 16px; display: inline-block; margin: 12px 0; word-break: break-all; }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <h2>🪁 Zerodha Kite Login Successful!</h2>
+          <p>Your Zerodha <code>request_token</code> is:</p>
+          <code>${requestToken}</code>
+          <p style="color: #94a3b8; font-size: 14px;">Copy this token to generate your <code>KITE_ACCESS_TOKEN</code> in .env</p>
+        </div>
+      </body>
+      </html>
+    `);
+  }
+  res.send('Zerodha Kite Callback Endpoint Active. Waiting for request_token...');
+});
+
+/**
  * GET /api/trades
  * Retrieve list of trades
  */
