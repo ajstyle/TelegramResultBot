@@ -82,7 +82,7 @@ class BseNseMonitorService {
 
       if (isNaN(annDate.getTime())) return true;
       const diffHours = (Date.now() - annDate.getTime()) / (1000 * 60 * 60);
-      return diffHours <= 24;
+      return diffHours <= 12; // Maximum 12 hours threshold for live results
     } catch (_) {
       return true;
     }
@@ -91,6 +91,7 @@ class BseNseMonitorService {
   start(pollingIntervalMs = 3000) {
     if (this.intervalId) return;
 
+    this.isInitialRun = true;
     console.log(`[BseNseMonitor] 24/7 Resilient Ingestion loop started (Polling interval: ${pollingIntervalMs}ms)...`);
     this.pollAnnouncements();
     this.intervalId = setInterval(() => this.pollAnnouncements(), pollingIntervalMs);
@@ -136,8 +137,28 @@ class BseNseMonitorService {
 
       const allAnnouncements = [...nseAnnouncements, ...bseAnnouncements];
 
+      // On initial startup run, seed existing feed items to prevent re-broadcasting old announcements
+      if (this.isInitialRun) {
+        console.log(`[BseNseMonitor] Initial startup run: Indexing ${allAnnouncements.length} existing feed announcements to prevent old notifications...`);
+        const deduplicator = require('./deduplicator');
+        for (const item of allAnnouncements) {
+          if (item.announcementId) {
+            this.processedAnnouncementIds.add(item.announcementId);
+            deduplicator.isUnique(item);
+          }
+        }
+        this.isInitialRun = false;
+        return;
+      }
+
       for (const item of allAnnouncements) {
         if (!item.announcementId || this.processedAnnouncementIds.has(item.announcementId)) {
+          continue;
+        }
+
+        if (!this.isRecentAnnouncement(item.date)) {
+          console.log(`[BseNseMonitor] 🛑 Suppressed OLD/ARCHIVED announcement for ${item.symbol} (Date: ${item.date || 'Old'})`);
+          this.processedAnnouncementIds.add(item.announcementId);
           continue;
         }
 
