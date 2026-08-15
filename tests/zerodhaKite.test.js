@@ -1,6 +1,18 @@
 const zerodhaKite = require('../src/services/zerodhaKite');
+const config = require('../src/config');
 
 describe('Zerodha Kite Service Module Tests', () => {
+  let origMode;
+
+  beforeAll(() => {
+    origMode = config.tradingMode;
+    config.tradingMode = 'PAPER';
+  });
+
+  afterAll(() => {
+    config.tradingMode = origMode;
+  });
+
   test('resolveInstrument returns formatted instrument structure', async () => {
     const inst = await zerodhaKite.resolveInstrument('SHALPAINTS', 'NSE');
     expect(inst.tradingsymbol).toBe('SHALPAINTS');
