@@ -139,14 +139,22 @@ class GeminiFinancialAnalyzer {
     const p_t4 = processPeriod(nQt4);
 
     const growthPct = (curr, base) => {
-      if (!base || base === 0) return '-';
+      if (curr === null || curr === undefined || isNaN(curr)) return '-';
+      if (base === null || base === undefined || isNaN(base)) return '-';
+      if (base === 0) {
+        if (curr > 0) return '+100%'; // Fresh Revenue / Turnaround
+        if (curr < 0) return '-100%';
+        return '-'; // Both zero
+      }
       // Absolute value in denominator handles negative profit/loss transitions
       const pct = Math.round(((curr - base) / Math.abs(base)) * 100);
       return `${pct >= 0 ? '+' : ''}${pct}%`;
     };
 
     const bpsChange = (currPct, basePct) => {
+      if (currPct === null || currPct === undefined || basePct === null || basePct === undefined) return '-';
       const bps = Math.round((currPct - basePct) * 100);
+      if (bps === 0) return '-';
       return `${bps >= 0 ? '+' : ''}${bps} bps`;
     };
 
