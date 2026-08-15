@@ -141,24 +141,48 @@ class ZerodhaKiteService {
     try {
       const inst = await this.resolveInstrument(formattedSymbol, exchange);
 
-      const payload = new URLSearchParams();
-      payload.append('tradingsymbol', inst.tradingsymbol);
-      payload.append('exchange', inst.exchange);
-      payload.append('transaction_type', action.toUpperCase());
-      payload.append('order_type', orderType.toUpperCase());
-      payload.append('quantity', quantity.toString());
-      payload.append('product', product.toUpperCase());
-      payload.append('validity', 'DAY');
+      const tryPlace = async (tradingSym, exch, prod) => {
+        const payload = new URLSearchParams();
+        payload.append('tradingsymbol', tradingSym);
+        payload.append('exchange', exch);
+        payload.append('transaction_type', action.toUpperCase());
+        payload.append('order_type', orderType.toUpperCase());
+        payload.append('quantity', quantity.toString());
+        payload.append('product', prod.toUpperCase());
+        payload.append('validity', 'DAY');
 
-      if (orderType.toUpperCase() === 'LIMIT' && price > 0) {
-        payload.append('price', price.toString());
+        if (orderType.toUpperCase() === 'LIMIT' && price > 0) {
+          payload.append('price', price.toString());
+        }
+
+        return await axios.post(
+          `${config.kite.baseUrl}/orders/regular`,
+          payload.toString(),
+          this.getRequestConfig()
+        );
+      };
+
+      let response;
+      try {
+        response = await tryPlace(inst.tradingsymbol, inst.exchange, product);
+      } catch (firstErr) {
+        const firstErrMsg = firstErr.response?.data?.message || firstErr.message;
+
+        if (firstErrMsg.includes('expired or does not exist')) {
+          try {
+            console.log(`[ZerodhaKite] Symbol ${inst.tradingsymbol} not found on ${inst.exchange}. Trying ${inst.tradingsymbol}-BE...`);
+            response = await tryPlace(`${inst.tradingsymbol}-BE`, 'NSE', 'CNC');
+          } catch (_) {
+            console.log(`[ZerodhaKite] Trying ${inst.tradingsymbol} on BSE exchange...`);
+            response = await tryPlace(inst.tradingsymbol, 'BSE', 'CNC');
+          }
+        } else if (firstErrMsg.includes('MIS') || firstErrMsg.includes('intraday')) {
+          console.log(`[ZerodhaKite] MIS blocked for ${inst.tradingsymbol}. Retrying with CNC delivery product...`);
+          response = await tryPlace(inst.tradingsymbol, inst.exchange, 'CNC');
+        } else {
+          throw firstErr;
+        }
       }
-
-      const response = await axios.post(
-        `${config.kite.baseUrl}/orders/regular`,
-        payload.toString(),
-        this.getRequestConfig()
-      );
 
       if (response.data && response.data.status === 'success' && response.data.data?.order_id) {
         const orderId = response.data.data.order_id;
