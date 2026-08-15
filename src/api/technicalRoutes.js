@@ -3,11 +3,16 @@ const router = express.Router();
 const technicalAnalysisService = require('../services/technical/technicalAnalysisService');
 const angelOne = require('../services/angelOne');
 
+const axios = require('axios');
+
 /**
- * Helper to generate or fetch historical OHLCV candles
- * Uses Angel One API candles if logged in, or synthetic realistic trend generator for test/dev environment
+ * Fetch 100% Real Live Market OHLCV Candles for Indian Stocks (NSE/BSE)
+ * 1. Primary Source: Angel One SmartAPI Historical Candles
+ * 2. Secondary Source: Yahoo Finance Live Market Feed (.NS / .BO)
+ * Returns empty array if data is unavailable (yielding ⚪ DATA UNAVAILABLE per user spec).
  */
 async function fetchCandlesForSymbol(symbol, periodDays = 250) {
+  // 1. Primary: Angel One SmartAPI Live Historical Candles
   try {
     const scripInfo = await angelOne.searchScrip(symbol, 'NSE');
     if (scripInfo && scripInfo.symboltoken) {
@@ -18,37 +23,51 @@ async function fetchCandlesForSymbol(symbol, periodDays = 250) {
     }
   } catch (_) {}
 
-  // Deterministic realistic market trend generator for development / fallback
-  const candles = [];
-  let currentPrice = 1000;
-  const hash = symbol.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  const trendFactor = (hash % 10) > 4 ? 0.0015 : -0.001;
+  // 2. Secondary: Yahoo Finance Real Live Market Feed (.NS / .BO)
+  const cleanSym = symbol.toUpperCase().replace(/\.NS$|\.BO$/g, '').trim();
+  const tickers = [`${cleanSym}.NS`, `${cleanSym}.BO`];
 
-  const now = Date.now();
-  for (let i = periodDays; i >= 0; i--) {
-    const date = new Date(now - i * 24 * 60 * 60 * 1000);
-    const dayOfWeek = date.getDay();
-    if (dayOfWeek === 0 || dayOfWeek === 6) continue; // Skip weekends
+  for (const ticker of tickers) {
+    try {
+      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=1y&interval=1d`;
+      const res = await axios.get(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+        timeout: 8000,
+      });
 
-    const noise = (Math.sin(i * 0.5 + hash) * 0.015);
-    const change = trendFactor + noise;
-    currentPrice = Math.max(10, currentPrice * (1 + change));
+      if (res.data && res.data.chart && res.data.chart.result && res.data.chart.result[0]) {
+        const result = res.data.chart.result[0];
+        const timestamps = result.timestamp || [];
+        const quote = result.indicators.quote[0] || {};
+        const closes = quote.close || [];
+        const opens = quote.open || [];
+        const highs = quote.high || [];
+        const lows = quote.low || [];
+        const volumes = quote.volume || [];
 
-    const high = currentPrice * 1.01;
-    const low = currentPrice * 0.99;
-    const volume = Math.floor(100000 + Math.abs(Math.sin(i) * 500000));
+        const candles = [];
+        for (let i = 0; i < timestamps.length; i++) {
+          if (closes[i] !== null && closes[i] !== undefined) {
+            candles.push({
+              date: new Date(timestamps[i] * 1000),
+              open: opens[i] || closes[i],
+              high: highs[i] || closes[i],
+              low: lows[i] || closes[i],
+              close: Math.round(closes[i] * 100) / 100,
+              volume: volumes[i] || 0,
+            });
+          }
+        }
 
-    candles.push({
-      date,
-      open: currentPrice,
-      high,
-      low,
-      close: Math.round(currentPrice * 100) / 100,
-      volume,
-    });
+        if (candles.length >= 20) {
+          return candles;
+        }
+      }
+    } catch (_) {}
   }
 
-  return candles;
+  // If live data is unavailable, return empty array (triggers ⚪ DATA UNAVAILABLE per user spec)
+  return [];
 }
 
 /**
