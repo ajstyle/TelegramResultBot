@@ -307,10 +307,10 @@ class CardGenerator {
       <rect x="760" y="36" width="100" height="28" rx="8" fill="#ffffff" stroke="#1e293b" stroke-width="1.5" />
       <text x="810" y="55" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="#1e293b">${scripCode}</text>
 
-      <!-- Pulse Rating & Health & Quality & Technical Sub-Header Section -->
+      <!-- Pulse Rating & Health & Quality Sub-Header Section -->
       <text x="40" y="132" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#64748b">${periodBadgeStr}</text>
 
-      <text x="450" y="134" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">Pulse : <tspan fill="${getPulseColor(rawPulseRating)}" font-weight="900">${escapeXml(cleanRatingStr)}</tspan>  |  Health : <tspan fill="#059669" font-weight="900">${healthScoreDisplay}/100</tspan>  |  Quality : <tspan fill="#4f46e5" font-weight="900">${qualityScoreDisplay}</tspan>  |  Technical : <tspan fill="#d97706" font-weight="900">${techPillDisplay}</tspan></text>
+      <text x="450" y="134" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">Pulse : <tspan fill="${getPulseColor(rawPulseRating)}" font-weight="900">${escapeXml(cleanRatingStr)}</tspan>  |  Health : <tspan fill="#059669" font-weight="900">${healthScoreDisplay}/100 (${healthRatingDisplay})</tspan>  |  Quality : <tspan fill="#4f46e5" font-weight="900">${qualityScoreDisplay}</tspan></text>
 
       <text x="860" y="132" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="14" font-style="italic" fill="#64748b">₹ in Cr</text>
 
@@ -333,7 +333,7 @@ class CardGenerator {
 
       <!-- CMP & Fundamentals Pill Bar -->
       <rect x="40" y="844" width="820" height="44" rx="10" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5" />
-      <text x="450" y="872" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#0f172a">CMP : <tspan font-weight="900">${cmp}</tspan>  |  <tspan fill="#475569">${category} (${mcapDisplay})</tspan>  |  Tech : <tspan fill="#d97706" font-weight="900">${techPillDisplay}</tspan>  |  Valuation : <tspan font-weight="900" fill="${valStyle.bg}">${escapeXml(valStyle.title)}</tspan></text>
+      <text x="450" y="872" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#0f172a">CMP : <tspan font-weight="900">${cmp}</tspan>  |  <tspan fill="#475569">${category} (${mcapDisplay})</tspan>  |  Technical : <tspan fill="#d97706" font-weight="900">${techPillDisplay}</tspan>  |  Valuation : <tspan font-weight="900" fill="${valStyle.bg}">${escapeXml(valStyle.title)}</tspan></text>
 
       <!-- Footer Bar -->
       <line x1="40" y1="910" x2="860" y2="910" stroke="#f1f5f9" stroke-width="1.5" />
