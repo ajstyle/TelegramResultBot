@@ -82,7 +82,7 @@ class BseNseMonitorService {
 
       if (isNaN(annDate.getTime())) return true;
       const diffMinutes = (Date.now() - annDate.getTime()) / (1000 * 60);
-      return diffMinutes <= 5; // Strict maximum 5 minutes threshold for live real-time earnings
+      return diffMinutes <= 15; // Optimal 15-minute window for live BSE/NSE real-time announcements
     } catch (_) {
       return true;
     }
