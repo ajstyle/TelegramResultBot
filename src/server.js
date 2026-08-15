@@ -12,6 +12,7 @@ const bseNseMonitor = require('./services/ingestion/bseNseMonitor');
 const valuationRouter = require('./api/valuationRouter');
 const qualityRouter = require('./api/qualityRouter');
 const healthRoutes = require('./api/healthRoutes');
+const technicalRoutes = require('./api/technicalRoutes');
 const path = require('path');
 
 const app = express();
@@ -25,6 +26,8 @@ app.use('/stocks', valuationRouter);
 app.use('/api/quality', qualityRouter);
 app.use('/quality', qualityRouter);
 app.use('/api/health', healthRoutes);
+app.use('/api/technical', technicalRoutes);
+app.use('/technical', technicalRoutes);
 
 // Global Exception & Rejection Guard to prevent process termination on Render Cloud
 process.on('unhandledRejection', (reason) => {
