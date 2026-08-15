@@ -13,49 +13,54 @@ class ScoringEngine {
       risk: 0.15
     };
 
+    // Check for Net Loss / Negative Financials
+    const isNetLoss = ratios.pat < 0 || ratios.eps < 0 || ratios.pe < 0;
+
     // 1. Valuation Component (0-100)
     let valSubScore = 50;
-    if (ratios.pe < 0) {
-      valSubScore = 20; // Severe penalty for negative P/E
+    if (isNetLoss) {
+      valSubScore = 15; // Severe penalty for loss-making companies
     } else if (ratios.pe > 80) {
-      valSubScore = 5; // Extreme penalty for P/E >80x (e.g. ZENTEC, AVANTEL)
+      valSubScore = 5; // Extreme penalty for P/E >80x
     } else if (ratios.pe > 50) {
       valSubScore = 15; // Heavy penalty for super high P/E (>50x)
     } else if (ratios.pe > 38) {
       valSubScore = 30; // High P/E penalty (>38x)
-    } else if (peerEval.peDiscount > 20) valSubScore += 25;
-    else if (peerEval.peDiscount > 0) valSubScore += 12;
-    else if (peerEval.peDiscount < -30) valSubScore -= 25;
-    else if (peerEval.peDiscount < 0) valSubScore -= 12;
+    } else if (peerEval.peDiscount > 20) valSubScore += 20;
+    else if (peerEval.peDiscount > 0) valSubScore += 10;
+    else if (peerEval.peDiscount < -30) valSubScore -= 20;
+    else if (peerEval.peDiscount < 0) valSubScore -= 10;
 
-    if (ratios.pe > 0 && ratios.pe <= 38) {
-      if (dcfEval.marginOfSafetyPct > 20) valSubScore += 25;
-      else if (dcfEval.marginOfSafetyPct > 0) valSubScore += 12;
-      else if (dcfEval.marginOfSafetyPct < -20) valSubScore -= 25;
+    if (!isNetLoss && ratios.pe > 0 && ratios.pe <= 38) {
+      if (dcfEval.marginOfSafetyPct > 20) valSubScore += 20;
+      else if (dcfEval.marginOfSafetyPct > 0) valSubScore += 10;
+      else if (dcfEval.marginOfSafetyPct < -20) valSubScore -= 20;
     }
 
     valSubScore = Math.max(0, Math.min(100, valSubScore));
 
     // 2. Growth Component (0-100)
     let growthSubScore = 50;
-    if (ratios.earningsGrowth > 20) growthSubScore = 90;
-    else if (ratios.earningsGrowth > 10) growthSubScore = 70;
-    else if (ratios.earningsGrowth > 0) growthSubScore = 50;
-    else growthSubScore = 20;
+    if (ratios.earningsGrowth > 30) growthSubScore = 90;
+    else if (ratios.earningsGrowth > 15) growthSubScore = 75;
+    else if (ratios.earningsGrowth > 0) growthSubScore = 55;
+    else if (ratios.earningsGrowth > -20) growthSubScore = 30;
+    else growthSubScore = 10;
 
     // 3. Profitability Component (0-100)
     let profSubScore = 50;
     const returnMetric = sectorConfig.sector === 'Banking' ? ratios.roe : ratios.roce;
-    if (returnMetric > 20) profSubScore = 90;
-    else if (returnMetric > 14) profSubScore = 70;
+    if (isNetLoss || returnMetric <= 0) profSubScore = 10;
+    else if (returnMetric > 25) profSubScore = 90;
+    else if (returnMetric > 15) profSubScore = 75;
     else if (returnMetric > 8) profSubScore = 50;
-    else profSubScore = 20;
+    else profSubScore = 30;
 
     // 4. Financial Health Component (0-100)
     let healthSubScore = 50;
-    if (ratios.debtToEquity < 0.3) healthSubScore = 90;
-    else if (ratios.debtToEquity < 0.8) healthSubScore = 70;
-    else if (ratios.debtToEquity < 1.5) healthSubScore = 40;
+    if (ratios.debtToEquity <= 0.1) healthSubScore = 90;
+    else if (ratios.debtToEquity <= 0.5) healthSubScore = 75;
+    else if (ratios.debtToEquity <= 1.2) healthSubScore = 45;
     else healthSubScore = 15;
 
     // 5. Risk Component (0-100)
