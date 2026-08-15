@@ -31,20 +31,30 @@ async function safeEditMessage(bot, message, newText, extraOptions = {}) {
 
   if (isPhotoOrCaption) {
     try {
-      return await bot.editMessageCaption(captionText, options);
+      await bot.editMessageCaption(captionText, options);
     } catch (_) {
       try {
-        return await bot.editMessageText(newText, options);
+        await bot.editMessageText(newText, options);
       } catch (_) {}
     }
   } else {
     try {
-      return await bot.editMessageText(newText, options);
+      await bot.editMessageText(newText, options);
     } catch (_) {
       try {
-        return await bot.editMessageCaption(captionText, options);
+        await bot.editMessageCaption(captionText, options);
       } catch (_) {}
     }
+  }
+
+  // Explicitly update reply_markup if provided in extraOptions to guarantee inline button rendering
+  if (extraOptions.reply_markup) {
+    try {
+      await bot.editMessageReplyMarkup(extraOptions.reply_markup, {
+        chat_id: message.chat.id,
+        message_id: message.message_id,
+      });
+    } catch (_) {}
   }
 }
 
