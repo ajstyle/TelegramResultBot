@@ -83,13 +83,21 @@ class BseAdapter {
   }
 
   formatPdfUrl(attachmentName, newsid) {
+    if (newsid) {
+      const match = newsid.match(/([a-f0-9-]{36})/i);
+      if (match) {
+        return `https://www.bseindia.com/corporates/anndet_new.aspx?newsid=${match[1]}`;
+      }
+    }
     if (attachmentName) {
       if (attachmentName.startsWith('http://') || attachmentName.startsWith('https://')) {
         return attachmentName;
       }
-      if (!attachmentName.includes('&') && attachmentName.toLowerCase().endsWith('.pdf')) {
-        return `https://www.bseindia.com/xml-data/corpfiling/AttachLive/${attachmentName}`;
+      const match = attachmentName.match(/([a-f0-9-]{36})/i);
+      if (match) {
+        return `https://www.bseindia.com/corporates/anndet_new.aspx?newsid=${match[1]}`;
       }
+      return `https://www.bseindia.com/xml-data/corpfiling/AttachLive/${attachmentName}`;
     }
     return null;
   }

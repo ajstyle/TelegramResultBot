@@ -48,12 +48,12 @@ class QualityScoringEngine {
     const opm = f.operatingMargin !== null && f.operatingMargin !== undefined ? f.operatingMargin : (f.opm !== undefined ? f.opm : (f.metrics?.opm !== undefined ? f.metrics.opm : null));
 
     // Growth Metrics (QoQ / YoY)
-    const salesGrowth = f.salesGrowthYoY !== null && f.salesGrowthYoY !== undefined 
-      ? f.salesGrowthYoY 
+    const salesGrowth = f.salesGrowthYoY !== null && f.salesGrowthYoY !== undefined
+      ? f.salesGrowthYoY
       : (f.salesGrowthQoQ !== null && f.salesGrowthQoQ !== undefined ? f.salesGrowthQoQ : (f.metrics?.salesGrowthYoY !== undefined ? f.metrics.salesGrowthYoY : null));
 
-    const profitGrowth = f.profitGrowthYoY !== null && f.profitGrowthYoY !== undefined 
-      ? f.profitGrowthYoY 
+    const profitGrowth = f.profitGrowthYoY !== null && f.profitGrowthYoY !== undefined
+      ? f.profitGrowthYoY
       : (f.profitGrowthQoQ !== null && f.profitGrowthQoQ !== undefined ? f.profitGrowthQoQ : (f.metrics?.profitGrowthYoY !== undefined ? f.metrics.profitGrowthYoY : null));
 
     const debtToEquity = f.debtToEquity !== null && f.debtToEquity !== undefined ? f.debtToEquity : (f.metrics?.debtToEquity !== undefined ? f.metrics.debtToEquity : null);
