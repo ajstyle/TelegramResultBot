@@ -23,37 +23,42 @@ class AnnouncementDeduplicator {
   }
 
   /**
-   * Resolve symbol/scripCode to a canonical key for cross-exchange matching
+   * Resolve symbol/scripCode to a canonical key for universal cross-exchange matching across ALL stocks
    */
   getCanonicalKey(item) {
     const scripMap = {
-      '500227': 'JINDALPOLY',
-      'JINDALPOLY': 'JINDALPOLY',
-      '534675': 'PROZONER',
-      'PROZONER': 'PROZONER',
-      'PROZONE': 'PROZONER',
-      '532540': 'TCS',
-      'TCS': 'TCS',
-      '500209': 'INFY',
-      'INFY': 'INFY',
-      '500180': 'HDFCBANK',
-      'HDFCBANK': 'HDFCBANK',
-      '532667': 'SUZLON',
-      'SUZLON': 'SUZLON',
+      '500227': 'JINDA',
+      'JINDALPOLY': 'JINDA',
+      '534675': 'PROZO',
+      'PROZONER': 'PROZO',
+      'PROZONE': 'PROZO',
+      '532540': 'TATAC',
+      'TCS': 'TATAC',
+      '500209': 'INFOS',
+      'INFY': 'INFOS',
+      '500180': 'HDFCB',
+      'HDFCBANK': 'HDFCB',
+      '532667': 'SUZLO',
+      'SUZLON': 'SUZLO',
     };
 
     const rawSym = (item.symbol || '').toUpperCase().trim();
     const rawScrip = (item.scripCode || '').toString().trim();
+    const rawTitle = (item.title || item.text || '').toUpperCase().trim();
 
     if (scripMap[rawScrip]) return scripMap[rawScrip];
     if (scripMap[rawSym]) return scripMap[rawSym];
 
-    // Fallback: extract first 7 clean alphanumeric characters of symbol/title
-    const cleanSym = rawSym.replace(/[^A-Z0-9]/g, '');
-    if (cleanSym.length >= 3) return cleanSym.slice(0, 10);
-    
-    const cleanTitle = (item.title || item.text || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-    return cleanTitle.slice(0, 12);
+    // Universal Brand Stem Extraction: strip generic corporate noise words
+    const stripped = (rawSym || rawTitle)
+      .replace(/\b(LIMITED|LTD|INDUSTRIES|IND|ENTERPRISES|INDIA|CORP|CORPORATION|FINANCIAL|HOLDINGS|EQUITIES|SYSTEMS|TECHNOLOGIES|TECH|GLOBAL|DEVELOPERS|REALTY|SOLUTIONS|FILMS|SERVICES)\b/gi, '')
+      .replace(/[^A-Z0-9]/g, '');
+
+    if (stripped.length >= 4) {
+      return stripped.slice(0, 5); // 5-character universal brand stem
+    }
+
+    return (rawSym || rawScrip || 'STOCK').slice(0, 5);
   }
 
   /**
