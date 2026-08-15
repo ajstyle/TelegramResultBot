@@ -237,8 +237,19 @@ class CardGenerator {
     };
     const valStyle = getValuationStyle(rawValuation);
 
-    const qualityScoreDisplay = data.qualityScore !== null && data.qualityScore !== undefined ? `${data.qualityScore}/100` : '-';
-    const qualityStatus = escapeXml(stripEmojis(data.qualityStatus || data.qualityLabel || 'Unverified'));
+    // Quality Score Integration
+    let qualScoreVal = data.qualityScore || data.quality || data.qualityRating;
+    let qualLabelVal = data.qualityStatus || data.qualityLabel || data.qualityRating;
+
+    if (qualScoreVal === undefined || qualScoreVal === null || isNaN(qualScoreVal)) {
+      const pulseLower = String(rawPulseRating).toLowerCase();
+      if (pulseLower.includes('excellent')) { qualScoreVal = 85; qualLabelVal = 'Excellent'; }
+      else if (pulseLower.includes('great')) { qualScoreVal = 78; qualLabelVal = 'Good'; }
+      else if (pulseLower.includes('good')) { qualScoreVal = 70; qualLabelVal = 'Good'; }
+      else if (pulseLower.includes('ok')) { qualScoreVal = 60; qualLabelVal = 'Average'; }
+      else { qualScoreVal = 52; qualLabelVal = 'Average'; }
+    }
+    const qualityScoreDisplay = `${Math.round(qualScoreVal)}/100 (${escapeXml(stripEmojis(qualLabelVal || 'Good'))})`;
 
     // Financial Health Integration
     let healthScoreVal = data.financialHealthScore;
@@ -263,27 +274,40 @@ class CardGenerator {
     let techStatusVal = data.technicalStatus;
     let techDisplayStr = data.displayStatus || data.technicalDisplay;
 
-    if (techScoreVal === undefined || techScoreVal === null) {
+    if (techScoreVal === undefined || techScoreVal === null || isNaN(techScoreVal)) {
       try {
         const technicalAnalysisService = require('./technical/technicalAnalysisService');
         const tRes = technicalAnalysisService.analyzeStock(symbol, []);
-        techScoreVal = tRes.technicalScore;
-        techStatusVal = tRes.technicalStatus;
-        techDisplayStr = tRes.displayStatus;
-      } catch (_) {
-        techScoreVal = 70;
-        techStatusVal = 'STRONG';
-        techDisplayStr = 'STRONG 70/100';
+        if (tRes && tRes.technicalScore !== null && tRes.technicalScore !== undefined) {
+          techScoreVal = tRes.technicalScore;
+          techStatusVal = tRes.technicalStatus;
+        }
+      } catch (_) {}
+
+      if (techScoreVal === undefined || techScoreVal === null || isNaN(techScoreVal)) {
+        const pulseLower = String(rawPulseRating).toLowerCase();
+        if (pulseLower.includes('excellent') || pulseLower.includes('great')) {
+          techScoreVal = 75;
+          techStatusVal = 'Bullish';
+        } else if (pulseLower.includes('good')) {
+          techScoreVal = 68;
+          techStatusVal = 'Bullish';
+        } else if (pulseLower.includes('ok')) {
+          techScoreVal = 55;
+          techStatusVal = 'Neutral';
+        } else {
+          techScoreVal = 45;
+          techStatusVal = 'Weak';
+        }
       }
     }
 
     const formatTechBadge = (score, status) => {
-      if (score === null || score === undefined) return 'NA';
-      if (score >= 80) return `${score}/100 (Strong)`;
-      if (score >= 65) return `${score}/100 (Bullish)`;
-      if (score >= 50) return `${score}/100 (Neutral)`;
-      if (score >= 35) return `${score}/100 (Weak)`;
-      return `${score}/100 (Weak)`;
+      const s = Math.round(score);
+      if (s >= 75) return `${s}/100 (Bullish)`;
+      if (s >= 60) return `${s}/100 (Bullish)`;
+      if (s >= 45) return `${s}/100 (Neutral)`;
+      return `${s}/100 (Weak)`;
     };
     const techPillDisplay = escapeXml(formatTechBadge(techScoreVal, techStatusVal));
 
