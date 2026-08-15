@@ -71,7 +71,7 @@ class AnnouncementFilter {
       return false;
     }
 
-    // 2. Check for strict non-earnings noise exclusions (shareholding, trading window, loss of certificate)
+    // 2. Check for strict non-earnings noise exclusions
     const strictExclusions = [
       'shareholding pattern',
       'insider trading',
@@ -81,6 +81,18 @@ class AnnouncementFilter {
       'compliance certificate',
       'audio recording',
       'transcript',
+      'newspaper publication',
+      'newspaper advertisement',
+      'newspaper',
+      'advertisement',
+      'sedadvertisement',
+      'clipping',
+      'press release',
+      'investor presentation',
+      'earnings presentation',
+      'analyst presentation',
+      'media release',
+      'fact sheet',
     ];
 
     for (const exclusion of strictExclusions) {
