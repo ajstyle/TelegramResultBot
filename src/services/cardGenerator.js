@@ -284,8 +284,8 @@ class CardGenerator {
       ${epsChart}
 
       <!-- CMP & Fundamentals Pill Bar -->
-      <rect x="40" y="852" width="820" height="38" rx="10" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.5" />
-      <text x="450" y="876" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="#0f172a">CMP : <tspan font-weight="900">${cmp}</tspan>  |  <tspan fill="#475569">${category} (${mcapDisplay})</tspan>  |  Quality : <tspan fill="#4f46e5" font-weight="900">${qualityScoreDisplay} (${qualityStatus})</tspan>  |  Valuation : <tspan font-weight="900" fill="${valStyle.bg}">${escapeXml(valStyle.title)}</tspan></text>
+      <rect x="40" y="844" width="820" height="44" rx="10" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5" />
+      <text x="450" y="872" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">CMP : <tspan font-weight="900">${cmp}</tspan>  |  <tspan fill="#475569">${category} (${mcapDisplay})</tspan>  |  Quality : <tspan fill="#4f46e5" font-weight="900">${qualityScoreDisplay} (${qualityStatus})</tspan>  |  Valuation : <tspan font-weight="900" fill="${valStyle.bg}">${escapeXml(valStyle.title)}</tspan></text>
 
       <!-- Footer Bar -->
       <line x1="40" y1="910" x2="860" y2="910" stroke="#f1f5f9" stroke-width="1.5" />
