@@ -150,17 +150,17 @@ class QualityScoringEngine {
     const qualityScore = Math.max(1, Math.min(100, finalQualityScore));
 
     // --- STATUS LABEL CLASSIFICATION ---
-    let statusLabel = 'Average';
-    if (qualityScore >= 85) {
+    let statusLabel = 'Weak';
+    if (qualityScore >= 80) {
       statusLabel = 'Excellent';
-    } else if (qualityScore >= 70) {
+    } else if (qualityScore >= 68) {
       statusLabel = 'High';
     } else if (qualityScore >= 55) {
       statusLabel = 'Good';
-    } else if (qualityScore >= 40) {
+    } else if (qualityScore >= 50) {
       statusLabel = 'Average';
     } else {
-      statusLabel = 'Poor';
+      statusLabel = 'Weak';
     }
 
     const formattedOutput = `Quality Score: ${qualityScore}/100 | Status: ${statusLabel}`;
