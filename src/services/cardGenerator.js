@@ -137,8 +137,16 @@ class CardGenerator {
       `;
     });
 
+    const stripEmojis = (str) => {
+      if (!str) return '';
+      return String(str)
+        .replace(/[\u{1F300}-\u{1F9FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '')
+        .replace(/[^\x00-\x7F]/g, '')
+        .trim();
+    };
+
     const rawPulseRating = data.pulseRating || data.scorecard?.pulseRating || 'Good';
-    const cleanRatingStr = rawPulseRating.replace(/[^\w\s]/gi, '').trim();
+    const cleanRatingStr = escapeXml(stripEmojis(rawPulseRating) || 'Good');
 
     const getPulseColor = (rating) => {
       const r = rating.toLowerCase();
@@ -203,7 +211,7 @@ class CardGenerator {
 
     const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
-    const rawCompanyTitle = companyDisplayName;
+    const rawCompanyTitle = stripEmojis(companyDisplayName);
     const displayTitle = rawCompanyTitle.length > 32 ? `${rawCompanyTitle.substring(0, 30)}...` : rawCompanyTitle;
 
     const rawValuation = data.valuationLabel || data.valuationRating || 'Fairly Valued';
@@ -226,7 +234,7 @@ class CardGenerator {
     const valStyle = getValuationStyle(rawValuation);
 
     const qualityScoreDisplay = data.qualityScore !== null && data.qualityScore !== undefined ? `${data.qualityScore}/100` : '-';
-    const qualityStatus = escapeXml(data.qualityStatus || data.qualityLabel || 'Unverified');
+    const qualityStatus = escapeXml(stripEmojis(data.qualityStatus || data.qualityLabel || 'Unverified'));
 
     // Financial Health Integration
     let healthScoreVal = data.financialHealthScore;
@@ -244,7 +252,7 @@ class CardGenerator {
       }
     }
     const healthScoreDisplay = Math.round(healthScoreVal);
-    const healthRatingDisplay = escapeXml(healthRatingVal || 'Strong');
+    const healthRatingDisplay = escapeXml(stripEmojis(healthRatingVal) || 'Strong');
 
     // Technical Analysis Score Integration
     let techScoreVal = data.technicalScore;
@@ -261,19 +269,19 @@ class CardGenerator {
       } catch (_) {
         techScoreVal = 70;
         techStatusVal = 'STRONG';
-        techDisplayStr = '🔥 STRONG — 70/100';
+        techDisplayStr = 'STRONG 70/100';
       }
     }
 
-    const formatTechBadge = (score, status, displayStr) => {
-      if (score === null || score === undefined) return '⚪ NA';
-      if (score >= 80) return `🔥 ${score}/100 (Strong)`;
-      if (score >= 65) return `🟢 ${score}/100 (Bullish)`;
-      if (score >= 50) return `🟡 ${score}/100 (Neutral)`;
-      if (score >= 35) return `🟠 ${score}/100 (Weak)`;
-      return `🔴 ${score}/100 (Weak)`;
+    const formatTechBadge = (score, status) => {
+      if (score === null || score === undefined) return 'NA';
+      if (score >= 80) return `${score}/100 (Strong)`;
+      if (score >= 65) return `${score}/100 (Bullish)`;
+      if (score >= 50) return `${score}/100 (Neutral)`;
+      if (score >= 35) return `${score}/100 (Weak)`;
+      return `${score}/100 (Weak)`;
     };
-    const techPillDisplay = escapeXml(formatTechBadge(techScoreVal, techStatusVal, techDisplayStr));
+    const techPillDisplay = escapeXml(formatTechBadge(techScoreVal, techStatusVal));
 
     const getPeriodBadge = (q_t_label) => {
       const l = (q_t_label || '').toLowerCase();
