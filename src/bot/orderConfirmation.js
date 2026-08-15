@@ -100,19 +100,53 @@ async function handleOrderConfirmation(bot, callbackQuery) {
 
     // Dynamic Fallback: If trade record is missing (e.g. after server restart or DB offline)
     if (!trade && message) {
-      const msgText = message.caption || message.text || '';
+      const msgText = `${message.caption || ''} ${message.text || ''}`;
+      
+      // 1. Extract Symbol from Hashtag (#PURVA), Button Text (ANGEL ONE (PURVA)), or Caption
       const symbolFromTag = msgText.match(/#([A-Z0-9_-]+)/i);
       const symbolFromBtn = msgText.match(/ANGEL ONE \(([^)]+)\)/i);
-      const symbol = symbolFromTag ? symbolFromTag[1].toUpperCase() : (symbolFromBtn ? symbolFromBtn[1].toUpperCase() : null);
+      let symbol = symbolFromTag ? symbolFromTag[1].toUpperCase() : (symbolFromBtn ? symbolFromBtn[1].toUpperCase().split(' ')[0] : null);
 
-      const entryMatch = msgText.match(/Entry:\s*₹?([\d.]+)/i);
-      const slMatch = msgText.match(/SL:\s*₹?([\d.]+)/i);
-      const qtyMatch = msgText.match(/Qty:\s*(\d+)/i);
+      if (symbol) {
+        symbol = symbol.replace(/LTD$|LIMITED$|INDUSTRIES$/i, '').trim();
+      }
 
-      if (symbol && entryMatch) {
-        const entry = parseFloat(entryMatch[1]);
-        const stopLoss = slMatch ? parseFloat(slMatch[1]) : parseFloat((entry * 0.98).toFixed(2));
-        const quantity = qtyMatch ? parseInt(qtyMatch[1], 10) : 1;
+      // 2. Extract Price (CMP or Entry)
+      const cmpMatch = msgText.match(/CMP\s*:\s*₹?\s*([\d.,]+)/i);
+      const entryMatch = msgText.match(/Entry\s*:\s*₹?\s*([\d.,]+)/i);
+      const priceMatch = msgText.match(/₹\s*([\d.,]+)/i);
+
+      let entry = null;
+      if (entryMatch) entry = parseFloat(entryMatch[1].replace(/,/g, ''));
+      else if (cmpMatch) entry = parseFloat(cmpMatch[1].replace(/,/g, ''));
+      else if (priceMatch) entry = parseFloat(priceMatch[1].replace(/,/g, ''));
+
+      // If price is missing from caption, fetch live price dynamically
+      if (symbol && (!entry || isNaN(entry) || entry <= 0)) {
+        try {
+          const fundamentalsProvider = require('../fundamentals/provider');
+          entry = await fundamentalsProvider.fetchLivePrice(symbol);
+        } catch (_) {}
+      }
+
+      const slMatch = msgText.match(/SL\s*:\s*₹?\s*([\d.,]+)/i);
+      const qtyMatch = msgText.match(/Qty\s*:\s*(\d+)/i);
+
+      if (symbol && entry && entry > 0) {
+        const stopLoss = slMatch ? parseFloat(slMatch[1].replace(/,/g, '')) : parseFloat((entry * 0.98).toFixed(2));
+        
+        let quantity = qtyMatch ? parseInt(qtyMatch[1], 10) : 1;
+        if (!qtyMatch) {
+          try {
+            const riskEngine = require('../riskEngine');
+            const capital = config.risk?.accountCapital || 100000;
+            const riskPerTrade = config.risk?.riskPerTrade || 2000;
+            const sizeResult = riskEngine.calculatePositionSize(entry, stopLoss, capital, riskPerTrade);
+            quantity = sizeResult.quantity > 0 ? sizeResult.quantity : Math.max(1, Math.floor(10000 / entry));
+          } catch (_) {
+            quantity = Math.max(1, Math.floor(10000 / entry));
+          }
+        }
 
         trade = {
           _id: tradeId,
@@ -125,7 +159,12 @@ async function handleOrderConfirmation(bot, callbackQuery) {
           isDynamicFallback: true,
           save: async function () { return this; },
         };
-        console.log(`[OrderConfirmation] Dynamically reconstructed trade from Telegram message for ${symbol} @ ₹${entry} (Qty: ${quantity})`);
+
+        try {
+          await tradeStore.createTrade(trade);
+        } catch (_) {}
+
+        console.log(`[OrderConfirmation] Dynamically reconstructed trade for ${symbol} @ ₹${entry} (SL: ₹${stopLoss}, Qty: ${quantity})`);
       }
     }
 
