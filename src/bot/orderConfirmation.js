@@ -202,31 +202,19 @@ async function handleOrderConfirmation(bot, callbackQuery) {
       return;
     }
 
-    // 5. Look up symbol token dynamically from Angel One & Check Cautionary Status FIRST
+    // 5. Look up symbol token dynamically from Angel One & Check Cautionary / ESM Status
     const scripInfo = await angelOne.searchScrip(trade.symbol, 'NSE');
+    const isCautionary = angelOne.isCautionaryStock(trade.symbol, scripInfo);
 
-    if (angelOne.isCautionaryStock(trade.symbol, scripInfo)) {
-      trade.status = 'REJECTED';
-      await trade.save();
+    // Automatic Product Type Routing:
+    // Standard stocks -> INTRADAY
+    // ESM / ASM / GSM / Trade-for-Trade (BE Series) stocks -> DELIVERY (CNC 100% Cash) to pass SEBI & Angel One RMS checks cleanly!
+    const productType = isCautionary ? 'DELIVERY' : 'INTRADAY';
+    const esmNotice = isCautionary ? '\nℹ️ *ESM / Surveillance Stock*: Auto-routed as 100% Cash `DELIVERY` (CNC) order on Angel One SmartAPI.' : '';
 
-      await safeAnswerCallback(bot, callbackId, {
-        text: '⚠️ Cautionary Listing Detected! Order placement stopped.',
-        show_alert: true,
-      });
+    console.log(`[OrderConfirmation] Submitting ${trade.action} order for ${trade.symbol} (Product: ${productType}, isCautionary: ${isCautionary})...`);
 
-      const cautionaryNotice =
-        `⚠️ *CAUTIONARY LISTING DETECTED - TRADE ABORTED*\n\n` +
-        `*Stock:* ${trade.symbol}\n` +
-        `*Category:* \`Exchange Surveillance Measure (GSM/ASM/Trade-for-Trade)\`\n\n` +
-        `⛔ *Automated order placement stopped immediately to protect your account.*\n` +
-        `SEBI & Angel One restrict automated API orders for stocks under cautionary listings.\n\n` +
-        `💡 *Manual Trade:* If you still wish to buy ${trade.symbol}, please place the order manually in your Angel One mobile app.`;
-
-      await safeEditMessage(bot, message, cautionaryNotice);
-      return;
-    }
-
-    // 6. Place Order with Angel One (INTRADAY)
+    // 6. Place Order with Angel One
     const orderResult = await angelOne.placeOrder({
       tradingsymbol: scripInfo.tradingsymbol,
       symboltoken: scripInfo.symboltoken,
@@ -234,7 +222,7 @@ async function handleOrderConfirmation(bot, callbackQuery) {
       quantity: trade.quantity,
       price: trade.entry,
       orderType: 'LIMIT',
-      productType: 'INTRADAY',
+      productType,
       exchange: 'NSE',
     });
 
@@ -249,6 +237,7 @@ async function handleOrderConfirmation(bot, callbackQuery) {
         `${modeBadge} *ORDER PLACED SUCCESSFULLY*\n\n` +
         `*Stock:* ${trade.symbol}\n` +
         `*Action:* ${trade.action}\n` +
+        `*Product Mode:* \`${productType}\`${esmNotice}\n` +
         `*Quantity:* ${trade.quantity}\n` +
         `*Price:* ₹${trade.entry}\n` +
         `*Calculated SL:* ₹${trade.stopLoss}\n` +
