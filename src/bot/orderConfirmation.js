@@ -192,9 +192,9 @@ async function handleOrderConfirmation(bot, callbackQuery) {
     }
 
     // 3. Duplicate execution check
-    if (trade.status !== 'ANALYZED') {
+    if (trade.status !== 'ANALYZED' && trade.status !== 'REJECTED') {
       await safeAnswerCallback(bot, callbackId, {
-        text: `⚠️ Cannot place order. Trade status is already '${trade.status}'.`,
+        text: `⚠️ Order is already placed for '${trade.symbol}' (Status: ${trade.status}).`,
         show_alert: true,
       });
       return;
@@ -278,16 +278,28 @@ async function handleOrderConfirmation(bot, callbackQuery) {
       await safeEditMessage(bot, message, successMsg);
     } else {
       trade.status = 'REJECTED';
-      trade.save();
+      await trade.save().catch(() => {});
+
+      const retryKeyboard = {
+        inline_keyboard: [
+          [
+            { text: `🔄 RETRY BUY ON ZERODHA KITE (${trade.symbol})`, callback_data: `CONFIRM_KITE_${trade._id}` },
+          ],
+          [
+            { text: '❌ CANCEL', callback_data: `CANCEL_${trade._id}` },
+          ]
+        ],
+      };
 
       const failMsg =
         `❌ *ORDER PLACEMENT REJECTED (${brokerName.toUpperCase()})*\n\n` +
         `*Stock:* ${trade.symbol}\n` +
         `*Broker:* ${brokerName}\n` +
         `*Reason:* ${orderResult.message || 'Order failed'}\n` +
-        `*Trade ID:* \`${trade._id}\``;
+        `*Trade ID:* \`${trade._id}\`\n\n` +
+        `👇 *Click button below to Retry Buy:*`;
 
-      await safeEditMessage(bot, message, failMsg);
+      await safeEditMessage(bot, message, failMsg, { reply_markup: retryKeyboard });
     }
   } catch (error) {
     console.error(`[OrderConfirmation] Error processing trade confirmation: ${error.message}`);

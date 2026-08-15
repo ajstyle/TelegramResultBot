@@ -46,5 +46,16 @@
     "status": "ANALYZED",
     "createdAt": "2026-08-15T09:58:14.534Z",
     "updatedAt": "2026-08-15T09:58:14.534Z"
+  },
+  {
+    "_id": "TEST_LIVE",
+    "symbol": "BBOX",
+    "action": "BUY",
+    "entry": 1718.5,
+    "stopLoss": 1684.1,
+    "quantity": 12,
+    "status": "ANALYZED",
+    "createdAt": "2026-08-15T10:26:08.252Z",
+    "updatedAt": "2026-08-15T10:26:08.252Z"
   }
 ]
