@@ -228,6 +228,24 @@ class CardGenerator {
     const qualityScoreDisplay = data.qualityScore !== null && data.qualityScore !== undefined ? `${data.qualityScore}/100` : '-';
     const qualityStatus = escapeXml(data.qualityStatus || data.qualityLabel || 'Unverified');
 
+    // Financial Health Integration
+    let healthScoreVal = data.financialHealthScore;
+    let healthRatingVal = data.financialHealthRating || data.healthRating || data.rating;
+    
+    if (healthScoreVal === undefined || healthScoreVal === null) {
+      try {
+        const healthScoringEngine = require('./health/healthScoringEngine');
+        const hRes = healthScoringEngine.analyze(data);
+        healthScoreVal = hRes.financialHealthScore;
+        healthRatingVal = hRes.rating;
+      } catch (_) {
+        healthScoreVal = data.qualityScore || 70;
+        healthRatingVal = 'Strong';
+      }
+    }
+    const healthScoreDisplay = Math.round(healthScoreVal);
+    const healthRatingDisplay = escapeXml(healthRatingVal || 'Strong');
+
     const getPeriodBadge = (q_t_label) => {
       const l = (q_t_label || '').toLowerCase();
       if (l.includes('jun') && l.includes('26')) return 'Q1 FY27';
@@ -240,11 +258,12 @@ class CardGenerator {
     const periodBadgeStr = getPeriodBadge(labels.q_t);
 
     const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="900" height="960" viewBox="0 0 900 960">
-      <!-- Background Card -->
-      <rect width="900" height="960" rx="20" fill="#ffffff" stroke="#e2e8f0" stroke-width="2" />
+    <svg width="900" height="960" viewBox="0 0 900 960" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- Background Canvas -->
+      <rect width="900" height="960" rx="24" fill="#ffffff" />
+      <rect x="1" y="1" width="898" height="958" rx="23" stroke="#e2e8f0" stroke-width="2" />
 
-      <!-- Company Logo & Title Header -->
+      <!-- Top Brand Avatar & Header Section -->
       <circle cx="65" cy="58" r="25" fill="#0f6235" />
       <text x="65" y="65" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" fill="#ffffff">${symbol.substring(0, 4)}</text>
 
@@ -259,10 +278,10 @@ class CardGenerator {
       <rect x="760" y="36" width="100" height="28" rx="8" fill="#ffffff" stroke="#1e293b" stroke-width="1.5" />
       <text x="810" y="55" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="#1e293b">${scripCode}</text>
 
-      <!-- Pulse Rating & Quality Score Sub-Header Section -->
+      <!-- Pulse Rating & Health & Quality Sub-Header Section -->
       <text x="40" y="132" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#64748b">${periodBadgeStr}</text>
 
-      <text x="450" y="134" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="20" font-weight="bold" fill="#0f172a">Pulse : <tspan fill="${getPulseColor(rawPulseRating)}" font-weight="900">${escapeXml(cleanRatingStr)}</tspan>  |  Quality : <tspan fill="#4f46e5" font-weight="900">${qualityScoreDisplay} (${qualityStatus})</tspan></text>
+      <text x="450" y="134" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="18" font-weight="bold" fill="#0f172a">Pulse : <tspan fill="${getPulseColor(rawPulseRating)}" font-weight="900">${escapeXml(cleanRatingStr)}</tspan>  |  Health : <tspan fill="#059669" font-weight="900">${healthScoreDisplay}/100 (${healthRatingDisplay})</tspan>  |  Quality : <tspan fill="#4f46e5" font-weight="900">${qualityScoreDisplay}</tspan></text>
 
       <text x="860" y="132" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="14" font-style="italic" fill="#64748b">₹ in Cr</text>
 
@@ -285,7 +304,7 @@ class CardGenerator {
 
       <!-- CMP & Fundamentals Pill Bar -->
       <rect x="40" y="844" width="820" height="44" rx="10" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5" />
-      <text x="450" y="872" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">CMP : <tspan font-weight="900">${cmp}</tspan>  |  <tspan fill="#475569">${category} (${mcapDisplay})</tspan>  |  Quality : <tspan fill="#4f46e5" font-weight="900">${qualityScoreDisplay} (${qualityStatus})</tspan>  |  Valuation : <tspan font-weight="900" fill="${valStyle.bg}">${escapeXml(valStyle.title)}</tspan></text>
+      <text x="450" y="872" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" fill="#0f172a">CMP : <tspan font-weight="900">${cmp}</tspan>  |  <tspan fill="#475569">${category} (${mcapDisplay})</tspan>  |  Health : <tspan fill="#059669" font-weight="900">${healthScoreDisplay}/100 (${healthRatingDisplay})</tspan>  |  Valuation : <tspan font-weight="900" fill="${valStyle.bg}">${escapeXml(valStyle.title)}</tspan></text>
 
       <!-- Footer Bar -->
       <line x1="40" y1="910" x2="860" y2="910" stroke="#f1f5f9" stroke-width="1.5" />
