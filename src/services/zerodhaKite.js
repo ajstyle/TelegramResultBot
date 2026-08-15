@@ -136,7 +136,7 @@ class ZerodhaKiteService {
       }
 
       const response = await axios.post(
-        `${config.kite.baseUrl}/v3/orders/regular`,
+        `${config.kite.baseUrl}/orders/regular`,
         payload.toString(),
         {
           headers: this.getHeaders(),
