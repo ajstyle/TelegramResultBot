@@ -35,6 +35,7 @@ const config = {
     apiKey: process.env.KITE_API_KEY || '',
     apiSecret: process.env.KITE_API_SECRET || '',
     accessToken: process.env.KITE_ACCESS_TOKEN || '',
+    proxyUrl: process.env.STATIC_PROXY_URL || process.env.QUOTAGUARDSTATIC_URL || process.env.FIXIE_URL || '',
     baseUrl: 'https://api.kite.trade',
   },
 

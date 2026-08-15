@@ -22,6 +22,28 @@ class ZerodhaKiteService {
   }
 
   /**
+   * Get request config options including optional Static Proxy Agent (Fixie / QuotaGuard)
+   */
+  getRequestConfig(extraOptions = {}) {
+    const options = {
+      headers: this.getHeaders(),
+      timeout: 10000,
+      ...extraOptions,
+    };
+
+    if (config.kite.proxyUrl) {
+      try {
+        const { HttpsProxyAgent } = require('https-proxy-agent');
+        options.httpsAgent = new HttpsProxyAgent(config.kite.proxyUrl);
+      } catch (e) {
+        console.warn(`[ZerodhaKite] Static proxy agent initialization notice: ${e.message}`);
+      }
+    }
+
+    return options;
+  }
+
+  /**
    * Resolve trading symbol and exchange for Zerodha Kite
    * @param {string} symbol Ticker symbol e.g., 'TCS', 'SHALPAINTS'
    * @param {string} exchange Exchange e.g., 'NSE' or 'BSE'
@@ -58,10 +80,7 @@ class ZerodhaKiteService {
     try {
       const inst = await this.resolveInstrument(symbol, exchange);
       const url = `${config.kite.baseUrl}/v3/quote/ltp?i=${encodeURIComponent(inst.exchangeSymbol)}`;
-      const response = await axios.get(url, {
-        headers: this.getHeaders(),
-        timeout: 5000,
-      });
+      const response = await axios.get(url, this.getRequestConfig({ timeout: 5000 }));
 
       if (response.data && response.data.status === 'success' && response.data.data) {
         const item = response.data.data[inst.exchangeSymbol];
@@ -138,10 +157,7 @@ class ZerodhaKiteService {
       const response = await axios.post(
         `${config.kite.baseUrl}/orders/regular`,
         payload.toString(),
-        {
-          headers: this.getHeaders(),
-          timeout: 10000,
-        }
+        this.getRequestConfig()
       );
 
       if (response.data && response.data.status === 'success' && response.data.data?.order_id) {
