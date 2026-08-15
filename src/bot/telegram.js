@@ -127,6 +127,8 @@ function initTelegramBot() {
     await handleOrderConfirmation(bot, callbackQuery);
   });
 
+  let last409LogTime = 0;
+
   // 5. Handle Polling & Network Errors
   const handleBotError = (errType, error) => {
     const msg = error?.message || String(error || '');
@@ -135,7 +137,11 @@ function initTelegramBot() {
     if (msg.includes('404')) {
       console.error(`[TelegramBot] Polling error: 404 Not Found. Make sure TELEGRAM_BOT_TOKEN in .env is correct and restart the server.`);
     } else if (msg.includes('409')) {
-      console.warn(`[TelegramBot] Notice: 409 Conflict - Another bot instance is active (e.g. Render deploy or local server). Polling will auto-resume.`);
+      const now = Date.now();
+      if (now - last409LogTime > 60000) {
+        last409LogTime = now;
+        console.warn(`[TelegramBot] Notice: 409 Conflict - Another bot instance is active (e.g. Render deploy or local server). Polling will auto-resume.`);
+      }
     } else if (msg.includes('EFATAL') || msg.includes('AggregateError') || code === 'EFATAL' || code === 'ETIMEDOUT' || code === 'ECONNRESET' || code === 'ENOTFOUND') {
       console.warn(`[TelegramBot] Transient network notice: Long-polling connection reset (${code || 'AggregateError'}). Auto-reconnecting...`);
     } else {
