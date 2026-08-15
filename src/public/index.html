@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sector-Specific Stock Financial Health Analyzer | NSE & BSE Equities</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-dark: #090d16;
+      --card-bg: #111827;
+      --card-border: #1f2937;
+      --accent-indigo: #6366f1;
+      --accent-blue: #3b82f6;
+      --accent-green: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-red: #ef4444;
+      --text-main: #f9fafb;
+      --text-muted: #9ca3af;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Outfit', sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      line-height: 1.5;
+      padding-bottom: 60px;
+    }
+
+    header {
+      background: linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%);
+      border-bottom: 1px solid #312e81;
+      padding: 24px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-icon {
+      width: 44px;
+      height: 44px;
+      background: linear-gradient(135deg, #6366f1, #3b82f6);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 22px;
+    }
+    .brand-title h1 { font-size: 22px; font-weight: 800; }
+    .brand-title p { font-size: 13px; color: var(--text-muted); }
+
+    .search-bar {
+      display: flex;
+      gap: 10px;
+      width: 100%;
+      max-width: 480px;
+    }
+    .search-bar input {
+      flex: 1;
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 10px;
+      padding: 12px 16px;
+      color: #fff;
+      font-family: inherit;
+      font-size: 15px;
+    }
+    .search-bar button {
+      background: linear-gradient(135deg, #4f46e5, #2563eb);
+      border: none;
+      border-radius: 10px;
+      padding: 12px 24px;
+      color: #fff;
+      font-weight: 700;
+      font-size: 15px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .search-bar button:hover { opacity: 0.9; transform: translateY(-1px); }
+
+    .container {
+      max-width: 1280px;
+      margin: 32px auto;
+      padding: 0 24px;
+    }
+
+    .sector-pills {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 12px;
+      margin-bottom: 24px;
+    }
+    .sector-pill {
+      background: #1f2937;
+      border: 1px solid #374151;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      color: var(--text-muted);
+      transition: all 0.2s;
+    }
+    .sector-pill.active, .sector-pill:hover {
+      background: #3730a3;
+      border-color: #6366f1;
+      color: #fff;
+    }
+
+    /* Grid Layout */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 24px;
+    }
+    @media (max-width: 900px) { .dashboard-grid { grid-template-columns: 1fr; } }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #e5e7eb;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* Score Gauge Card */
+    .score-box {
+      text-align: center;
+      padding: 24px;
+      background: linear-gradient(180deg, #1e1b4b 0%, #111827 100%);
+      border-radius: 16px;
+      border: 1px solid #312e81;
+    }
+    .score-number {
+      font-size: 64px;
+      font-weight: 900;
+      line-height: 1;
+      margin: 12px 0;
+    }
+    .score-rating {
+      display: inline-block;
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .rating-excellent { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #10b981; }
+    .rating-strong { background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid #3b82f6; }
+    .rating-average { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid #f59e0b; }
+    .rating-weak { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid #ef4444; }
+    .rating-risky { background: rgba(153, 27, 27, 0.3); color: #fca5a5; border: 1px solid #991b1b; }
+
+    /* Category Breakdown Bars */
+    .cat-bar {
+      margin-bottom: 14px;
+    }
+    .cat-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .bar-bg {
+      background: #1f2937;
+      height: 10px;
+      border-radius: 5px;
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 5px;
+      transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* KPI Grid */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .kpi-card {
+      background: #1f2937;
+      border: 1px solid #374151;
+      padding: 16px;
+      border-radius: 12px;
+    }
+    .kpi-label { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+    .kpi-val { font-size: 20px; font-weight: 800; margin: 4px 0; }
+    .kpi-sub { font-size: 11px; color: #9ca3af; }
+
+    /* Quality Flags & Alerts */
+    .flag-card {
+      padding: 14px 18px;
+      border-radius: 12px;
+      margin-bottom: 10px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .flag-green { background: rgba(16, 185, 129, 0.1); border-left: 4px solid #10b981; }
+    .flag-yellow { background: rgba(245, 158, 11, 0.1); border-left: 4px solid #f59e0b; }
+    .flag-red { background: rgba(239, 68, 68, 0.1); border-left: 4px solid #ef4444; }
+
+    .why-list { list-style: none; }
+    .why-list li {
+      padding: 8px 12px;
+      border-radius: 8px;
+      margin-bottom: 6px;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .why-pos { background: rgba(16, 185, 129, 0.08); color: #6ee7b7; }
+    .why-neg { background: rgba(239, 68, 68, 0.08); color: #fca5a5; }
+
+    .formula-badge {
+      background: #1e293b;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 12px;
+      color: #93c5fd;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="brand-icon">📈</div>
+      <div class="brand-title">
+        <h1>Financial Health Analyzer</h1>
+        <p>Production-Grade Sector-Adaptive Scoring Engine for NSE/BSE Stocks</p>
+      </div>
+    </div>
+    <div class="search-bar">
+      <input type="text" id="symbolInput" value="TCS" placeholder="Enter NSE/BSE Stock Ticker e.g. TCS, HDFCBANK, SUZLON..." />
+      <button onclick="analyzeStock()">Analyze Stock</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="sector-pills" id="sectorPills">
+      <div class="sector-pill active" onclick="selectSector('ALL')">All Sectors</div>
+      <div class="sector-pill" onclick="selectSector('BANK')">Banking</div>
+      <div class="sector-pill" onclick="selectSector('NBFC')">NBFC</div>
+      <div class="sector-pill" onclick="selectSector('IT')">IT / Software</div>
+      <div class="sector-pill" onclick="selectSector('FMCG')">FMCG</div>
+      <div class="sector-pill" onclick="selectSector('PHARMA')">Pharma</div>
+      <div class="sector-pill" onclick="selectSector('AUTO')">Auto</div>
+      <div class="sector-pill" onclick="selectSector('CAPITAL_GOODS')">Capital Goods</div>
+      <div class="sector-pill" onclick="selectSector('REAL_ESTATE')">Real Estate</div>
+      <div class="sector-pill" onclick="selectSector('POWER')">Power / Utility</div>
+      <div class="sector-pill" onclick="selectSector('TELECOM')">Telecom</div>
+      <div class="sector-pill" onclick="selectSector('COMMODITY')">Commodity</div>
+      <div class="sector-pill" onclick="selectSector('RETAIL')">Consumer Retail</div>
+      <div class="sector-pill" onclick="selectSector('INSURANCE')">Insurance</div>
+    </div>
+
+    <div class="dashboard-grid">
+      <!-- Left Column: Health Score Gauge & Score Breakdown -->
+      <div style="display:flex; flex-direction:column; gap:24px;">
+        <div class="card score-box">
+          <div style="font-size:14px; font-weight:700; color:#9ca3af; text-transform:uppercase;" id="companyNameDisplay">TATA CONSULTANCY SERVICES</div>
+          <div style="font-size:13px; color:#6366f1; margin-top:4px;" id="sectorDisplay">Sector: IT / Software Services</div>
+          <div class="score-number" id="scoreNumber">78.5</div>
+          <div class="score-rating rating-strong" id="scoreRating">STRONG FINANCIAL HEALTH</div>
+          <div style="font-size:12px; color:#9ca3af; margin-top:12px;" id="conclusionDisplay">Financially Strong</div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Score Breakdown /100</div>
+          
+          <div class="cat-bar">
+            <div class="cat-header"><span>Debt / Leverage (20 pts)</span><span id="scoreDebt">100 / 100</span></div>
+            <div class="bar-bg"><div class="bar-fill" id="fillDebt" style="width:100%; background:#10b981;"></div></div>
+          </div>
+
+          <div class="cat-bar">
+            <div class="cat-header"><span>Cash Flow (20 pts)</span><span id="scoreCfo">85 / 100</span></div>
+            <div class="bar-bg"><div class="bar-fill" id="fillCfo" style="width:85%; background:#3b82f6;"></div></div>
+          </div>
+
+          <div class="cat-bar">
+            <div class="cat-header"><span>Profitability (20 pts)</span><span id="scoreProf">90 / 100</span></div>
+            <div class="bar-bg"><div class="bar-fill" id="fillProf" style="width:90%; background:#10b981;"></div></div>
+          </div>
+
+          <div class="cat-bar">
+            <div class="cat-header"><span>Liquidity (10 pts)</span><span id="scoreLiq">80 / 100</span></div>
+            <div class="bar-bg"><div class="bar-fill" id="fillLiq" style="width:80%; background:#3b82f6;"></div></div>
+          </div>
+
+          <div class="cat-bar">
+            <div class="cat-header"><span>Growth (15 pts)</span><span id="scoreGrowth">75 / 100</span></div>
+            <div class="bar-bg"><div class="bar-fill" id="fillGrowth" style="width:75%; background:#3b82f6;"></div></div>
+          </div>
+
+          <div class="cat-bar">
+            <div class="cat-header"><span>Sector Specific KPIs (15 pts)</span><span id="scoreSector">85 / 100</span></div>
+            <div class="bar-bg"><div class="bar-fill" id="fillSector" style="width:85%; background:#6366f1;"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Universal KPIs, Sector Specific KPIs, Quality Flags & Why This Score -->
+      <div style="display:flex; flex-direction:column; gap:24px;">
+        <div class="card">
+          <div class="card-title">Universal Financial Health Metrics</div>
+          <div class="kpi-grid">
+            <div class="kpi-card"><div class="kpi-label">Return on Equity (ROE)</div><div class="kpi-val" id="valRoe">38.2%</div><div class="kpi-sub">Target: >15% Strong</div></div>
+            <div class="kpi-card"><div class="kpi-label">Return on Capital (ROCE)</div><div class="kpi-val" id="valRoce">48.5%</div><div class="kpi-sub">Target: >20% Strong</div></div>
+            <div class="kpi-card"><div class="kpi-label">Debt to Equity</div><div class="kpi-val" id="valDe">0.02x</div><div class="kpi-sub">Target: <0.5 Excellent</div></div>
+            <div class="kpi-card"><div class="kpi-label">Interest Coverage</div><div class="kpi-val" id="valIc">85.4x</div><div class="kpi-sub">Target: >5.0x Strong</div></div>
+            <div class="kpi-card"><div class="kpi-label">Current Ratio</div><div class="kpi-val" id="valCr">2.45x</div><div class="kpi-sub">Target: >1.5x Strong</div></div>
+            <div class="kpi-card"><div class="kpi-label">CFO / PAT Conversion</div><div class="kpi-val" id="valCfoPat">104.2%</div><div class="kpi-sub">Target: >100% Quality</div></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Sector-Specific Model Breakdown (<span id="sectorKpiTitle">IT / Software</span>)</div>
+          <div class="kpi-grid" id="sectorKpiGrid">
+            <!-- Dynamic Sector KPIs -->
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Why This Score? (Factor Analysis & Quality Flags)</div>
+          <div id="qualityFlagsBox"></div>
+          <h4 style="font-size:14px; color:#9ca3af; margin:16px 0 8px;">Positive Financial Factors:</h4>
+          <ul class="why-list" id="posFactors"></ul>
+          <h4 style="font-size:14px; color:#9ca3af; margin:16px 0 8px;">Risk & Deterioration Factors:</h4>
+          <ul class="why-list" id="negFactors"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function analyzeStock() {
+      const sym = document.getElementById('symbolInput').value.trim() || 'TCS';
+      try {
+        const res = await fetch(`/api/health/analyze?symbol=${encodeURIComponent(sym)}`);
+        const json = await res.json();
+        if (json.success && json.data) {
+          renderDashboard(json.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch stock analysis:', err);
+      }
+    }
+
+    function renderDashboard(d) {
+      document.getElementById('companyNameDisplay').innerText = d.companyName || d.symbol;
+      document.getElementById('sectorDisplay').innerText = `Sector: ${d.sector}`;
+      document.getElementById('scoreNumber').innerText = d.financialHealthScore;
+      document.getElementById('conclusionDisplay').innerText = d.conclusion;
+
+      const rateElem = document.getElementById('scoreRating');
+      rateElem.innerText = `${d.rating} FINANCIAL HEALTH`;
+      rateElem.className = `score-rating rating-${(d.rating || 'strong').toLowerCase()}`;
+
+      // Update Breakdown Bars
+      const setBar = (id, valId, score) => {
+        document.getElementById(valId).innerText = `${score} / 100`;
+        const fill = document.getElementById(id);
+        fill.style.width = `${Math.min(100, Math.max(0, score))}%`;
+        fill.style.background = score >= 75 ? '#10b981' : (score >= 50 ? '#3b82f6' : '#ef4444');
+      };
+
+      setBar('fillDebt', 'scoreDebt', d.categoryScores.debtHealth);
+      setBar('fillCfo', 'scoreCfo', d.categoryScores.cashFlowHealth);
+      setBar('fillProf', 'scoreProf', d.categoryScores.profitabilityHealth);
+      setBar('fillLiq', 'scoreLiq', d.categoryScores.liquidityHealth);
+      setBar('fillGrowth', 'scoreGrowth', d.categoryScores.growthHealth);
+      setBar('fillSector', 'scoreSector', d.categoryScores.sectorHealth);
+
+      // Key Metrics
+      document.getElementById('valRoe').innerText = d.keyMetrics.roe !== null ? `${d.keyMetrics.roe}%` : '-';
+      document.getElementById('valRoce').innerText = d.keyMetrics.roce !== null ? `${d.keyMetrics.roce}%` : '-';
+      document.getElementById('valDe').innerText = d.keyMetrics.debtToEquity !== null ? `${d.keyMetrics.debtToEquity}x` : '-';
+      document.getElementById('valIc').innerText = d.keyMetrics.interestCoverage !== null ? `${d.keyMetrics.interestCoverage}x` : '-';
+      document.getElementById('valCr').innerText = d.keyMetrics.currentRatio !== null ? `${d.keyMetrics.currentRatio}x` : '-';
+      document.getElementById('valCfoPat').innerText = d.keyMetrics.cfoToPatRatio !== null ? `${d.keyMetrics.cfoToPatRatio}%` : '-';
+
+      // Sector KPIs
+      document.getElementById('sectorKpiTitle').innerText = d.sector;
+      const sGrid = document.getElementById('sectorKpiGrid');
+      sGrid.innerHTML = '';
+      if (d.sectorKPIs && d.sectorKPIs.length > 0) {
+        d.sectorKPIs.forEach(k => {
+          sGrid.innerHTML += `
+            <div class="kpi-card">
+              <div class="kpi-label">${k.name}</div>
+              <div class="kpi-val" style="color:${(k.score >= 70 || k.score === null) ? '#60a5fa' : '#f87171'};">${k.value !== null ? k.value : '-'}</div>
+              <div class="kpi-sub">Target: ${k.target} | Score: ${k.score !== null ? k.score : 'N/A'}</div>
+            </div>
+          `;
+        });
+      } else {
+        sGrid.innerHTML = '<div style="color:#9ca3af; font-size:13px;">Sector-specific score unavailable — Universal Financial Health Score used.</div>';
+      }
+
+      // Quality Flags
+      const fBox = document.getElementById('qualityFlagsBox');
+      fBox.innerHTML = '';
+      if (d.qualityFlags && d.qualityFlags.length > 0) {
+        d.qualityFlags.forEach(f => {
+          fBox.innerHTML += `
+            <div class="flag-card flag-${f.color.toLowerCase()}">
+              <div>
+                <strong style="font-size:14px;">${f.title}</strong>
+                <p style="font-size:12px; color:#cbd5e1; margin-top:2px;">${f.description}</p>
+              </div>
+            </div>
+          `;
+        });
+      }
+
+      // Positive & Negative Factors
+      const posList = document.getElementById('posFactors');
+      posList.innerHTML = d.topStrengths.map(s => `<li class="why-pos"><span>✅</span> ${s}</li>`).join('');
+      const negList = document.getElementById('negFactors');
+      negList.innerHTML = d.topRisks.map(r => `<li class="why-neg"><span>⚠️</span> ${r}</li>`).join('');
+    }
+
+    function selectSector(sec) {
+      document.querySelectorAll('.sector-pill').forEach(p => p.classList.remove('active'));
+      event.target.classList.add('active');
+    }
+
+    // Initial Load
+    window.onload = analyzeStock;
+  </script>
+</body>
+</html>
