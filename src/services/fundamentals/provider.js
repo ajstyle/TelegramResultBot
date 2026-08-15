@@ -52,6 +52,10 @@ class FundamentalsProvider {
       const roce = findRatio('ROCE');
       const roe = findRatio('ROE');
       const bookValue = findRatio('Book Value');
+      const debtToEquity = findRatio('Debt to equity');
+      const opm = findRatio('OPM') || findRatio('Operating Margin');
+      const salesGrowth = findRatio('Sales growth') || findRatio('Compounded Sales Growth');
+      const profitGrowth = findRatio('Profit growth') || findRatio('Compounded Profit Growth');
 
       if (cmp !== null || pe !== null || mcap !== null) {
         return {
@@ -62,6 +66,10 @@ class FundamentalsProvider {
           roce,
           roe,
           bookValue,
+          debtToEquity,
+          opm,
+          salesGrowth,
+          profitGrowth,
           pb: cmp && bookValue && bookValue > 0 ? Math.round((cmp / bookValue) * 10) / 10 : null,
         };
       }
@@ -195,14 +203,17 @@ class FundamentalsProvider {
       bvps,
       roe,
       roce,
-      debtToEquity: 0.3,
+      debtToEquity: screenerData?.debtToEquity !== null && screenerData?.debtToEquity !== undefined ? screenerData.debtToEquity : 0.3,
+      salesGrowth: screenerData?.salesGrowth !== null && screenerData?.salesGrowth !== undefined ? screenerData.salesGrowth : 10.0,
+      profitGrowth: screenerData?.profitGrowth !== null && screenerData?.profitGrowth !== undefined ? screenerData.profitGrowth : 12.0,
       salesGrowthQoQ: 10.0,
       profitGrowthQoQ: 12.0,
-      salesGrowthYoY: 12.0,
-      profitGrowthYoY: 14.0,
+      salesGrowthYoY: screenerData?.salesGrowth || 12.0,
+      profitGrowthYoY: screenerData?.profitGrowth || 14.0,
       promoterHolding: 55.0,
       pledgedPercentage: 0,
-      operatingMargin: 18.0,
+      operatingMargin: screenerData?.opm !== null && screenerData?.opm !== undefined ? screenerData.opm : 18.0,
+      opm: screenerData?.opm !== null && screenerData?.opm !== undefined ? screenerData.opm : 18.0,
       freeCashFlow: Math.round(liveCmp * 2.5),
       sectorPe: 22.0,
       marketCapCr: mcap,
