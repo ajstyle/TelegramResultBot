@@ -81,8 +81,8 @@ class BseNseMonitorService {
       }
 
       if (isNaN(annDate.getTime())) return true;
-      const diffHours = (Date.now() - annDate.getTime()) / (1000 * 60 * 60);
-      return diffHours <= 12; // Maximum 12 hours threshold for live results
+      const diffMinutes = (Date.now() - annDate.getTime()) / (1000 * 60);
+      return diffMinutes <= 5; // Strict maximum 5 minutes threshold for live real-time earnings
     } catch (_) {
       return true;
     }
