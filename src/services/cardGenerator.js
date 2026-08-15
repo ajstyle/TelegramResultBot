@@ -269,6 +269,19 @@ class CardGenerator {
     const healthScoreDisplay = Math.round(healthScoreVal);
     const healthRatingDisplay = escapeXml(stripEmojis(healthRatingVal) || 'Strong');
 
+    const getHealthColor = (score, rating) => {
+      const s = Math.round(score);
+      const r = (rating || '').toLowerCase();
+      if (s >= 75 || r.includes('strong') || r.includes('excellent')) {
+        return '#059669'; // Vibrant Emerald Green
+      }
+      if (s >= 55 || r.includes('good') || r.includes('fair') || r.includes('moderate')) {
+        return '#d97706'; // Warm Amber/Orange
+      }
+      return '#dc2626'; // Crimson Red
+    };
+    const healthColor = getHealthColor(healthScoreVal, healthRatingVal);
+
     // Technical Analysis Score Integration
     let techScoreVal = data.technicalScore;
     let techStatusVal = data.technicalStatus;
@@ -342,7 +355,7 @@ class CardGenerator {
       <!-- Pulse Rating & Health & Quality Sub-Header Section -->
       <text x="40" y="132" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#64748b">${periodBadgeStr}</text>
 
-      <text x="450" y="134" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">Pulse : <tspan fill="${getPulseColor(rawPulseRating)}" font-weight="900">${escapeXml(cleanRatingStr)}</tspan>  |  Health : <tspan fill="#059669" font-weight="900">${healthScoreDisplay}/100 (${healthRatingDisplay})</tspan>  |  Quality : <tspan fill="#4f46e5" font-weight="900">${qualityScoreDisplay}</tspan></text>
+      <text x="450" y="134" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">Pulse : <tspan fill="${getPulseColor(rawPulseRating)}" font-weight="900">${escapeXml(cleanRatingStr)}</tspan>  |  Health : <tspan fill="${healthColor}" font-weight="900">${healthScoreDisplay}/100 (${healthRatingDisplay})</tspan>  |  Quality : <tspan fill="#4f46e5" font-weight="900">${qualityScoreDisplay}</tspan></text>
 
       <text x="860" y="132" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="14" font-style="italic" fill="#64748b">₹ in Cr</text>
 

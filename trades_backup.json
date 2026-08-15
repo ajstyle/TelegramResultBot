@@ -68,5 +68,40 @@
     "status": "ANALYZED",
     "createdAt": "2026-08-15T10:27:54.137Z",
     "updatedAt": "2026-08-15T10:27:54.137Z"
+  },
+  {
+    "_id": "MEM_1786789840187_789",
+    "symbol": "SHALPAINTS",
+    "action": "BUY",
+    "entry": 100,
+    "stopLoss": 98,
+    "quantity": 500,
+    "status": "ANALYZED",
+    "createdAt": "2026-08-15T10:31:49.724Z",
+    "updatedAt": "2026-08-15T10:31:49.724Z"
+  },
+  {
+    "_id": "MEM_1786814272285_881",
+    "symbol": "SHALPAINTS",
+    "action": "BUY",
+    "entry": 145,
+    "ltp": 145,
+    "stopLoss": 142.1,
+    "quantity": 15,
+    "status": "ANALYZED",
+    "createdAt": "2026-08-15T17:17:52.285Z",
+    "updatedAt": "2026-08-15T17:17:52.285Z"
+  },
+  {
+    "_id": "MEM_1786814406529_872",
+    "symbol": "TCS",
+    "action": "BUY",
+    "entry": 4250,
+    "ltp": 4250,
+    "stopLoss": 4165,
+    "quantity": 5,
+    "status": "ANALYZED",
+    "createdAt": "2026-08-15T17:20:06.529Z",
+    "updatedAt": "2026-08-15T17:20:06.529Z"
   }
 ]
