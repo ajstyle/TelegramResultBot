@@ -429,6 +429,25 @@ Return ONLY valid JSON matching this exact structure:
       const len = rawHeaders.length;
       if (len < 3) return null;
 
+      const latestHeader = (rawHeaders[len - 1] || '').toLowerCase();
+      const currentMonth = new Date().getMonth(); // 6=Jul, 7=Aug, 8=Sep
+
+      // Stale Screener Table Guard:
+      // If current month is Jul/Aug/Sep (Q1 result season) and Screener's latest header is NOT 'jun' (e.g. it is 'mar'):
+      // Screener has NOT updated to the new reported quarter yet. Reject stale fallback to prevent fake/wrong cards!
+      if (currentMonth >= 6 && currentMonth <= 8 && !latestHeader.includes('jun')) {
+        console.warn(`[GeminiAnalyzer] 🛑 Stale Screener table for ${symbol}: latest header is '${rawHeaders[len - 1]}', expected 'Jun' quarter. Rejecting stale Screener fallback.`);
+        return null;
+      }
+      if (currentMonth >= 9 && currentMonth <= 11 && !latestHeader.includes('sep')) {
+        console.warn(`[GeminiAnalyzer] 🛑 Stale Screener table for ${symbol}: latest header is '${rawHeaders[len - 1]}', expected 'Sep' quarter. Rejecting stale Screener fallback.`);
+        return null;
+      }
+      if ((currentMonth === 0 || currentMonth === 1 || currentMonth === 2) && !latestHeader.includes('dec')) {
+        console.warn(`[GeminiAnalyzer] 🛑 Stale Screener table for ${symbol}: latest header is '${rawHeaders[len - 1]}', expected 'Dec' quarter. Rejecting stale Screener fallback.`);
+        return null;
+      }
+
       const i_qt = len - 1;
       const i_qt1 = len - 2;
       const i_qt4 = len >= 5 ? len - 5 : 0;
