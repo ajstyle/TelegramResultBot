@@ -127,12 +127,12 @@ class CardGenerator {
       };
 
       tableRowsSvg += `
-        <text x="60" y="${y + 32}" font-family="Helvetica, Arial, sans-serif" font-size="18" font-weight="bold" fill="#0f172a">${escapeXml(row.name)}</text>
-        <text x="310" y="${y + 32}" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="17" font-weight="bold" fill="${getGrowthColor(qoq)}">${qoq}</text>
-        <text x="440" y="${y + 32}" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="17" font-weight="bold" fill="${getGrowthColor(yoy)}">${yoy}</text>
+        <text x="60" y="${y + 32}" font-family="Helvetica, Arial, sans-serif" font-size="18" font-weight="900" fill="#0f172a">${escapeXml(row.name)}</text>
+        <text x="310" y="${y + 32}" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="17" font-weight="900" fill="${getGrowthColor(qoq)}">${qoq}</text>
+        <text x="440" y="${y + 32}" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="17" font-weight="900" fill="${getGrowthColor(yoy)}">${yoy}</text>
         <text x="590" y="${y + 32}" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="18" font-weight="900" fill="#0f172a">${qt}</text>
-        <text x="730" y="${y + 32}" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="17" fill="#334155">${qt1}</text>
-        <text x="850" y="${y + 32}" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="17" fill="#334155">${qt4}</text>
+        <text x="730" y="${y + 32}" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="18" font-weight="bold" fill="#0f172a">${qt1}</text>
+        <text x="850" y="${y + 32}" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="18" font-weight="bold" fill="#0f172a">${qt4}</text>
         <line x1="40" y1="${y + 50}" x2="860" y2="${y + 50}" stroke="#f1f5f9" stroke-width="1.5" />
       `;
     });
@@ -268,12 +268,12 @@ class CardGenerator {
 
       <!-- Table Header Bar -->
       <rect x="40" y="152" width="820" height="48" rx="8" fill="#1e293b" />
-      <text x="60" y="182" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="bold" fill="#ffffff">Metric</text>
-      <text x="310" y="182" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="bold" fill="#ffffff">QoQ</text>
-      <text x="440" y="182" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="bold" fill="#ffffff">YoY</text>
-      <text x="590" y="182" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="bold" fill="#ffffff">${labels.q_t}</text>
-      <text x="730" y="182" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="bold" fill="#ffffff">${labels.q_t1}</text>
-      <text x="850" y="182" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="bold" fill="#ffffff">${labels.q_t4}</text>
+      <text x="60" y="182" font-family="Helvetica, Arial, sans-serif" font-size="17" font-weight="900" fill="#ffffff">Metric</text>
+      <text x="310" y="182" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="17" font-weight="900" fill="#ffffff">QoQ</text>
+      <text x="440" y="182" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="17" font-weight="900" fill="#ffffff">YoY</text>
+      <text x="590" y="182" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="17" font-weight="900" fill="#ffffff">${labels.q_t}</text>
+      <text x="730" y="182" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="17" font-weight="900" fill="#ffffff">${labels.q_t1}</text>
+      <text x="850" y="182" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="17" font-weight="900" fill="#ffffff">${labels.q_t4}</text>
 
       <!-- Scorecard Table Rows -->
       ${tableRowsSvg}
