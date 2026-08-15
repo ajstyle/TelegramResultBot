@@ -30,11 +30,17 @@ function initTelegramBot() {
 
   const bot = new TelegramBot(config.telegram.botToken, {
     polling: {
-      interval: config.telegram.pollingInterval || 5000,
+      interval: 2000,
       autoStart: true,
       params: {
-        timeout: 10,
-        drop_pending_updates: true,
+        timeout: 30,
+        drop_pending_updates: false,
+      },
+    },
+    request: {
+      agentOptions: {
+        keepAlive: true,
+        keepAliveMsecs: 10000, // Send TCP Keep-Alive probes every 10s to prevent NAT socket freeze
       },
     },
   });
@@ -42,10 +48,37 @@ function initTelegramBot() {
   activeBotInstance = bot;
   bseNseMonitor.setBotInstance(bot);
 
-  console.log(`[TelegramBot] Bot initialized cleanly.`);
+  let lastActivityTimestamp = Date.now();
+
+  // Self-Healing Polling Watchdog: Refreshes frozen/stalled polling sockets every 45s
+  if (!bot._watchdogTimer) {
+    bot._watchdogTimer = setInterval(() => {
+      try {
+        if (!bot.isPolling()) {
+          console.warn(`[TelegramBot Watchdog] Polling stopped. Restarting bot polling...`);
+          bot.startPolling({ restart: true });
+          return;
+        }
+
+        const idleTimeMs = Date.now() - lastActivityTimestamp;
+        if (idleTimeMs > 120000) { // If idle for > 2 mins, refresh polling loop
+          console.log(`[TelegramBot Watchdog] 🔄 Idle connection refresh: restarting polling socket to guarantee zero latency...`);
+          bot.stopPolling()
+            .then(() => bot.startPolling({ restart: true }))
+            .catch(() => bot.startPolling({ restart: true }));
+          lastActivityTimestamp = Date.now();
+        }
+      } catch (err) {
+        console.warn(`[TelegramBot Watchdog] Notice: ${err.message}`);
+      }
+    }, 45000);
+  }
+
+  console.log(`[TelegramBot] Bot initialized cleanly with TCP Keep-Alive & Watchdog.`);
 
   // Register active chat IDs with bseNseMonitor
   const registerChatId = msg => {
+    lastActivityTimestamp = Date.now();
     if (msg && msg.chat && msg.chat.id) {
       bseNseMonitor.addActiveChatId(msg.chat.id.toString());
     }
