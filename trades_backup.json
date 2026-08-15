@@ -103,5 +103,17 @@
     "status": "ANALYZED",
     "createdAt": "2026-08-15T17:20:06.529Z",
     "updatedAt": "2026-08-15T17:20:06.529Z"
+  },
+  {
+    "_id": "MEM_1786814481520_123",
+    "symbol": "TCS",
+    "action": "BUY",
+    "entry": 4250,
+    "ltp": 4250,
+    "stopLoss": 4165,
+    "quantity": 5,
+    "status": "ANALYZED",
+    "createdAt": "2026-08-15T17:21:21.520Z",
+    "updatedAt": "2026-08-15T17:21:21.520Z"
   }
 ]

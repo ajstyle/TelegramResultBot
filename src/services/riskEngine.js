@@ -53,8 +53,9 @@ class RiskEngine {
       };
     }
 
-    // Default ATR fallback if not provided (2% of entry price)
-    const effectiveATR = atr || parseFloat((entry * 0.02).toFixed(2));
+    // Default Stop Loss fallback if not provided (2% of entry price per config)
+    const slPct = (config.risk.stopLossPercent || 2) / 100;
+    const effectiveATR = atr || parseFloat((entry * (slPct / 2)).toFixed(2));
     const atrMultiplier = config.risk.atrMultiplier;
 
     let stopLoss;

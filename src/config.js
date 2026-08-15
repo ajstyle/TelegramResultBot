@@ -44,6 +44,7 @@ const config = {
     riskPerTrade: parseFloat(process.env.RISK_PER_TRADE || '0.01'),
     atrMultiplier: parseFloat(process.env.ATR_MULTIPLIER || '2'),
     atrPeriod: parseInt(process.env.ATR_PERIOD || '14', 10),
+    stopLossPercent: parseFloat(process.env.STOP_LOSS_PERCENT || '2'),
   },
 
   ocr: {
