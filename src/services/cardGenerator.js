@@ -27,6 +27,7 @@ class CardGenerator {
    */
   generatePngCard(data) {
     const svgBuffer = this.generateSvgCard(data);
+    if (!svgBuffer) return null;
     let svgStr = svgBuffer.toString('utf-8');
     svgStr = sanitizeSvgXml(svgStr);
 
@@ -79,14 +80,29 @@ class CardGenerator {
       q_t4: escapeXml(rawLabels.q_t4),
     };
 
-    const sc = data.scorecard || {
-      Sales: { QoQ: '-', YoY: '-', Qt: '-', Qt1: '-', Qt4: '-' },
-      'Other Inc.': { QoQ: '-', YoY: '-', Qt: '-', Qt1: '-', Qt4: '-' },
-      OP: { QoQ: '-', YoY: '-', Qt: '-', Qt1: '-', Qt4: '-' },
-      OPM: { QoQ: '-', YoY: '-', Qt: '-', Qt1: '-', Qt4: '-' },
-      PAT: { QoQ: '-', YoY: '-', Qt: '-', Qt1: '-', Qt4: '-' },
-      EPS: { QoQ: '-', YoY: '-', Qt: '-', Qt1: '-', Qt4: '-' },
+    // Validate if scorecard contains actual valid financial numbers
+    const scInput = data.scorecard;
+    const hasValidMetrics = (sc) => {
+      if (!sc) return false;
+      const parseVal = (v) => {
+        if (v === null || v === undefined || v === '-' || v === 'null' || v === 'undefined') return 0;
+        const num = parseFloat(String(v).replace(/[^0-9.-]/g, ''));
+        return isNaN(num) ? 0 : num;
+      };
+      const sQt = parseVal(sc.Sales?.Qt);
+      const pQt = parseVal(sc.PAT?.Qt);
+      const eQt = parseVal(sc.EPS?.Qt);
+      const sQoQ = sc.Sales?.QoQ && sc.Sales?.QoQ !== '-' && sc.Sales?.QoQ !== '0%';
+      const sYoY = sc.Sales?.YoY && sc.Sales?.YoY !== '-' && sc.Sales?.YoY !== '0%';
+      return (sQt !== 0 || pQt !== 0 || eQt !== 0 || Boolean(sQoQ) || Boolean(sYoY));
     };
+
+    if (!hasValidMetrics(scInput)) {
+      console.log(`[CARD_GENERATOR] Skipped blank photo card generation for ${symbol}: No valid financial scorecard metrics found.`);
+      return null;
+    }
+
+    const sc = scInput;
 
     const rows = [
       { name: 'Sales', data: sc.Sales },
