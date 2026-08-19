@@ -88,7 +88,7 @@ class BseNseMonitorService {
     }
   }
 
-  start(pollingIntervalMs = 3000) {
+  start(pollingIntervalMs = 1500) {
     if (this.intervalId) return;
 
     this.isInitialRun = true;
@@ -165,6 +165,7 @@ class BseNseMonitorService {
         this.processedAnnouncementIds.add(item.announcementId);
 
         if (announcementFilter.isEarningsAnnouncement(item)) {
+          item.isFinancialEarnings = true;
           const deduplicator = require('./deduplicator');
           if (!deduplicator.isUnique(item)) {
             console.log(`[BseNseMonitor] 🛑 Suppressed duplicate announcement for ${item.symbol} (${item.announcementId})`);
@@ -185,11 +186,41 @@ class BseNseMonitorService {
 
   async processAnnouncement(item) {
     try {
-      // 0. Hard Universe Filter Guard: capCategory IN ['LARGE_CAP', 'MID_CAP', 'SMALL_CAP']
       const fundamentalsService = require('../fundamentals');
       const marketCapClassifier = require('../universe/marketCapClassifier');
 
-      const fundamentals = await fundamentalsService.analyze(item.symbol, item.scripCode);
+      // Ultra-Low Latency: Run Fundamentals, PDF Parsing, and Angel One LTP fetch in PARALLEL
+      const [fundamentals, pdfAnalysis, angelResult] = await Promise.all([
+        fundamentalsService.analyze(item.symbol, item.scripCode).catch(() => ({ metrics: {}, companyCategory: 'Listed Stock', marketCapCr: 0 })),
+        
+        (async () => {
+          if (!item.pdfUrl) return { rawText: '', metrics: pdfParserEngine.extractEmptyMetrics(), isScanned: false };
+          try {
+            if (item.source === 'BSE' && item.announcementId) {
+              const bseAdapter = require('../adapters/bseAdapter');
+              const cleanGuid = item.announcementId.replace('BSE_', '');
+              const directPdf = await bseAdapter.resolvePdfUrl(null, cleanGuid);
+              if (directPdf) item.pdfUrl = directPdf; // Update reference so Telegram card uses direct PDF link
+            }
+            return await pdfParserEngine.parsePdf(item.pdfUrl);
+          } catch (err) {
+            console.warn(`[BseNseMonitor] PDF parsing notice for ${item.symbol}: ${err.message}`);
+            return { rawText: '', metrics: pdfParserEngine.extractEmptyMetrics(), isScanned: false };
+          }
+        })(),
+
+        (async () => {
+          try {
+            const scripInfo = await angelOne.searchScrip(item.symbol, 'NSE');
+            const ltp = await angelOne.getLTP(scripInfo.exchange, scripInfo.tradingsymbol, scripInfo.symboltoken);
+            return { scripInfo, ltp };
+          } catch (err) {
+            return { scripInfo: { exchange: 'NSE', tradingsymbol: item.symbol, symboltoken: '0' }, ltp: null };
+          }
+        })()
+      ]);
+
+      // 0. Hard Universe Filter Guard: capCategory IN ['LARGE_CAP', 'MID_CAP', 'SMALL_CAP']
       const mcapCr = fundamentals.metrics?.marketCapCr || fundamentals.marketCapCr || 0;
       const classification = marketCapClassifier.classifyMarketCap(mcapCr, 'EQUITY');
 
@@ -198,36 +229,27 @@ class BseNseMonitorService {
         return;
       }
 
-      let pdfAnalysis = { rawText: '', metrics: pdfParserEngine.extractEmptyMetrics(), isScanned: false };
-
-      if (item.pdfUrl) {
-        try {
-          pdfAnalysis = await pdfParserEngine.parsePdf(item.pdfUrl);
-        } catch (err) {
-          console.warn(`[BseNseMonitor] PDF parsing notice for ${item.symbol}: ${err.message}`);
-        }
-      }
-
       let geminiResult = null;
       if (item.pdfUrl || pdfAnalysis.rawText) {
         try {
-          geminiResult = await geminiAnalyzer.analyzeResultPdf(pdfAnalysis.pdfBuffer || pdfAnalysis.rawText, item.symbol);
+          geminiResult = await geminiAnalyzer.analyzeResultPdf(pdfAnalysis.pdfBuffer || pdfAnalysis.rawText, item.symbol, { isLiveBroadcast: true });
         } catch (gErr) {
           console.warn(`[BseNseMonitor] Gemini analysis notice for ${item.symbol}: ${gErr.message}`);
         }
       }
 
+      // Hard Abort Guard: Prevent broadcasting BLANK scorecards or OLD results
+      const hasScorecardNumbers = geminiResult?.scorecard?.Sales || geminiResult?.scorecard?.PAT;
+      if (!geminiResult || !hasScorecardNumbers) {
+        console.warn(`[BseNseMonitor] 🛑 Aborting Telegram broadcast for ${item.symbol}: Parsed metrics are empty/blank.`);
+        return;
+      }
+
       const combinedMetrics = { ...(fundamentals.metrics || {}), ...(pdfAnalysis.metrics || {}) };
       const aiSummary = aiSummaryEngine.generateSummary(item.symbol, pdfAnalysis.rawText, combinedMetrics);
 
-      let scripInfo = null;
-      let ltp = null;
-      try {
-        scripInfo = await angelOne.searchScrip(item.symbol, 'NSE');
-        ltp = await angelOne.getLTP(scripInfo.exchange, scripInfo.tradingsymbol, scripInfo.symboltoken);
-      } catch (err) {
-        scripInfo = { exchange: 'NSE', tradingsymbol: item.symbol, symboltoken: '0' };
-      }
+      let scripInfo = angelResult.scripInfo;
+      let ltp = angelResult.ltp;
 
       let liveCmp = ltp || fundamentals.cmp || fundamentals.metrics?.cmp;
       if (!liveCmp) {
@@ -373,8 +395,18 @@ class BseNseMonitorService {
           const opQt4 = m.opYoYVal || 0;
 
           if (sQt > 0 || pQt > 0 || opQt > 0) {
-            const calculateQoQ = (curr, prev) => (prev > 0 ? `${curr >= prev ? '+' : ''}${Math.round(((curr - prev) / prev) * 100)}%` : '-');
-            const calculateYoY = (curr, yoy) => (yoy > 0 ? `${curr >= yoy ? '+' : ''}${Math.round(((curr - yoy) / yoy) * 100)}%` : '-');
+            const calculateQoQ = (curr, prev) => {
+              if (curr === null || curr === undefined || prev === null || prev === undefined) return '-';
+              if (prev === 0) return curr > 0 ? '+100%' : (curr < 0 ? '-100%' : '-');
+              const pct = Math.round(((curr - prev) / Math.abs(prev)) * 100);
+              return `${pct >= 0 ? '+' : ''}${pct}%`;
+            };
+            const calculateYoY = (curr, yoy) => {
+              if (curr === null || curr === undefined || yoy === null || yoy === undefined) return '-';
+              if (yoy === 0) return curr > 0 ? '+100%' : (curr < 0 ? '-100%' : '-');
+              const pct = Math.round(((curr - yoy) / Math.abs(yoy)) * 100);
+              return `${pct >= 0 ? '+' : ''}${pct}%`;
+            };
 
             sc = {
               pulseRating: 'Good 👍',

@@ -40,6 +40,9 @@ class AnnouncementDeduplicator {
       'HDFCBANK': 'HDFCB',
       '532667': 'SUZLO',
       'SUZLON': 'SUZLO',
+      '500472': 'SKFIN',
+      'SKFINDIA': 'SKFIN',
+      'SKF INDIA': 'SKFIN',
     };
 
     const rawSym = (item.symbol || '').toUpperCase().trim();
@@ -51,7 +54,7 @@ class AnnouncementDeduplicator {
 
     // Universal Brand Stem Extraction: strip generic corporate noise words
     const stripped = (rawSym || rawTitle)
-      .replace(/\b(LIMITED|LTD|INDUSTRIES|IND|ENTERPRISES|INDIA|CORP|CORPORATION|FINANCIAL|HOLDINGS|EQUITIES|SYSTEMS|TECHNOLOGIES|TECH|GLOBAL|DEVELOPERS|REALTY|SOLUTIONS|FILMS|SERVICES)\b/gi, '')
+      .replace(/\b(LIMITED|LTD|INDUSTRIES|ENTERPRISES|INDIA|CORP|CORPORATION|FINANCIAL|HOLDINGS|EQUITIES|SYSTEMS|TECHNOLOGIES|TECH|GLOBAL|DEVELOPERS|REALTY|SOLUTIONS|FILMS|SERVICES)\b/gi, '')
       .replace(/[^A-Z0-9]/g, '');
 
     if (stripped.length >= 4) {
@@ -68,11 +71,30 @@ class AnnouncementDeduplicator {
    */
   generateHash(item) {
     const canonicalKey = this.getCanonicalKey(item);
-    const dateStr = item.date ? new Date(item.date).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
+    let dateStr = new Date().toISOString().slice(0, 10);
+    if (item.date) {
+      try {
+        let d;
+        if (typeof item.date === 'string') {
+          const match = item.date.match(/(\d{2})[-/](\d{2})[-/](\d{4})/);
+          if (match) {
+            const [, day, month, year] = match;
+            d = new Date(Date.UTC(year, month - 1, day));
+          } else {
+            d = new Date(item.date);
+          }
+        } else {
+          d = new Date(item.date);
+        }
+        if (d && !isNaN(d.getTime())) {
+          dateStr = d.toISOString().slice(0, 10);
+        }
+      } catch (_) {}
+    }
     
     // Extract quarter indicator if present (e.g. Q1, Q2, Q3, Q4, Financial Results, Outcome of Board Meeting)
     const rawText = (item.title || item.text || item.caption || '').toLowerCase();
-    const isQuarterResult = rawText.includes('financial result') || rawText.includes('board meeting') || rawText.includes('outcome') || rawText.includes('quarter');
+    const isQuarterResult = item.isFinancialEarnings || rawText.includes('financial result') || rawText.includes('board meeting') || rawText.includes('outcome') || rawText.includes('quarter');
     const resultTag = isQuarterResult ? 'earnings_result' : rawText.slice(0, 50);
 
     const contentKey = `${canonicalKey}:${dateStr}:${resultTag}`;

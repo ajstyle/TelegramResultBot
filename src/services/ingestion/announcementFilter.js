@@ -51,68 +51,103 @@ class AnnouncementFilter {
   }
 
   /**
-   * Evaluate whether an announcement is earnings-related
+   * Evaluate whether an announcement is a genuine financial earnings result
    * @param {object} item { title, subject, pdfUrl }
    * @returns {boolean}
    */
   isEarningsAnnouncement(item) {
-    const textToMatch = `${item.title || ''} ${item.subject || ''} ${item.pdfUrl || ''}`.toLowerCase();
+    const rawText = `${item.title || ''} ${item.subject || ''} ${item.pdfUrl || ''}`.toLowerCase();
+    // Normalize hyphens and underscores to spaces for robust keyword matching (e.g. audio-recording -> audio recording)
+    const textToMatch = rawText.replace(/[-_]/g, ' ');
 
-    // 1. Check for explicit inclusion keywords FIRST
-    let hasInclusion = false;
-    for (const keyword of this.inclusionKeywords) {
-      if (textToMatch.includes(keyword)) {
-        hasInclusion = true;
-        break;
-      }
-    }
-
-    if (!hasInclusion) {
-      return false;
-    }
-
-    // 2. Check for strict non-earnings noise exclusions
+    // 1. Check for strict non-earnings noise exclusions FIRST to reject concalls, presentations, audio links & intimations
     const strictExclusions = [
       'shareholding pattern',
       'insider trading',
       'loss of share certificate',
       'closure of trading window',
       'trading window closure',
+      'trading window',
       'compliance certificate',
       'audio recording',
-      'audio_recording',
-      'recording intimation',
-      'audio recording intimation',
       'video recording',
-      'concall',
-      'conference call',
-      'analyst call',
-      'investor call',
-      'earnings call intimation',
+      'recording intimation',
       'audio link',
       'recording link',
       'transcript',
+      'concall',
+      'conference call',
+      'investor call',
+      'earnings call',
+      'analyst call',
+      'investor presentation',
+      'earnings presentation',
+      'analyst presentation',
+      'investor meet',
+      'analyst meet',
       'newspaper publication',
       'newspaper advertisement',
       'newspaper',
       'advertisement',
-      'sedadvertisement',
       'clipping',
       'press release',
-      'investor presentation',
-      'earnings presentation',
-      'analyst presentation',
       'media release',
       'fact sheet',
+      'credit rating',
+      'allotment',
+      'appointment',
+      'resignation',
+      'incorporation',
+      'change in director',
+      'change in management',
+      'registered office',
+      'acquisition',
+      'strike off',
+      'update',
+      'schedule of analyst',
+      'schedule of investor',
+      'record date',
+      'postal ballot',
+      'scrutinizer',
+      'voting result',
+      'scheme of arrangement',
+      'amalgamation',
+      'memorandum of association',
+      'articles of association',
+      'issue of shares',
+      'right issue',
+      'bonus issue',
+      'buyback',
     ];
 
     for (const exclusion of strictExclusions) {
       if (textToMatch.includes(exclusion)) {
-        return false;
+        return false; // Explicit non-earnings noise announcement
       }
     }
 
-    return true;
+    // 2. Check for explicit financial result inclusion keywords
+    const primaryInclusions = [
+      'financial results',
+      'quarterly results',
+      'standalone financial results',
+      'consolidated financial results',
+      'unaudited results',
+      'audited results',
+      'outcome of board meeting',
+      'regulation 33',
+      'reg 33',
+      'reg. 33',
+      'regulation33',
+    ];
+
+    for (const keyword of primaryInclusions) {
+      if (textToMatch.includes(keyword)) {
+        return true; // Valid financial earnings result
+      }
+    }
+
+    return false;
   }
 
   /**

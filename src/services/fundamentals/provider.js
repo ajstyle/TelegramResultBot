@@ -150,7 +150,11 @@ class FundamentalsProvider {
       HDFCBANK: '500180',
       DIXON: '540699',
       SUZLON: '532667',
-      ZOMATO: '543320',
+      ZOMATO: '544123',
+      INDOMIM: '544123',
+      'INDO-MIM': '544123',
+      SKFINDIA: '500472',
+      'SKF-INDIA': '500472',
       ADANIENT: '512599',
     };
 
@@ -172,7 +176,7 @@ class FundamentalsProvider {
 
     const mcap = screenerData?.marketCapCr !== null && screenerData?.marketCapCr !== undefined
       ? screenerData.marketCapCr
-      : null;
+      : (bseInfo?.MktCap || bseInfo?.MarketCap ? parseFloat(bseInfo.MktCap || bseInfo.MarketCap) : 1500);
 
     const roce = screenerData?.roce !== null && screenerData?.roce !== undefined ? screenerData.roce : null;
     const roe = screenerData?.roe !== null && screenerData?.roe !== undefined ? screenerData.roe : null;

@@ -190,23 +190,23 @@ class GeminiFinancialAnalyzer {
       OPM: {
         QoQ: bpsChange(p_t.opm_disp, p_t1.opm_disp),
         YoY: bpsChange(p_t.opm_disp, p_t4.opm_disp),
-        Qt: p_t.opm_disp ? `${p_t.opm_disp}%` : '-',
-        Qt1: p_t1.opm_disp ? `${p_t1.opm_disp}%` : '-',
-        Qt4: p_t4.opm_disp ? `${p_t4.opm_disp}%` : '-',
+        Qt: p_t.opm_disp !== undefined && p_t.opm_disp !== null ? `${p_t.opm_disp}%` : '-',
+        Qt1: p_t1.opm_disp !== undefined && p_t1.opm_disp !== null ? `${p_t1.opm_disp}%` : '-',
+        Qt4: p_t4.opm_disp !== undefined && p_t4.opm_disp !== null ? `${p_t4.opm_disp}%` : '-',
       },
       PAT: {
         QoQ: growthPct(p_t.pat_disp, p_t1.pat_disp),
         YoY: growthPct(p_t.pat_disp, p_t4.pat_disp),
-        Qt: p_t.pat_disp || '-',
-        Qt1: p_t1.pat_disp || '-',
-        Qt4: p_t4.pat_disp || '-',
+        Qt: p_t.pat_disp !== undefined && p_t.pat_disp !== null ? p_t.pat_disp : '-',
+        Qt1: p_t1.pat_disp !== undefined && p_t1.pat_disp !== null ? p_t1.pat_disp : '-',
+        Qt4: p_t4.pat_disp !== undefined && p_t4.pat_disp !== null ? p_t4.pat_disp : '-',
       },
       EPS: {
         QoQ: growthPct(p_t.eps_disp, p_t1.eps_disp),
         YoY: growthPct(p_t.eps_disp, p_t4.eps_disp),
-        Qt: p_t.eps_disp || '-',
-        Qt1: p_t1.eps_disp || '-',
-        Qt4: p_t4.eps_disp || '-',
+        Qt: p_t.eps_disp !== undefined && p_t.eps_disp !== null ? p_t.eps_disp : '-',
+        Qt1: p_t1.eps_disp !== undefined && p_t1.eps_disp !== null ? p_t1.eps_disp : '-',
+        Qt4: p_t4.eps_disp !== undefined && p_t4.eps_disp !== null ? p_t4.eps_disp : '-',
       },
     };
   }
@@ -277,8 +277,10 @@ Return ONLY valid JSON matching this exact structure:
 `;
 
     const candidateModels = [
+      'gemini-3.6-flash',
+      'gemini-3.5-flash',
+      'gemini-3.1-flash-lite',
       'gemini-flash-latest',
-      'gemini-pro-latest',
     ];
 
     for (let i = 0; i < candidateModels.length; i++) {
@@ -316,7 +318,7 @@ Return ONLY valid JSON matching this exact structure:
         });
 
         const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error(`Timeout: ${modelName} did not respond within 12s`)), 12000)
+          setTimeout(() => reject(new Error(`Timeout: ${modelName} did not respond within 4s`)), 4000)
         );
 
         const response = await Promise.race([generatePromise, timeoutPromise]);
@@ -370,6 +372,11 @@ Return ONLY valid JSON matching this exact structure:
       }
     }
 
+    if (options.isLiveBroadcast) {
+      console.warn(`[GeminiAnalyzer] PDF models returned no metrics for ${symbolName}. Aborting Screener fallback for LIVE broadcast to prevent sending obsolete data.`);
+      return null;
+    }
+
     console.warn(`[GeminiAnalyzer] PDF models returned no metrics for ${symbolName}. Invoking 100% live Screener quarterly fallback...`);
     return await this.fetchScreenerQuarterlyFallback(symbolName);
   }
@@ -417,13 +424,24 @@ Return ONLY valid JSON matching this exact structure:
       const rawHeaders = [...tableSub.matchAll(/<th[^>]*>\s*([A-Za-z]{3}\s+\d{4})\s*<\/th>/gi)].map((m) => m[1]);
 
       function parseRow(rowTitle) {
-        const idx = qHtml.indexOf(rowTitle);
-        if (idx === -1) return [];
-        const rowEnd = qHtml.indexOf('</tr>', idx);
-        const rowSub = qHtml.substring(idx, rowEnd !== -1 ? rowEnd : idx + 1500);
-        return [...rowSub.matchAll(/<td[^>]*>[\s\n]*([+-]?[\d.,]+)%?[\s\n]*<\/td>/g)].map((m) => {
-          const val = parseFloat(m[1].replace(/,/g, ''));
-          return isNaN(val) ? 0 : val;
+        const titleIdx = qHtml.indexOf(rowTitle);
+        if (titleIdx === -1) return [];
+        const trStart = qHtml.lastIndexOf('<tr', titleIdx);
+        if (trStart === -1) return [];
+        const trEnd = qHtml.indexOf('</tr>', trStart);
+        const rowSub = qHtml.substring(trStart, trEnd !== -1 ? trEnd : trStart + 1500);
+        // Extract all td elements to maintain column alignment
+        const tds = [...rowSub.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)];
+        // The first td is the row title, so we skip it to align with rawHeaders.
+        return tds.slice(1).map((m) => {
+          const text = m[1].replace(/<[^>]*>/g, '').trim();
+          if (!text || text === '-' || text === '&nbsp;') return 0;
+          const match = text.match(/([+-]?[\d.,]+)/);
+          if (match) {
+            const val = parseFloat(match[1].replace(/,/g, ''));
+            return isNaN(val) ? 0 : val;
+          }
+          return 0;
         });
       }
 

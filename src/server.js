@@ -86,6 +86,23 @@ app.get('/kite/callback', async (req, res) => {
 
         if (tokenRes.data && tokenRes.data.status === 'success' && tokenRes.data.data?.access_token) {
           accessToken = tokenRes.data.data.access_token;
+          config.kite.accessToken = accessToken;
+          try {
+            const fs = require('fs');
+            const envPath = path.join(__dirname, '../.env');
+            if (fs.existsSync(envPath)) {
+              let envContent = fs.readFileSync(envPath, 'utf8');
+              if (envContent.includes('KITE_ACCESS_TOKEN=')) {
+                envContent = envContent.replace(/KITE_ACCESS_TOKEN=.*/g, `KITE_ACCESS_TOKEN=${accessToken}`);
+              } else {
+                envContent += `\nKITE_ACCESS_TOKEN=${accessToken}\n`;
+              }
+              fs.writeFileSync(envPath, envContent, 'utf8');
+              console.log(`[ZerodhaKite Callback] ✅ Automatically updated KITE_ACCESS_TOKEN in .env file!`);
+            }
+          } catch (fsErr) {
+            console.warn(`[ZerodhaKite Callback] Notice writing .env: ${fsErr.message}`);
+          }
         }
       } catch (err) {
         errorMsg = err.response?.data?.message || err.message;

@@ -92,9 +92,11 @@ class CardGenerator {
       const sQt = parseVal(sc.Sales?.Qt);
       const pQt = parseVal(sc.PAT?.Qt);
       const eQt = parseVal(sc.EPS?.Qt);
-      const sQoQ = sc.Sales?.QoQ && sc.Sales?.QoQ !== '-' && sc.Sales?.QoQ !== '0%';
-      const sYoY = sc.Sales?.YoY && sc.Sales?.YoY !== '-' && sc.Sales?.YoY !== '0%';
-      return (sQt !== 0 || pQt !== 0 || eQt !== 0 || Boolean(sQoQ) || Boolean(sYoY));
+      
+      // A card is only valid if we have at least one actual number for the CURRENT quarter.
+      // If Sales and PAT are both 0, it means data is missing or the table was blank.
+      // We ignore EPS because shell companies might have 0 Sales/PAT but a tiny EPS, which would falsely validate the card.
+      return (sQt !== 0 || pQt !== 0);
     };
 
     if (!hasValidMetrics(scInput)) {
@@ -123,7 +125,7 @@ class CardGenerator {
           return '-';
         }
         const valStr = `${obj[key]}`.trim();
-        if (valStr === '' || valStr === 'null' || valStr === 'undefined' || valStr === '0%' || valStr === '+0%') {
+        if (valStr === '' || valStr === 'null' || valStr === 'undefined' || valStr === 'NaN') {
           return '-';
         }
         return escapeXml(valStr);

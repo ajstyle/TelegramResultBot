@@ -69,14 +69,14 @@ class BseAdapter {
               }
             }
           } catch (_) {}
-          resolve(null);
+          resolve(guid ? `https://www.bseindia.com/xml-data/corpfiling/AttachLive/${guid}.pdf` : null);
         });
       });
 
-      req.on('error', () => resolve(null));
+      req.on('error', () => resolve(guid ? `https://www.bseindia.com/xml-data/corpfiling/AttachLive/${guid}.pdf` : null));
       req.setTimeout(5000, () => {
         req.destroy();
-        resolve(null);
+        resolve(guid ? `https://www.bseindia.com/xml-data/corpfiling/AttachLive/${guid}.pdf` : null);
       });
       req.end();
     });
@@ -124,10 +124,23 @@ class BseAdapter {
   extractCompanyName(title, fallback = '') {
     if (title) {
       const cleaned = title.replace(/^[\d\s-:]+/, '');
-      const parts = cleaned.split(/\s*-\s*|\s*:\s*|\s*Outcome\s*|\s*Announcement\s*/i);
+      // Split on space-padded hyphens ' - ', unspaced keyword boundaries like '-Announcement', colons, or announcement keywords
+      const parts = cleaned.split(/\s+-\s+|-(?=(Announcement|Outcome|Financial|Regulation|Board|Statement|Un|Audited|Press|Media|Intimation|Sub|Meeting|Appoint|Closure|Trading|Compli))|\s*:\s*|\s*Outcome\s*|\s*Announcement\s*/i);
       if (parts[0] && parts[0].trim().length > 2) {
-        const candidate = parts[0].trim().toUpperCase();
-        if (!/^\d+$/.test(candidate)) {
+        let candidate = parts[0].trim().toUpperCase();
+        candidate = candidate.replace(/[\s:-]+$/, '').trim();
+
+        // Safeguard: If parts[0] is very short (e.g. INDO) and parts[1] is a company word (not announcement keyword), combine them
+        if (parts.length > 1 && candidate.length <= 4 && !/^\d+$/.test(candidate)) {
+          const nextPart = parts[1].trim().toUpperCase();
+          const isKeyword = /^(FINANCIAL|OUTCOME|BOARD|MEETING|REGULATION|STATEMENT|UNAUDITED|AUDITED|PRESS|MEDIA|INTIMATION|SUBMISSION|QUARTER|ANNUAL)/i.test(nextPart);
+          if (!isKeyword && nextPart.length > 0) {
+            candidate = `${candidate}-${nextPart}`;
+          }
+        }
+
+        candidate = candidate.replace(/[\s:-]+$/, '').trim();
+        if (!/^\d+$/.test(candidate) && candidate.length > 0) {
           return candidate;
         }
       }
@@ -178,7 +191,7 @@ class BseAdapter {
                   const cleanNewsId = newsIdStr.split('&')[0] || `${Date.now()}_${Math.random()}`;
 
                   const attachName = item.ATTACHMENTNAME || item.AttachmentName;
-                  const pdfUrl = await this.resolvePdfUrl(attachName, newsIdStr);
+                  const pdfUrl = this.formatPdfUrl(attachName, newsIdStr);
 
                   return {
                     source: 'BSE',

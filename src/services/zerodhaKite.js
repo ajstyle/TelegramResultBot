@@ -206,7 +206,12 @@ class ZerodhaKiteService {
       const errMsg = error.response?.data?.message || error.message;
       console.error(`[ZerodhaKite] Order placement notice for ${formattedSymbol}: ${errMsg}`);
 
-      if (errMsg.includes('No IPs configured')) {
+      const isTokenError = errMsg.includes('Incorrect `api_key` or `access_token`') || 
+                           errMsg.includes('api_key') || 
+                           errMsg.includes('TokenException') || 
+                           errMsg.includes('access_token');
+
+      if (isTokenError || errMsg.includes('No IPs configured')) {
         if (config.tradingMode !== 'LIVE') {
           const mockOrderId = `KITE_PAPER_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
           console.log(`[ZerodhaKite] Seamless PAPER mode fallback executed for ${formattedSymbol} | Order ID: ${mockOrderId}`);
@@ -223,6 +228,12 @@ class ZerodhaKiteService {
             isSimulated: true,
           };
         }
+
+        if (isTokenError) {
+          const loginUrl = `https://kite.zerodha.com/connect/login?v=3&api_key=${config.kite.apiKey}`;
+          throw new Error(`Zerodha Access Token Expired: Zerodha requires generating a new access_token daily. Login here to auto-refresh: ${loginUrl}`);
+        }
+
         throw new Error(`Zerodha IP Whitelist Required: Zerodha requires server IP whitelisting for Live order placement. Add your IP in Zerodha Developer Console Profile.`);
       }
 
