@@ -372,7 +372,7 @@ Return ONLY valid JSON matching this exact structure:
       }
     }
 
-    if (options.isLiveBroadcast) {
+    if (opts.isLiveBroadcast) {
       console.warn(`[GeminiAnalyzer] PDF models returned no metrics for ${symbolName}. Aborting Screener fallback for LIVE broadcast to prevent sending obsolete data.`);
       return null;
     }

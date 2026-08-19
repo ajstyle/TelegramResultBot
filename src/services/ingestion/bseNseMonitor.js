@@ -241,7 +241,7 @@ class BseNseMonitorService {
       // Hard Abort Guard: Prevent broadcasting BLANK scorecards or OLD results
       const hasScorecardNumbers = geminiResult?.scorecard?.Sales || geminiResult?.scorecard?.PAT;
       if (!geminiResult || !hasScorecardNumbers) {
-        console.warn(`[BseNseMonitor] 🛑 Aborting Telegram broadcast for ${item.symbol}: Parsed metrics are empty/blank.`);
+        console.warn(`[BseNseMonitor] 🛑 Aborting Telegram broadcast for ${item.symbol}: Parsed metrics are mostly zeroes. Suppressing image.`);
         return;
       }
 

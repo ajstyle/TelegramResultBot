@@ -100,7 +100,7 @@ class CardGenerator {
     };
 
     if (!hasValidMetrics(scInput)) {
-      console.log(`[CARD_GENERATOR] Skipped blank photo card generation for ${symbol}: No valid financial scorecard metrics found.`);
+      console.log(`[CARD_GENERATOR] Skipped photo card generation for ${symbol}: Metrics are mostly zeroes. Suppressing image.`);
       return null;
     }
 
