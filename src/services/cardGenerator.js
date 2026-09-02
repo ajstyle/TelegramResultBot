@@ -34,7 +34,7 @@ class CardGenerator {
     try {
       const resvg = new Resvg(svgStr, {
         fitTo: { mode: 'width', value: 900 },
-        font: { loadSystemFonts: true },
+        font: { loadSystemFonts: true, defaultFontFamily: 'DejaVu Sans' },
       });
       return resvg.render().asPng();
     } catch (e) {
@@ -42,7 +42,7 @@ class CardGenerator {
       try {
         const fallbackResvg = new Resvg(svgStr, {
           fitTo: { mode: 'width', value: 900 },
-          font: { loadSystemFonts: false },
+          font: { loadSystemFonts: false, defaultFontFamily: 'DejaVu Sans' },
         });
         return fallbackResvg.render().asPng();
       } catch (err2) {
@@ -95,12 +95,27 @@ class CardGenerator {
       
       // A card is only valid if we have at least one actual number for the CURRENT quarter.
       // If Sales and PAT are both 0, it means data is missing or the table was blank.
-      // We ignore EPS because shell companies might have 0 Sales/PAT but a tiny EPS, which would falsely validate the card.
-      return (sQt !== 0 || pQt !== 0);
+      const hasCurrentQtr = (sQt !== 0 || pQt !== 0);
+
+      // Check if comparison period data exists (Qt1 or Qt4)
+      const sQt1 = parseVal(sc.Sales?.Qt1);
+      const sQt4 = parseVal(sc.Sales?.Qt4);
+      const pQt1 = parseVal(sc.PAT?.Qt1);
+      const pQt4 = parseVal(sc.PAT?.Qt4);
+      const hasComparison = (sQt1 !== 0 || sQt4 !== 0 || pQt1 !== 0 || pQt4 !== 0);
+
+      // Allow cards for newly listed IPOs that have valid current quarter data
+      // but no historical comparison periods — they'll show dashes gracefully.
+      if (hasCurrentQtr && !hasComparison) {
+        console.log(`[CARD_GENERATOR] Generating card with current quarter only (likely newly listed IPO - no comparison periods available).`);
+        return true;
+      }
+
+      return hasCurrentQtr && hasComparison;
     };
 
     if (!hasValidMetrics(scInput)) {
-      console.log(`[CARD_GENERATOR] Skipped photo card generation for ${symbol}: Metrics are mostly zeroes. Suppressing image.`);
+      console.log(`[CARD_GENERATOR] Skipped photo card generation for ${symbol}: Metrics are mostly zeroes or missing comparison periods. Suppressing image.`);
       return null;
     }
 
@@ -145,12 +160,12 @@ class CardGenerator {
       };
 
       tableRowsSvg += `
-        <text x="60" y="${y + 32}" font-family="Helvetica, Arial, sans-serif" font-size="18" font-weight="900" fill="#0f172a">${escapeXml(row.name)}</text>
-        <text x="310" y="${y + 32}" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="17" font-weight="900" fill="${getGrowthColor(qoq)}">${qoq}</text>
-        <text x="440" y="${y + 32}" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="17" font-weight="900" fill="${getGrowthColor(yoy)}">${yoy}</text>
-        <text x="590" y="${y + 32}" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="18" font-weight="900" fill="#0f172a">${qt}</text>
-        <text x="730" y="${y + 32}" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="18" font-weight="bold" fill="#0f172a">${qt1}</text>
-        <text x="850" y="${y + 32}" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="18" font-weight="bold" fill="#0f172a">${qt4}</text>
+        <text x="60" y="${y + 32}" font-family="Helvetica, Arial, DejaVu Sans, sans-serif" font-size="18" font-weight="900" fill="#0f172a">${escapeXml(row.name)}</text>
+        <text x="310" y="${y + 32}" text-anchor="middle" font-family="Helvetica, Arial, DejaVu Sans, sans-serif" font-size="17" font-weight="900" fill="${getGrowthColor(qoq)}">${qoq}</text>
+        <text x="440" y="${y + 32}" text-anchor="middle" font-family="Helvetica, Arial, DejaVu Sans, sans-serif" font-size="17" font-weight="900" fill="${getGrowthColor(yoy)}">${yoy}</text>
+        <text x="590" y="${y + 32}" text-anchor="end" font-family="Helvetica, Arial, DejaVu Sans, sans-serif" font-size="18" font-weight="900" fill="#0f172a">${qt}</text>
+        <text x="730" y="${y + 32}" text-anchor="end" font-family="Helvetica, Arial, DejaVu Sans, sans-serif" font-size="18" font-weight="bold" fill="#0f172a">${qt1}</text>
+        <text x="850" y="${y + 32}" text-anchor="end" font-family="Helvetica, Arial, DejaVu Sans, sans-serif" font-size="18" font-weight="bold" fill="#0f172a">${qt4}</text>
         <line x1="40" y1="${y + 50}" x2="860" y2="${y + 50}" stroke="#f1f5f9" stroke-width="1.5" />
       `;
     });
@@ -210,14 +225,14 @@ class CardGenerator {
 
         barsSvg += `
           <rect x="${bx}" y="${by}" width="24" height="${bHeight}" rx="3" fill="${barColor}" />
-          <text x="${bx + 12}" y="${textY}" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="10" font-weight="bold" fill="${isLatest ? '#4f46e5' : '#475569'}">${v !== 0 ? v : '-'}</text>
-          <text x="${bx + 12}" y="704" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#94a3b8">${labels5[i]}</text>
+          <text x="${bx + 12}" y="${textY}" text-anchor="middle" font-family="Helvetica, Arial, DejaVu Sans, sans-serif" font-size="10" font-weight="bold" fill="${isLatest ? '#4f46e5' : '#475569'}">${v !== 0 ? v : '-'}</text>
+          <text x="${bx + 12}" y="704" text-anchor="middle" font-family="Helvetica, Arial, DejaVu Sans, sans-serif" font-size="10" fill="#94a3b8">${labels5[i]}</text>
         `;
       });
 
       return `
         <rect x="${xPos}" y="535" width="260" height="185" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5" />
-        <text x="${xPos + 14}" y="558" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" fill="#4f46e5">${title} <tspan fill="#94a3b8" font-weight="normal">${unitRange}</tspan></text>
+        <text x="${xPos + 14}" y="558" font-family="Helvetica, Arial, DejaVu Sans, sans-serif" font-size="12" font-weight="bold" fill="#4f46e5">${title} <tspan fill="#94a3b8" font-weight="normal">${unitRange}</tspan></text>
         <line x1="${xPos + 10}" y1="${zeroY}" x2="${xPos + 250}" y2="${zeroY}" stroke="#e2e8f0" stroke-width="1" />
         ${barsSvg}
       `;
@@ -361,30 +376,30 @@ class CardGenerator {
 
       <!-- Top Brand Avatar & Header Section -->
       <circle cx="65" cy="58" r="25" fill="#0f6235" />
-      <text x="65" y="65" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" fill="#ffffff">${symbol.substring(0, 4)}</text>
+      <text x="65" y="65" text-anchor="middle" font-family="Helvetica, Arial, DejaVu Sans, sans-serif" font-size="15" font-weight="bold" fill="#ffffff">${symbol.substring(0, 4)}</text>
 
-      <text x="106" y="54" font-family="Helvetica, Arial, sans-serif" font-size="${titleFontSize}" font-weight="900" fill="#0f172a">${displayTitle}</text>
-      <text x="106" y="78" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#64748b">${industry}</text>
+      <text x="106" y="54" font-family="Helvetica, Arial, DejaVu Sans, sans-serif" font-size="${titleFontSize}" font-weight="900" fill="#0f172a">${displayTitle}</text>
+      <text x="106" y="78" font-family="Helvetica, Arial, DejaVu Sans, sans-serif" font-size="14" fill="#64748b">${industry}</text>
 
       <!-- Valuation Badge (Top Right Header Alignment) -->
       <rect x="655" y="36" width="205" height="28" rx="8" fill="${valStyle.bg}" />
-      <text x="757" y="55" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="900" fill="#ffffff">${escapeXml(valStyle.title)}</text>
+      <text x="757" y="55" text-anchor="middle" font-family="Helvetica, Arial, DejaVu Sans, sans-serif" font-size="12" font-weight="900" fill="#ffffff">${escapeXml(valStyle.title)}</text>
 
       <!-- Pulse Rating & Health & Quality Sub-Header Section -->
-      <text x="40" y="132" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#64748b">${periodBadgeStr}</text>
+      <text x="40" y="132" font-family="Helvetica, Arial, DejaVu Sans, sans-serif" font-size="14" font-weight="bold" fill="#64748b">${periodBadgeStr}</text>
 
-      <text x="450" y="134" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">Pulse : <tspan fill="${getPulseColor(rawPulseRating)}" font-weight="900">${escapeXml(cleanRatingStr)}</tspan>  |  Health : <tspan fill="${healthColor}" font-weight="900">${healthScoreDisplay}/100 (${healthRatingDisplay})</tspan>  |  Quality : <tspan fill="#4f46e5" font-weight="900">${qualityScoreDisplay}</tspan></text>
+      <text x="450" y="134" text-anchor="middle" font-family="Helvetica, Arial, DejaVu Sans, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">Pulse : <tspan fill="${getPulseColor(rawPulseRating)}" font-weight="900">${escapeXml(cleanRatingStr)}</tspan>  |  Health : <tspan fill="${healthColor}" font-weight="900">${healthScoreDisplay}/100 (${healthRatingDisplay})</tspan>  |  Quality : <tspan fill="#4f46e5" font-weight="900">${qualityScoreDisplay}</tspan></text>
 
-      <text x="860" y="132" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="14" font-style="italic" fill="#64748b">₹ in Cr</text>
+      <text x="860" y="132" text-anchor="end" font-family="Helvetica, Arial, DejaVu Sans, sans-serif" font-size="14" font-style="italic" fill="#64748b">₹ in Cr</text>
 
       <!-- Table Header Bar -->
       <rect x="40" y="152" width="820" height="48" rx="8" fill="#1e293b" />
-      <text x="60" y="182" font-family="Helvetica, Arial, sans-serif" font-size="17" font-weight="900" fill="#ffffff">Metric</text>
-      <text x="310" y="182" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="17" font-weight="900" fill="#ffffff">QoQ</text>
-      <text x="440" y="182" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="17" font-weight="900" fill="#ffffff">YoY</text>
-      <text x="590" y="182" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="17" font-weight="900" fill="#ffffff">${labels.q_t}</text>
-      <text x="730" y="182" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="17" font-weight="900" fill="#ffffff">${labels.q_t1}</text>
-      <text x="850" y="182" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="17" font-weight="900" fill="#ffffff">${labels.q_t4}</text>
+      <text x="60" y="182" font-family="Helvetica, Arial, DejaVu Sans, sans-serif" font-size="17" font-weight="900" fill="#ffffff">Metric</text>
+      <text x="310" y="182" text-anchor="middle" font-family="Helvetica, Arial, DejaVu Sans, sans-serif" font-size="17" font-weight="900" fill="#ffffff">QoQ</text>
+      <text x="440" y="182" text-anchor="middle" font-family="Helvetica, Arial, DejaVu Sans, sans-serif" font-size="17" font-weight="900" fill="#ffffff">YoY</text>
+      <text x="590" y="182" text-anchor="end" font-family="Helvetica, Arial, DejaVu Sans, sans-serif" font-size="17" font-weight="900" fill="#ffffff">${labels.q_t}</text>
+      <text x="730" y="182" text-anchor="end" font-family="Helvetica, Arial, DejaVu Sans, sans-serif" font-size="17" font-weight="900" fill="#ffffff">${labels.q_t1}</text>
+      <text x="850" y="182" text-anchor="end" font-family="Helvetica, Arial, DejaVu Sans, sans-serif" font-size="17" font-weight="900" fill="#ffffff">${labels.q_t4}</text>
 
       <!-- Scorecard Table Rows -->
       ${tableRowsSvg}
@@ -396,13 +411,13 @@ class CardGenerator {
 
       <!-- CMP & Fundamentals Pill Bar -->
       <rect x="40" y="844" width="820" height="44" rx="10" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5" />
-      <text x="450" y="872" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#0f172a">CMP : <tspan font-weight="900">${cmp}</tspan>  |  <tspan fill="#475569">${category} (${mcapDisplay})</tspan>  |  Technical : <tspan fill="#d97706" font-weight="900">${techPillDisplay}</tspan>  |  Valuation : <tspan font-weight="900" fill="${valStyle.bg}">${escapeXml(valStyle.title)}</tspan></text>
+      <text x="450" y="872" text-anchor="middle" font-family="Helvetica, Arial, DejaVu Sans, sans-serif" font-size="14" font-weight="bold" fill="#0f172a">CMP : <tspan font-weight="900">${cmp}</tspan>  |  <tspan fill="#475569">${category} (${mcapDisplay})</tspan>  |  Technical : <tspan fill="#d97706" font-weight="900">${techPillDisplay}</tspan>  |  Valuation : <tspan font-weight="900" fill="${valStyle.bg}">${escapeXml(valStyle.title)}</tspan></text>
 
       <!-- Footer Bar -->
       <line x1="40" y1="910" x2="860" y2="910" stroke="#f1f5f9" stroke-width="1.5" />
-      <text x="40" y="934" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#94a3b8">${nowStr}</text>
-      <text x="450" y="934" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="11" font-style="italic" fill="#94a3b8">*AI-generated summary. Verify with official filings.*</text>
-      <text x="860" y="934" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" fill="#0f172a">earningspulse.ai</text>
+      <text x="40" y="934" font-family="Helvetica, Arial, DejaVu Sans, sans-serif" font-size="11" fill="#94a3b8">${nowStr}</text>
+      <text x="450" y="934" text-anchor="middle" font-family="Helvetica, Arial, DejaVu Sans, sans-serif" font-size="11" font-style="italic" fill="#94a3b8">*AI-generated summary. Verify with official filings.*</text>
+      <text x="860" y="934" text-anchor="end" font-family="Helvetica, Arial, DejaVu Sans, sans-serif" font-size="12" font-weight="bold" fill="#0f172a">earningspulse.ai</text>
     </svg>
     `;
 

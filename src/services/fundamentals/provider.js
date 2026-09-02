@@ -166,22 +166,31 @@ class FundamentalsProvider {
       this.fetchBseHeader(resolvedScripCode),
     ]);
 
-    const liveCmp = screenerData?.cmp !== null && screenerData?.cmp !== undefined
-      ? screenerData.cmp
+    const resolvedSymbol = (bseInfo?.SecurityId && /^\d+$/.test(formattedSymbol)) ? bseInfo.SecurityId.toUpperCase() : formattedSymbol;
+
+    let finalScreenerData = screenerData;
+    if (/^\d+$/.test(formattedSymbol) && bseInfo?.SecurityId && (!screenerData || !screenerData.cmp)) {
+      finalScreenerData = await this.fetchScreenerLiveFundamentals(bseInfo.SecurityId, resolvedScripCode) || screenerData;
+    }
+
+    const screenerToUse = finalScreenerData || screenerData;
+
+    const liveCmp = screenerToUse?.cmp !== null && screenerToUse?.cmp !== undefined
+      ? screenerToUse.cmp
       : (bseInfo?.LTP ? parseFloat(bseInfo.LTP) : null);
 
-    const pe = screenerData?.pe !== null && screenerData?.pe !== undefined
-      ? screenerData.pe
+    const pe = screenerToUse?.pe !== null && screenerToUse?.pe !== undefined
+      ? screenerToUse.pe
       : (bseInfo?.PE && !isNaN(parseFloat(bseInfo.PE)) ? parseFloat(bseInfo.PE) : null);
 
-    const mcap = screenerData?.marketCapCr !== null && screenerData?.marketCapCr !== undefined
-      ? screenerData.marketCapCr
+    const mcap = screenerToUse?.marketCapCr !== null && screenerToUse?.marketCapCr !== undefined
+      ? screenerToUse.marketCapCr
       : (bseInfo?.MktCap || bseInfo?.MarketCap ? parseFloat(bseInfo.MktCap || bseInfo.MarketCap) : 1500);
 
-    const roce = screenerData?.roce !== null && screenerData?.roce !== undefined ? screenerData.roce : null;
-    const roe = screenerData?.roe !== null && screenerData?.roe !== undefined ? screenerData.roe : null;
-    const bvps = screenerData?.bookValue || null;
-    const pb = screenerData?.pb || (liveCmp && bvps > 0 ? Math.round((liveCmp / bvps) * 10) / 10 : null);
+    const roce = screenerToUse?.roce !== null && screenerToUse?.roce !== undefined ? screenerToUse.roce : null;
+    const roe = screenerToUse?.roe !== null && screenerToUse?.roe !== undefined ? screenerToUse.roe : null;
+    const bvps = screenerToUse?.bookValue || null;
+    const pb = screenerToUse?.pb || (liveCmp && bvps > 0 ? Math.round((liveCmp / bvps) * 10) / 10 : null);
     const eps = liveCmp && pe && pe > 0 ? Math.round((liveCmp / pe) * 100) / 100 : null;
     const sector = bseInfo?.Sector || bseInfo?.Industry || 'General';
 
@@ -199,7 +208,7 @@ class FundamentalsProvider {
     };
 
     return {
-      symbol: formattedSymbol,
+      symbol: resolvedSymbol,
       cmp: liveCmp,
       pe,
       pb,

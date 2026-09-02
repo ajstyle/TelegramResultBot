@@ -88,7 +88,7 @@ class BseNseMonitorService {
     }
   }
 
-  start(pollingIntervalMs = 1500) {
+  start(pollingIntervalMs = 500) {
     if (this.intervalId) return;
 
     this.isInitialRun = true;
@@ -189,6 +189,26 @@ class BseNseMonitorService {
       const fundamentalsService = require('../fundamentals');
       const marketCapClassifier = require('../universe/marketCapClassifier');
 
+      // Phase 1: Instant Flash Notice (~1-2s) to alert user before AI analysis completes
+      if (this.bot) {
+        const flashTargetChats = new Set([
+          ...config.telegram.authorizedChatIds,
+          ...Array.from(this.activeChatIds),
+        ]);
+        if (config.telegram.targetChannel) {
+          const rawCh = config.telegram.targetChannel.trim();
+          if (rawCh) {
+            const formattedCh = (rawCh.startsWith('@') || rawCh.startsWith('-') || /^-?\d+$/.test(rawCh)) ? rawCh : `@${rawCh}`;
+            flashTargetChats.add(formattedCh);
+          }
+        }
+        const cleanTitle = (item.title || 'Quarterly Financial Results').replace(/[*_`]/g, '');
+        const flashMsg = `⚡ *BREAKING EARNINGS FILING*\n📢 #${item.symbol} (${item.source})\n📄 *Title:* ${cleanTitle}\n⏱️ ⚡ *Just Now*\n⏳ *Analyzing financial results with AI... Scorecard Card arriving in seconds!*`;
+        for (const chatId of flashTargetChats) {
+          this.bot.sendMessage(chatId, flashMsg, { parse_mode: 'Markdown', disable_web_page_preview: true }).catch(() => {});
+        }
+      }
+
       // Ultra-Low Latency: Run Fundamentals, PDF Parsing, and Angel One LTP fetch in PARALLEL
       const [fundamentals, pdfAnalysis, angelResult] = await Promise.all([
         fundamentalsService.analyze(item.symbol, item.scripCode).catch(() => ({ metrics: {}, companyCategory: 'Listed Stock', marketCapCr: 0 })),
@@ -231,17 +251,66 @@ class BseNseMonitorService {
 
       let geminiResult = null;
       if (item.pdfUrl || pdfAnalysis.rawText) {
+        const hasValidMetrics = (sc) => {
+          if (!sc) return false;
+          const parseVal = (v) => {
+            if (v === null || v === undefined || v === '-' || String(v).toLowerCase() === 'null') return 0;
+            const num = parseFloat(String(v).replace(/[^0-9.-]/g, ''));
+            return isNaN(num) ? 0 : num;
+          };
+          return parseVal(sc.Sales?.Qt) !== 0 || parseVal(sc.PAT?.Qt) !== 0 || parseVal(sc.EPS?.Qt) !== 0;
+        };
+
+        // === VISION-FIRST ARCHITECTURE (Permanent fix for blank/wrong cards) ===
+        // Vision (PDF buffer → Gemini) is always more accurate because Gemini can SEE
+        // the financial table directly, even in scanned/image-based PDFs.
+        // Text route is unreliable: pdf-parse often extracts only cover letter text
+        // from image-based PDFs, causing Gemini to hallucinate plausible-looking wrong numbers.
+
+        // 1. PRIMARY ROUTE: Multimodal Vision Analysis (PDF buffer)
         try {
-          geminiResult = await geminiAnalyzer.analyzeResultPdf(pdfAnalysis.pdfBuffer || pdfAnalysis.rawText, item.symbol, { isLiveBroadcast: true });
-        } catch (gErr) {
-          console.warn(`[BseNseMonitor] Gemini analysis notice for ${item.symbol}: ${gErr.message}`);
+          if (pdfAnalysis.pdfBuffer) {
+            console.log(`[BseNseMonitor] 🔍 ${item.symbol}: Vision-First analysis (PDF buffer → Gemini)...`);
+            geminiResult = await geminiAnalyzer.analyzeResultPdf(pdfAnalysis.pdfBuffer, item.symbol, { isLiveBroadcast: true });
+          }
+        } catch (visionErr) {
+          console.warn(`[BseNseMonitor] Vision Route failed for ${item.symbol} (${visionErr.message}). Proceeding to Text Fallback...`);
+          geminiResult = null;
+        }
+
+        // 2. TEXT FALLBACK: Only if vision failed/unavailable AND text passes quality check
+        try {
+          if ((!geminiResult || !hasValidMetrics(geminiResult.scorecard)) && pdfAnalysis.rawText) {
+            // textQualityCheck is a static method on GeminiFinancialAnalyzer class
+            const textIsReliable = geminiAnalyzer.constructor.textQualityCheck(pdfAnalysis.rawText);
+
+            if (textIsReliable) {
+              console.warn(`[BseNseMonitor] ⚠️ ${item.symbol}: Vision failed or returned blank. Falling back to Text Route (text quality verified)...`);
+              geminiResult = await geminiAnalyzer.analyzeResultPdf(pdfAnalysis.rawText, item.symbol, { isLiveBroadcast: true });
+            } else {
+              console.warn(`[BseNseMonitor] ⚠️ ${item.symbol}: Text quality check FAILED (no readable financial table in extracted text). Skipping text fallback.`);
+            }
+          }
+        } catch (textErr) {
+          console.warn(`[BseNseMonitor] Text Fallback failed for ${item.symbol}: ${textErr.message}`);
         }
       }
 
-      // Hard Abort Guard: Prevent broadcasting BLANK scorecards or OLD results
-      const hasScorecardNumbers = geminiResult?.scorecard?.Sales || geminiResult?.scorecard?.PAT;
-      if (!geminiResult || !hasScorecardNumbers) {
-        console.warn(`[BseNseMonitor] 🛑 Aborting Telegram broadcast for ${item.symbol}: Parsed metrics are mostly zeroes. Suppressing image.`);
+      // Hard Abort Guard: Prevent broadcasting BLANK scorecards
+      const finalCheckValid = (sc) => {
+        if (!sc) return false;
+        const p = (v) => {
+          if (v === null || v === undefined || v === '-' || String(v).toLowerCase() === 'null') return 0;
+          const num = parseFloat(String(v).replace(/[^0-9.-]/g, ''));
+          return isNaN(num) ? 0 : num;
+        };
+        // Current quarter must have at least Sales or PAT or EPS
+        const hasCurrentQtr = p(sc.Sales?.Qt) !== 0 || p(sc.PAT?.Qt) !== 0 || p(sc.EPS?.Qt) !== 0;
+        return hasCurrentQtr;
+      };
+      
+      if (!geminiResult || !finalCheckValid(geminiResult.scorecard)) {
+        console.warn(`[BseNseMonitor] 🛑 Aborting Telegram broadcast for ${item.symbol}: Both Vision and Text routes failed to find valid metrics. Suppressing blank image.`);
         return;
       }
 
@@ -283,7 +352,8 @@ class BseNseMonitorService {
         atr: atrUsed,
       });
 
-      const tradeRecord = await tradeStore.createTrade({
+      // Non-blocking asynchronous trade creation to avoid delaying card generation
+      const tradeRecordPromise = tradeStore.createTrade({
         symbol: item.symbol,
         action: 'BUY',
         entry: entryPrice,
@@ -297,6 +367,9 @@ class BseNseMonitorService {
         status: 'ANALYZED',
         telegramMessageId: null,
         telegramChatId: null,
+      }).catch(err => {
+        console.warn(`[BseNseMonitor] Non-blocking trade creation notice: ${err.message}`);
+        return null;
       });
 
       if (this.bot) {
@@ -337,11 +410,15 @@ class BseNseMonitorService {
         const cmpDisplay = entryPrice ? `₹${entryPrice.toFixed(1)}` : '-';
         const valuationDisplay = fundamentals.valuation || 'FAIRLY VALUED ⚖️';
 
-        const displayHeaderSymbol = item.scripCode && item.symbol !== item.scripCode
-          ? `${item.symbol} (${item.scripCode})`
-          : item.symbol;
+        const activeSymbol = (fundamentals.symbol && !/^\d+$/.test(fundamentals.symbol)) 
+          ? fundamentals.symbol 
+          : ((item.symbol && !/^\d+$/.test(item.symbol)) ? item.symbol : (item.scripCode || 'STOCK'));
 
-        const hashtagSymbol = `#${item.symbol.toUpperCase().replace(/[^A-Z0-9_]/g, '')}`;
+        const displayHeaderSymbol = item.scripCode && activeSymbol !== item.scripCode
+          ? `${activeSymbol} (${item.scripCode})`
+          : activeSymbol;
+
+        const hashtagSymbol = `#${activeSymbol.toUpperCase().replace(/[^A-Z0-9_]/g, '')}`;
 
         // Gemini Universal Scorecard Integration
         let sQoQStr = '-';
@@ -573,10 +650,11 @@ class BseNseMonitorService {
               }
             }
 
+            const tradeRecord = await tradeRecordPromise;
             if (sentMsg && tradeRecord && !tradeRecord.telegramMessageId) {
               tradeRecord.telegramMessageId = sentMsg.message_id.toString();
               tradeRecord.telegramChatId = chatId.toString();
-              await tradeRecord.save();
+              await tradeRecord.save().catch(() => {});
             }
           } catch (err) {
             const errMsg = err.message || '';

@@ -8,3 +8,11 @@ coverage/
 .DS_Store
 dist/
 build/
+*.png
+*.txt
+send_*.js
+test_*.js
+investigate_*.js
+process_user_pdfs.js
+reanalyze_*.js
+fetch_missed.js

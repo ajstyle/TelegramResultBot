@@ -57,76 +57,35 @@ class AnnouncementFilter {
    */
   isEarningsAnnouncement(item) {
     const rawText = `${item.title || ''} ${item.subject || ''} ${item.pdfUrl || ''}`.toLowerCase();
-    // Normalize hyphens and underscores to spaces for robust keyword matching (e.g. audio-recording -> audio recording)
+    // Normalize hyphens and underscores to spaces for robust keyword matching
     const textToMatch = rawText.replace(/[-_]/g, ' ');
 
-    // 1. Check for strict non-earnings noise exclusions FIRST to reject concalls, presentations, audio links & intimations
-    const strictExclusions = [
-      'shareholding pattern',
-      'insider trading',
-      'loss of share certificate',
-      'closure of trading window',
-      'trading window closure',
-      'trading window',
-      'compliance certificate',
+    // 1. ABSOLUTE EXCLUSIONS (Never process these, even if they contain 'results')
+    const absoluteExclusions = [
+      'transcript',
       'audio recording',
       'video recording',
-      'recording intimation',
       'audio link',
-      'recording link',
-      'transcript',
+      'recording intimation',
       'concall',
       'conference call',
       'investor call',
       'earnings call',
-      'analyst call',
       'investor presentation',
       'earnings presentation',
       'analyst presentation',
-      'investor meet',
-      'analyst meet',
-      'newspaper publication',
-      'newspaper advertisement',
-      'newspaper',
-      'advertisement',
-      'clipping',
-      'press release',
-      'media release',
-      'fact sheet',
-      'credit rating',
-      'allotment',
-      'appointment',
-      'resignation',
-      'incorporation',
-      'change in director',
-      'change in management',
-      'registered office',
-      'acquisition',
-      'strike off',
-      'update',
-      'schedule of analyst',
-      'schedule of investor',
-      'record date',
-      'postal ballot',
-      'scrutinizer',
-      'voting result',
-      'scheme of arrangement',
-      'amalgamation',
-      'memorandum of association',
-      'articles of association',
-      'issue of shares',
-      'right issue',
-      'bonus issue',
-      'buyback',
+      'loss of share certificate',
+      'closure of trading window',
+      'trading window closure'
     ];
 
-    for (const exclusion of strictExclusions) {
+    for (const exclusion of absoluteExclusions) {
       if (textToMatch.includes(exclusion)) {
-        return false; // Explicit non-earnings noise announcement
+        return false;
       }
     }
 
-    // 2. Check for explicit financial result inclusion keywords
+    // 2. EXPLICIT INCLUSIONS (Process these if they passed absolute exclusions)
     const primaryInclusions = [
       'financial results',
       'quarterly results',
@@ -135,18 +94,20 @@ class AnnouncementFilter {
       'unaudited results',
       'audited results',
       'outcome of board meeting',
+      'outcome of board',
       'regulation 33',
       'reg 33',
       'reg. 33',
-      'regulation33',
+      'regulation33'
     ];
 
     for (const keyword of primaryInclusions) {
       if (textToMatch.includes(keyword)) {
-        return true; // Valid financial earnings result
+        return true;
       }
     }
 
+    // 3. Default to false for anything else (noise)
     return false;
   }
 

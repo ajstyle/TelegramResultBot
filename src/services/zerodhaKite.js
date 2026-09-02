@@ -230,6 +230,20 @@ class ZerodhaKiteService {
         }
 
         if (isTokenError) {
+          // Attempt automatic instant token refresh using headless auto-login
+          try {
+            console.warn(`[ZerodhaKite] Token expired during LIVE order. Triggering instant headless Auto-Login...`);
+            const kiteAutoLogin = require('./kiteAutoLogin');
+            const newToken = await kiteAutoLogin.generateDailyToken();
+            
+            if (newToken) {
+              console.log(`[ZerodhaKite] Auto-Login successful! Retrying order placement...`);
+              return await this.placeOrder(params); // Recursively retry order with fresh token
+            }
+          } catch (autoLoginErr) {
+            console.error(`[ZerodhaKite] Instant Auto-Login fallback failed: ${autoLoginErr.message}`);
+          }
+          
           const loginUrl = `https://kite.zerodha.com/connect/login?v=3&api_key=${config.kite.apiKey}`;
           throw new Error(`Zerodha Access Token Expired: Zerodha requires generating a new access_token daily. Login here to auto-refresh: ${loginUrl}`);
         }

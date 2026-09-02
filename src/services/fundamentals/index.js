@@ -1,22 +1,29 @@
 const provider = require('./provider');
 
 class FundamentalsService {
+  constructor() {
+    this.cache = new Map(); // symbol -> { data, timestamp }
+    this.ttlMs = 30 * 60 * 1000; // 30 minutes TTL
+  }
+
   /**
    * Fetch fundamentals and calculate 0-100 score
    * @param {string} symbol
    * @returns {Promise<{ metrics: object|null, score: number|null, rating: string, valuation: string, isAvailable: boolean }>}
    */
   async analyze(symbol, scripCode = null) {
+    if (!symbol) return this.getEmptyAnalysis();
+    const cacheKey = (symbol || '').toUpperCase().trim();
+    const cached = this.cache.get(cacheKey);
+
+    if (cached && (Date.now() - cached.timestamp < this.ttlMs)) {
+      return cached.data;
+    }
+
     const rawData = await provider.getFundamentals(symbol, scripCode);
 
     if (!rawData) {
-      return {
-        metrics: null,
-        score: null,
-        rating: 'Data Unavailable',
-        valuation: 'Unknown',
-        isAvailable: false,
-      };
+      return this.getEmptyAnalysis();
     }
 
     const score = this.calculateScore(rawData);
@@ -26,7 +33,7 @@ class FundamentalsService {
 
     const cmp = rawData.cmp || rawData.price || null;
 
-    return {
+    const result = {
       cmp,
       metrics: {
         cmp,
@@ -53,6 +60,12 @@ class FundamentalsService {
       companyCategory,
       isAvailable: true,
     };
+
+    if (cacheKey) {
+      this.cache.set(cacheKey, { data: result, timestamp: Date.now() });
+    }
+
+    return result;
   }
 
   /**
@@ -179,6 +192,18 @@ class FundamentalsService {
     if (pe <= sectorPe * 0.95) return 'UNDERVALUED / ATTRACTIVE 💎';
     if (pe <= sectorPe * 1.15) return 'FAIRLY VALUED ⚖️';
     return 'OVERVALUED / EXPENSIVE 🔴';
+  }
+
+  getEmptyAnalysis() {
+    return {
+      cmp: null,
+      metrics: null,
+      score: null,
+      rating: 'Data Unavailable',
+      valuation: 'Unknown',
+      companyCategory: 'Listed Stock',
+      isAvailable: false,
+    };
   }
 }
 

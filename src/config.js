@@ -32,6 +32,9 @@ const config = {
   },
 
   kite: {
+    userId: process.env.KITE_USER_ID || '',
+    password: process.env.KITE_PASSWORD || '',
+    totpSecret: process.env.KITE_TOTP_SECRET || '',
     apiKey: process.env.KITE_API_KEY || '',
     apiSecret: process.env.KITE_API_SECRET || '',
     accessToken: process.env.KITE_ACCESS_TOKEN || '',

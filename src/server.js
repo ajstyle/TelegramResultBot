@@ -277,6 +277,16 @@ async function startServer() {
   if (config.nodeEnv !== 'test') {
     initTelegramBot();
     bseNseMonitor.start();
+    
+    // Start Automated Kite Login Scheduler (Runs daily at 8:30 AM IST / 3:00 AM UTC)
+    console.log(`[KiteAutoLogin] Scheduled daily automated token generation for 8:30 AM IST.`);
+    setInterval(() => {
+      const now = new Date();
+      if (now.getUTCHours() === 3 && now.getUTCMinutes() === 0) {
+        const kiteAutoLogin = require('./services/kiteAutoLogin');
+        kiteAutoLogin.generateDailyToken().catch(err => console.error(err));
+      }
+    }, 60000); // Check every minute
   }
 
   // Start Express HTTP Server

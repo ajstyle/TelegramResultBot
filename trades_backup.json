@@ -270,5 +270,41 @@
     "status": "ANALYZED",
     "createdAt": "2026-08-18T16:55:03.819Z",
     "updatedAt": "2026-08-18T16:55:03.819Z"
+  },
+  {
+    "_id": "MEM_1787401323711_611",
+    "symbol": "INNOVACAP",
+    "action": "BUY",
+    "entry": 1088.5,
+    "ltp": 1088.5,
+    "stopLoss": 1066.73,
+    "quantity": 45,
+    "status": "ANALYZED",
+    "createdAt": "2026-08-22T12:22:03.711Z",
+    "updatedAt": "2026-08-22T12:22:03.711Z"
+  },
+  {
+    "_id": "MEM_1787401332813_117",
+    "symbol": "INNOVACAP",
+    "action": "BUY",
+    "entry": 1088.5,
+    "ltp": 1088.5,
+    "stopLoss": 1066.73,
+    "quantity": 45,
+    "status": "ANALYZED",
+    "createdAt": "2026-08-22T12:22:12.813Z",
+    "updatedAt": "2026-08-22T12:22:12.813Z"
+  },
+  {
+    "_id": "MEM_1787401503504_258",
+    "symbol": "ASAL",
+    "action": "BUY",
+    "entry": 500.1,
+    "ltp": 500.1,
+    "stopLoss": 490.1,
+    "quantity": 100,
+    "status": "ANALYZED",
+    "createdAt": "2026-08-22T12:25:03.504Z",
+    "updatedAt": "2026-08-22T12:25:03.504Z"
   }
 ]
