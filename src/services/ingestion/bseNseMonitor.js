@@ -189,26 +189,6 @@ class BseNseMonitorService {
       const fundamentalsService = require('../fundamentals');
       const marketCapClassifier = require('../universe/marketCapClassifier');
 
-      // Phase 1: Instant Flash Notice (~1-2s) to alert user before AI analysis completes
-      if (this.bot) {
-        const flashTargetChats = new Set([
-          ...config.telegram.authorizedChatIds,
-          ...Array.from(this.activeChatIds),
-        ]);
-        if (config.telegram.targetChannel) {
-          const rawCh = config.telegram.targetChannel.trim();
-          if (rawCh) {
-            const formattedCh = (rawCh.startsWith('@') || rawCh.startsWith('-') || /^-?\d+$/.test(rawCh)) ? rawCh : `@${rawCh}`;
-            flashTargetChats.add(formattedCh);
-          }
-        }
-        const cleanTitle = (item.title || 'Quarterly Financial Results').replace(/[*_`]/g, '');
-        const flashMsg = `⚡ *BREAKING EARNINGS FILING*\n📢 #${item.symbol} (${item.source})\n📄 *Title:* ${cleanTitle}\n⏱️ ⚡ *Just Now*\n⏳ *Analyzing financial results with AI... Scorecard Card arriving in seconds!*`;
-        for (const chatId of flashTargetChats) {
-          this.bot.sendMessage(chatId, flashMsg, { parse_mode: 'Markdown', disable_web_page_preview: true }).catch(() => {});
-        }
-      }
-
       // Ultra-Low Latency: Run Fundamentals, PDF Parsing, and Angel One LTP fetch in PARALLEL
       const [fundamentals, pdfAnalysis, angelResult] = await Promise.all([
         fundamentalsService.analyze(item.symbol, item.scripCode).catch(() => ({ metrics: {}, companyCategory: 'Listed Stock', marketCapCr: 0 })),
@@ -247,6 +227,31 @@ class BseNseMonitorService {
       if (!classification.isAllowed) {
         console.warn(`[BseNseMonitor] 🛑 EXCLUDED UNIVERSE: Suppressing scorecard photo card & Telegram broadcast for ${item.symbol} - ${classification.reason}`);
         return;
+      }
+
+      // Resolve clean stock symbol for display & Telegram notification
+      const activeSymbol = (fundamentals.symbol && !/^\d+$/.test(fundamentals.symbol)) 
+        ? fundamentals.symbol 
+        : ((item.symbol && !/^\d+$/.test(item.symbol)) ? item.symbol : (item.scripCode || 'STOCK'));
+
+      // Phase 1: Instant Flash Notice (~1-2s) — ONLY sent for allowed universe stocks!
+      if (this.bot) {
+        const flashTargetChats = new Set([
+          ...config.telegram.authorizedChatIds,
+          ...Array.from(this.activeChatIds),
+        ]);
+        if (config.telegram.targetChannel) {
+          const rawCh = config.telegram.targetChannel.trim();
+          if (rawCh) {
+            const formattedCh = (rawCh.startsWith('@') || rawCh.startsWith('-') || /^-?\d+$/.test(rawCh)) ? rawCh : `@${rawCh}`;
+            flashTargetChats.add(formattedCh);
+          }
+        }
+        const cleanTitle = (item.title || 'Quarterly Financial Results').replace(/[*_`]/g, '');
+        const flashMsg = `⚡ *BREAKING EARNINGS FILING*\n📢 #${activeSymbol} (${item.source})\n📄 *Title:* ${cleanTitle}\n⏱️ ⚡ *Just Now*\n⏳ *Analyzing financial results with AI... Scorecard Card arriving in seconds!*`;
+        for (const chatId of flashTargetChats) {
+          this.bot.sendMessage(chatId, flashMsg, { parse_mode: 'Markdown', disable_web_page_preview: true }).catch(() => {});
+        }
       }
 
       let geminiResult = null;
