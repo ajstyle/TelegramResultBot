@@ -5,9 +5,10 @@ echo "===================================================="
 echo " 🚀 Deploying Latest Telegram Result Bot on Oracle VPS"
 echo "===================================================="
 
-# 1. Pull latest code from GitHub
+# 1. Pull latest code from GitHub main branch
 echo "[1/4] Pulling latest code from GitHub main branch..."
-git pull origin main
+git fetch origin main
+git reset --hard origin/main
 
 # 2. Install production dependencies
 echo "[2/4] Installing dependencies..."
