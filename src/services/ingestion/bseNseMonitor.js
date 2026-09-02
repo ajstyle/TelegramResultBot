@@ -378,18 +378,19 @@ class BseNseMonitorService {
       });
 
       if (this.bot) {
+        const tradeRecord = await tradeRecordPromise;
         const m = pdfAnalysis.metrics;
 
         let replyMarkup = undefined;
         let buyButtonNotice = '';
 
-        if (tradeRecord) {
+        if (tradeRecord && tradeRecord._id) {
           buyButtonNotice = `\n⚡ *Instant Purchase Enabled (INTRADAY)*\n*Entry:* ₹${tradeRecord.entry} | *SL:* ₹${stopLoss} | *Qty:* ${quantity} shares\n`;
 
           replyMarkup = {
             inline_keyboard: [
               [
-                { text: `🪁 1-CLICK BUY ON ZERODHA KITE (${item.symbol})`, callback_data: `CONFIRM_KITE_${tradeRecord._id}` },
+                { text: `🪁 1-CLICK BUY ON ZERODHA KITE (${activeSymbol})`, callback_data: `CONFIRM_KITE_${tradeRecord._id}` },
               ],
               [
                 { text: `❌ CANCEL`, callback_data: `CANCEL_${tradeRecord._id}` },
