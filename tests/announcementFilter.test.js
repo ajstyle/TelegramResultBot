@@ -54,4 +54,32 @@ describe('Announcement Keyword Filter Unit Tests', () => {
     expect(announcementFilter.isEarningsAnnouncement(intimationItem)).toBe(false);
     expect(announcementFilter.isEarningsAnnouncement(outcomeItem)).toBe(true);
   });
+
+  test('Strictly excludes newspaper publications, cuttings, advertisements, and press releases (LUMAXIND issue)', () => {
+    // Exact LUMAXIND newspaper publication filing from NSE
+    const lumaxItem = {
+      title: 'Copy of Newspaper Publication',
+      subject: 'Submission of the Newspaper cuttings of publication of Un- Audited Financial results for 2nd Quarter and Half Year ended September 30, 2026.',
+    };
+
+    const reg47Item = {
+      title: 'Regulation 47 - Newspaper Publication of Financial Results',
+      subject: 'Newspaper clipping of Q2 financial results published in Financial Express',
+    };
+
+    const pressReleaseItem = {
+      title: 'Press Release on Q2 Financial Results',
+      subject: 'Company reports robust revenue growth in Q2 financial results',
+    };
+
+    const corrigendumItem = {
+      title: 'Corrigendum to Financial Results',
+      subject: 'Errata in notes to standalone financial results',
+    };
+
+    expect(announcementFilter.isEarningsAnnouncement(lumaxItem)).toBe(false);
+    expect(announcementFilter.isEarningsAnnouncement(reg47Item)).toBe(false);
+    expect(announcementFilter.isEarningsAnnouncement(pressReleaseItem)).toBe(false);
+    expect(announcementFilter.isEarningsAnnouncement(corrigendumItem)).toBe(false);
+  });
 });

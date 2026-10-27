@@ -36,23 +36,41 @@ class BseNseMonitorService {
     }
   }
 
+  parseAnnouncementDate(dateInput) {
+    if (!dateInput) return null;
+    try {
+      if (typeof dateInput === 'string') {
+        // Handle NSE format: 27-Oct-2026 16:54:16
+        const nseMatch = dateInput.match(/(\d{1,2})[-/ ]([A-Za-z]{3})[-/ ](\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})/);
+        if (nseMatch) {
+          const monthNames = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+          const [, day, monthStr, year, hrs, mins, secs] = nseMatch;
+          const month = monthNames[monthStr.toLowerCase()];
+          if (month !== undefined) {
+            // IST is UTC + 5:30. Subtract 5h 30m to get exact UTC timestamp regardless of server host timezone
+            return new Date(Date.UTC(parseInt(year, 10), month, parseInt(day, 10), parseInt(hrs, 10) - 5, parseInt(mins, 10) - 30, parseInt(secs, 10)));
+          }
+        }
+
+        // Handle DD/MM/YYYY or DD-MM-YYYY HH:mm:ss format
+        const ddmmyyyyMatch = dateInput.match(/(\d{1,2})[-/](\d{1,2})[-/](\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})/);
+        if (ddmmyyyyMatch) {
+          const [, day, month, year, hrs, mins, secs] = ddmmyyyyMatch;
+          return new Date(Date.UTC(parseInt(year, 10), parseInt(month, 10) - 1, parseInt(day, 10), parseInt(hrs, 10) - 5, parseInt(mins, 10) - 30, parseInt(secs, 10)));
+        }
+      }
+
+      const parsed = new Date(dateInput);
+      return isNaN(parsed.getTime()) ? null : parsed;
+    } catch (_) {
+      return null;
+    }
+  }
+
   getTimeAgo(dateInput) {
     if (!dateInput) return '0 secs ago';
-
-    let annDate;
-    if (typeof dateInput === 'string') {
-      const match = dateInput.match(/(\d{2})[-/](\d{2})[-/](\d{4})\s+(\d{2}):(\d{2}):(\d{2})/);
-      if (match) {
-        const [, day, month, year, hrs, mins, secs] = match;
-        annDate = new Date(Date.UTC(year, month - 1, day, hrs - 5, mins - 30, secs));
-      } else {
-        annDate = new Date(dateInput);
-      }
-    } else {
-      annDate = new Date(dateInput);
-    }
-
-    if (isNaN(annDate.getTime())) return '0 secs ago';
+    const annDate = this.parseAnnouncementDate(dateInput);
+    if (!annDate) return '0 secs ago';
 
     const diffMs = Math.max(0, Date.now() - annDate.getTime());
     const diffSecs = Math.floor(diffMs / 1000);
@@ -67,22 +85,12 @@ class BseNseMonitorService {
   isRecentAnnouncement(dateInput) {
     if (!dateInput) return true;
     try {
-      let annDate;
-      if (typeof dateInput === 'string') {
-        const match = dateInput.match(/(\d{2})[-/](\d{2})[-/](\d{4})\s+(\d{2}):(\d{2}):(\d{2})/);
-        if (match) {
-          const [, day, month, year, hrs, mins, secs] = match;
-          annDate = new Date(Date.UTC(year, month - 1, day, hrs - 5, mins - 30, secs));
-        } else {
-          annDate = new Date(dateInput);
-        }
-      } else {
-        annDate = new Date(dateInput);
-      }
+      const annDate = this.parseAnnouncementDate(dateInput);
+      if (!annDate) return true;
 
-      if (isNaN(annDate.getTime())) return true;
       const diffMinutes = (Date.now() - annDate.getTime()) / (1000 * 60);
-      return diffMinutes <= 15; // Optimal 15-minute window for live BSE/NSE real-time announcements
+      // Strictly reject announcements older than 15 minutes or from past days, allowing up to 5 min clock skew
+      return diffMinutes >= -5 && diffMinutes <= 15;
     } catch (_) {
       return true;
     }

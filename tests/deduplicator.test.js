@@ -51,4 +51,23 @@ describe('Announcement Deduplicator Unit Tests', () => {
     expect(deduplicator.isUnique(bseItem)).toBe(true);
     expect(deduplicator.isUnique(nseItem)).toBe(false);
   });
+
+  test('Correctly hashes and deduplicates NSE announcements using DD-MMM-YYYY date format', () => {
+    const item1 = {
+      source: 'NSE',
+      symbol: 'INFY',
+      title: 'Financial Result - Outcome of Board Meeting',
+      date: '27-Oct-2026 16:30:00',
+    };
+
+    const item2 = {
+      source: 'NSE',
+      symbol: 'INFOSYS',
+      title: 'Financial Results for Q2',
+      date: '27-Oct-2026 16:35:00',
+    };
+
+    expect(deduplicator.isUnique(item1)).toBe(true);
+    expect(deduplicator.isUnique(item2)).toBe(false);
+  });
 });

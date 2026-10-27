@@ -76,12 +76,23 @@ class AnnouncementDeduplicator {
       try {
         let d;
         if (typeof item.date === 'string') {
-          const match = item.date.match(/(\d{2})[-/](\d{2})[-/](\d{4})/);
-          if (match) {
-            const [, day, month, year] = match;
-            d = new Date(Date.UTC(year, month - 1, day));
-          } else {
-            d = new Date(item.date);
+          const nseMatch = item.date.match(/(\d{1,2})[-/ ]([A-Za-z]{3})[-/ ](\d{4})/);
+          if (nseMatch) {
+            const monthNames = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+            const [, day, monthStr, year] = nseMatch;
+            const month = monthNames[monthStr.toLowerCase()];
+            if (month !== undefined) {
+              d = new Date(Date.UTC(parseInt(year, 10), month, parseInt(day, 10)));
+            }
+          }
+          if (!d) {
+            const match = item.date.match(/(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+            if (match) {
+              const [, day, month, year] = match;
+              d = new Date(Date.UTC(parseInt(year, 10), parseInt(month, 10) - 1, parseInt(day, 10)));
+            } else {
+              d = new Date(item.date);
+            }
           }
         } else {
           d = new Date(item.date);
