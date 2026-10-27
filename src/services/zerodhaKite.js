@@ -141,18 +141,20 @@ class ZerodhaKiteService {
     try {
       const inst = await this.resolveInstrument(formattedSymbol, exchange);
 
-      const tryPlace = async (tradingSym, exch, prod) => {
+      const tryPlace = async (tradingSym, exch, prod, ordType = orderType, ordPrice = price) => {
         const payload = new URLSearchParams();
         payload.append('tradingsymbol', tradingSym);
         payload.append('exchange', exch);
         payload.append('transaction_type', action.toUpperCase());
-        payload.append('order_type', orderType.toUpperCase());
+        payload.append('order_type', ordType.toUpperCase());
         payload.append('quantity', quantity.toString());
         payload.append('product', prod.toUpperCase());
         payload.append('validity', 'DAY');
 
-        if (orderType.toUpperCase() === 'LIMIT' && price > 0) {
-          payload.append('price', price.toString());
+        if (ordType.toUpperCase() === 'MARKET') {
+          payload.append('market_protection', '5'); // 5% Market Protection required by SEBI & Zerodha API
+        } else if (ordType.toUpperCase() === 'LIMIT' && ordPrice > 0) {
+          payload.append('price', ordPrice.toString());
         }
 
         return await axios.post(
@@ -167,18 +169,52 @@ class ZerodhaKiteService {
         response = await tryPlace(inst.tradingsymbol, inst.exchange, product);
       } catch (firstErr) {
         const firstErrMsg = firstErr.response?.data?.message || firstErr.message;
+        let currentProd = product;
+        let currentType = orderType;
+        let currentPrice = price;
+        let needsRetry = false;
+
+        if (
+          firstErrMsg.includes('Market orders') ||
+          firstErrMsg.includes('market protection') ||
+          firstErrMsg.includes('Limit order')
+        ) {
+          const bufferMultiplier = action.toUpperCase() === 'BUY' ? 1.005 : 0.995;
+          currentPrice = price > 0 ? (Math.round((price * bufferMultiplier) * 20) / 20).toFixed(2) : price;
+          currentType = 'LIMIT';
+          needsRetry = true;
+          console.log(`[ZerodhaKite] Market order restricted for ${inst.tradingsymbol}. Retrying with marketable LIMIT order @ ₹${currentPrice}...`);
+        }
+
+        if (firstErrMsg.includes('MIS') || firstErrMsg.includes('intraday')) {
+          currentProd = 'CNC';
+          needsRetry = true;
+          console.log(`[ZerodhaKite] MIS blocked for ${inst.tradingsymbol}. Retrying with CNC delivery product...`);
+        }
 
         if (firstErrMsg.includes('expired or does not exist')) {
           try {
             console.log(`[ZerodhaKite] Symbol ${inst.tradingsymbol} not found on ${inst.exchange}. Trying ${inst.tradingsymbol}-BE...`);
-            response = await tryPlace(`${inst.tradingsymbol}-BE`, 'NSE', 'CNC');
+            response = await tryPlace(`${inst.tradingsymbol}-BE`, 'NSE', 'CNC', currentType, currentPrice);
           } catch (_) {
             console.log(`[ZerodhaKite] Trying ${inst.tradingsymbol} on BSE exchange...`);
-            response = await tryPlace(inst.tradingsymbol, 'BSE', 'CNC');
+            response = await tryPlace(inst.tradingsymbol, 'BSE', 'CNC', currentType, currentPrice);
           }
-        } else if (firstErrMsg.includes('MIS') || firstErrMsg.includes('intraday')) {
-          console.log(`[ZerodhaKite] MIS blocked for ${inst.tradingsymbol}. Retrying with CNC delivery product...`);
-          response = await tryPlace(inst.tradingsymbol, inst.exchange, 'CNC');
+        } else if (needsRetry) {
+          try {
+            response = await tryPlace(inst.tradingsymbol, inst.exchange, currentProd, currentType, currentPrice);
+          } catch (retryErr) {
+            const retryErrMsg = retryErr.response?.data?.message || retryErr.message;
+            if (
+              (retryErrMsg.includes('MIS') || retryErrMsg.includes('intraday')) &&
+              currentProd !== 'CNC'
+            ) {
+              console.log(`[ZerodhaKite] Retrying with CNC + LIMIT together...`);
+              response = await tryPlace(inst.tradingsymbol, inst.exchange, 'CNC', 'LIMIT', currentPrice);
+            } else {
+              throw retryErr;
+            }
+          }
         } else {
           throw firstErr;
         }
