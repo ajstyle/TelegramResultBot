@@ -96,20 +96,33 @@ class KiteAutoLoginService {
       }
       console.log(`[KiteAutoLogin] ✅ 2FA successful. Session Cookie extracted.`);
 
-      // STEP 3: Request Token via Kite Connect Authorization Redirect
-      const authUrl = `https://kite.trade/connect/login?api_key=${apiKey}&v=3`;
+      // STEP 3: Request Token via Kite Connect Authorization Redirect Chain
+      let currentUrl = `https://kite.trade/connect/login?api_key=${apiKey}&v=3`;
+      let cookieHeader = cookies.map(c => c.split(';')[0]).join('; ');
       let redirectUrl = null;
 
-      try {
-        await axios.get(authUrl, {
-          headers: { Cookie: kfSessionCookie },
-          maxRedirects: 0 // Prevent axios from following the redirect so we can scrape the request_token from the URL!
+      for (let hop = 0; hop < 6; hop++) {
+        const res = await axios.get(currentUrl, {
+          headers: { Cookie: cookieHeader },
+          maxRedirects: 0,
+          validateStatus: null // Capture 302 redirects without throwing
         });
-      } catch (redirectError) {
-        if (redirectError.response && redirectError.response.status === 302) {
-          redirectUrl = redirectError.response.headers.location;
+
+        if (res.headers['set-cookie']) {
+          const newCookies = res.headers['set-cookie'].map(c => c.split(';')[0]);
+          cookieHeader += '; ' + newCookies.join('; ');
+        }
+
+        if (res.status === 301 || res.status === 302) {
+          const location = res.headers.location;
+          if (!location) break;
+          currentUrl = location.startsWith('http') ? location : new URL(location, currentUrl).toString();
+          if (currentUrl.includes('request_token=')) {
+            redirectUrl = currentUrl;
+            break;
+          }
         } else {
-          throw redirectError;
+          break;
         }
       }
 

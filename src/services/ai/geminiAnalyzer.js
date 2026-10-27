@@ -91,7 +91,7 @@ class GeminiFinancialAnalyzer {
       } else {
         pulseRating = 'Great 🚀';
       }
-    } else if (salesYoY && opYoY && patYoY) {
+    } else if (positivityScore >= 3 || (salesYoY && salesQoQ && opQoQ)) {
       pulseRating = 'Good 👍';
     } else {
       pulseRating = 'OK ⚠️';

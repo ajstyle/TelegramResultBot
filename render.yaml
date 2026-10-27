@@ -13,7 +13,7 @@ services:
       - key: TRADING_MODE
         value: LIVE
       - key: TELEGRAM_BOT_TOKEN
-        value: 8937947792:AAGO58NK4N83vOBW4ONx5bKsbdA6p9_-5TU
+        value: 8774502052:AAFX6-wEXf558Y8XkE0TdeZ2QDQhxlu6sLA
       - key: AUTHORIZED_TELEGRAM_CHAT_IDS
         value: "1015884436"
       - key: TARGET_TELEGRAM_CHANNEL

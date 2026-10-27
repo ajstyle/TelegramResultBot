@@ -37,9 +37,21 @@ describe('Announcement Keyword Filter Unit Tests', () => {
       subject: 'Investor Presentation',
     };
 
+    const intimationItem = {
+      title: 'Housing & Urban Development Corporation Ltd - Board Meeting Intimation for Consideration Of Financial Results And Dividend',
+      subject: 'Financial Results',
+    };
+
+    const outcomeItem = {
+      title: 'Housing & Urban Development Corporation Ltd - Intimation of Outcome of Board Meeting - Financial Results',
+      subject: 'Financial Results',
+    };
+
     expect(announcementFilter.isEarningsAnnouncement(noiseItem1)).toBe(false);
     expect(announcementFilter.isEarningsAnnouncement(noiseItem2)).toBe(false);
     expect(announcementFilter.isEarningsAnnouncement(noiseItem3)).toBe(false);
     expect(announcementFilter.isEarningsAnnouncement(noiseItem4)).toBe(false);
+    expect(announcementFilter.isEarningsAnnouncement(intimationItem)).toBe(false);
+    expect(announcementFilter.isEarningsAnnouncement(outcomeItem)).toBe(true);
   });
 });

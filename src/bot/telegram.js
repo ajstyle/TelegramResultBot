@@ -48,37 +48,26 @@ function initTelegramBot() {
   activeBotInstance = bot;
   bseNseMonitor.setBotInstance(bot);
 
-  let lastActivityTimestamp = Date.now();
-
-  // Self-Healing Polling Watchdog: Refreshes frozen/stalled polling sockets every 45s
+  // Safe Watchdog: Verifies polling is running without destructive idle socket termination
   if (!bot._watchdogTimer) {
     bot._watchdogTimer = setInterval(() => {
       try {
         if (!bot.isPolling()) {
           console.warn(`[TelegramBot Watchdog] Polling stopped. Restarting bot polling...`);
-          bot.startPolling({ restart: true });
-          return;
-        }
-
-        const idleTimeMs = Date.now() - lastActivityTimestamp;
-        if (idleTimeMs > 120000) { // If idle for > 2 mins, refresh polling loop
-          console.log(`[TelegramBot Watchdog] 🔄 Idle connection refresh: restarting polling socket to guarantee zero latency...`);
-          bot.stopPolling()
-            .then(() => bot.startPolling({ restart: true }))
-            .catch(() => bot.startPolling({ restart: true }));
-          lastActivityTimestamp = Date.now();
+          bot.startPolling({ restart: true }).catch(err => {
+            console.warn(`[TelegramBot Watchdog] Restart polling notice: ${err.message}`);
+          });
         }
       } catch (err) {
         console.warn(`[TelegramBot Watchdog] Notice: ${err.message}`);
       }
-    }, 45000);
+    }, 30000);
   }
 
-  console.log(`[TelegramBot] Bot initialized cleanly with TCP Keep-Alive & Watchdog.`);
+  console.log(`[TelegramBot] Bot initialized cleanly with TCP Keep-Alive & Non-destructive Watchdog.`);
 
   // Register active chat IDs with bseNseMonitor
   const registerChatId = msg => {
-    lastActivityTimestamp = Date.now();
     if (msg && msg.chat && msg.chat.id) {
       bseNseMonitor.addActiveChatId(msg.chat.id.toString());
     }
@@ -86,64 +75,85 @@ function initTelegramBot() {
 
   // 1. Handle /start and /help commands
   bot.onText(/\/(start|help)/, async msg => {
-    registerChatId(msg);
-    const chatId = msg.chat.id;
-    const helpMsg =
-      `🤖 *Telegram Stock Trading Assistant*\n\n` +
-      `Mode: \`${config.tradingMode}\`\n` +
-      `Auto-Execute: \`${config.telegram.autoExecute}\`\n\n` +
-      `*Features:*\n` +
-      `⚡ *BSE/NSE 24/7 Live Earnings Broadcasting*\n` +
-      `📊 *Gemini Flash Quantitative Scorecards*\n` +
-      `⚡ *1-Click Direct Order Execution on Angel One*`;
-    await bot.sendMessage(chatId, helpMsg, { parse_mode: 'Markdown' });
+    try {
+      registerChatId(msg);
+      const chatId = msg.chat.id;
+      const helpMsg =
+        `🤖 *Telegram Stock Trading Assistant*\n\n` +
+        `Mode: \`${config.tradingMode}\`\n` +
+        `Auto-Execute: \`${config.telegram.autoExecute}\`\n\n` +
+        `*Features:*\n` +
+        `⚡ *BSE/NSE 24/7 Live Earnings Broadcasting*\n` +
+        `📊 *Gemini Flash Quantitative Scorecards*\n` +
+        `⚡ *1-Click Direct Order Execution on Angel One*`;
+      await bot.sendMessage(chatId, helpMsg, { parse_mode: 'Markdown' });
+    } catch (err) {
+      console.error(`[TelegramBot] Error handling /start or /help command: ${err.message}`);
+    }
   });
 
   // 2. Handle incoming direct Photos / Screenshots
   bot.on('photo', async msg => {
-    registerChatId(msg);
-    console.log(`[TelegramBot] Direct photo received from Chat ID: ${msg.chat.id}`);
-    await handleScreenshot(bot, msg);
+    try {
+      registerChatId(msg);
+      console.log(`[TelegramBot] Direct photo received from Chat ID: ${msg.chat.id}`);
+      await handleScreenshot(bot, msg);
+    } catch (err) {
+      console.error(`[TelegramBot] Error handling photo message: ${err.message}`);
+    }
   });
 
   // 3. Handle direct messages
   bot.on('message', async msg => {
-    registerChatId(msg);
-    if (msg.photo || (msg.text && msg.text.startsWith('/'))) return;
+    try {
+      registerChatId(msg);
+      if (msg.photo || (msg.text && msg.text.startsWith('/'))) return;
 
-    if (msg.text || msg.caption) {
-      const textToParse = msg.text || msg.caption;
-      const parsed = signalParser.parse(textToParse);
-      if (parsed.isParsed) {
-        console.log(`[TelegramBot] Signal parsed from Chat ID ${msg.chat.id}: ${parsed.action} ${parsed.symbol} @ ${parsed.entry}`);
-        await handleScreenshot(bot, msg);
+      if (msg.text || msg.caption) {
+        const textToParse = msg.text || msg.caption;
+        const parsed = signalParser.parse(textToParse);
+        if (parsed.isParsed) {
+          console.log(`[TelegramBot] Signal parsed from Chat ID ${msg.chat.id}: ${parsed.action} ${parsed.symbol} @ ${parsed.entry}`);
+          await handleScreenshot(bot, msg);
+        }
       }
+    } catch (err) {
+      console.error(`[TelegramBot] Error handling text message: ${err.message}`);
     }
   });
 
   // 4. Handle Inline Keyboard Callbacks (CONFIRM / CANCEL 1-Click Buy Buttons)
   bot.on('callback_query', async callbackQuery => {
-    console.log(`[TelegramBot] Callback Query received: ${callbackQuery.data}`);
-    await handleOrderConfirmation(bot, callbackQuery);
+    try {
+      console.log(`[TelegramBot] Callback Query received: ${callbackQuery.data}`);
+      await handleOrderConfirmation(bot, callbackQuery);
+    } catch (err) {
+      console.error(`[TelegramBot] Error handling callback query: ${err.message}`);
+    }
   });
 
   let last409LogTime = 0;
 
-  // 5. Handle Polling & Network Errors
+  // 5. Handle Polling & Network Errors safely
   const handleBotError = (errType, error) => {
     const msg = error?.message || String(error || '');
     const code = error?.code || error?.name || '';
 
     if (msg.includes('404')) {
-      console.error(`[TelegramBot] Polling error: 404 Not Found. Make sure TELEGRAM_BOT_TOKEN in .env is correct and restart the server.`);
+      console.error(`[TelegramBot] Polling error: 404 Not Found. Make sure TELEGRAM_BOT_TOKEN in .env is correct.`);
     } else if (msg.includes('409')) {
       const now = Date.now();
       if (now - last409LogTime > 60000) {
         last409LogTime = now;
-        console.warn(`[TelegramBot] Notice: 409 Conflict - Another bot instance is active (e.g. Render deploy or local server). Polling will auto-resume.`);
+        console.warn(`[TelegramBot] Notice: 409 Conflict - Another bot instance is active (e.g. Render deploy or local server).`);
       }
     } else if (msg.includes('EFATAL') || msg.includes('AggregateError') || code === 'EFATAL' || code === 'ETIMEDOUT' || code === 'ECONNRESET' || code === 'ENOTFOUND') {
       console.warn(`[TelegramBot] Transient network notice: Long-polling connection reset (${code || 'AggregateError'}). Auto-reconnecting...`);
+      if (!bot.isPolling()) {
+        setTimeout(() => {
+          bot.startPolling({ restart: true }).catch(() => {});
+        }, 2000);
+      }
     } else {
       console.error(`[TelegramBot] ${errType} error: ${msg}`);
     }
@@ -157,3 +167,4 @@ function initTelegramBot() {
 }
 
 module.exports = { initTelegramBot };
+

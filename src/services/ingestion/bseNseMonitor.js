@@ -414,12 +414,6 @@ class BseNseMonitorService {
           : '-';
         const peDisplay = fundamentals.metrics?.pe ? `${fundamentals.metrics.pe}` : '-';
         const cmpDisplay = entryPrice ? `₹${entryPrice.toFixed(1)}` : '-';
-        const valuationDisplay = fundamentals.valuation || 'FAIRLY VALUED ⚖️';
-
-        const activeSymbol = (fundamentals.symbol && !/^\d+$/.test(fundamentals.symbol)) 
-          ? fundamentals.symbol 
-          : ((item.symbol && !/^\d+$/.test(item.symbol)) ? item.symbol : (item.scripCode || 'STOCK'));
-
         const displayHeaderSymbol = item.scripCode && activeSymbol !== item.scripCode
           ? `${activeSymbol} (${item.scripCode})`
           : activeSymbol;

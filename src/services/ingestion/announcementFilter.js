@@ -85,15 +85,28 @@ class AnnouncementFilter {
       }
     }
 
+    // Exclude prior notice / intimation of board meetings unless it is the actual outcome
+    if (
+      (textToMatch.includes('board meeting intimation') ||
+       textToMatch.includes('intimation of board meeting') ||
+       textToMatch.includes('prior intimation')) &&
+      !textToMatch.includes('outcome')
+    ) {
+      return false;
+    }
+
     // 2. EXPLICIT INCLUSIONS (Process these if they passed absolute exclusions)
     const primaryInclusions = [
       'financial results',
+      'financial result',
+      'financial performance',
       'quarterly results',
+      'quarterly result',
       'standalone financial results',
       'consolidated financial results',
       'unaudited results',
       'audited results',
-      'outcome of board meeting',
+       'outcome of board meeting',
       'outcome of board',
       'regulation 33',
       'reg 33',

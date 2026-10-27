@@ -306,5 +306,53 @@
     "status": "ANALYZED",
     "createdAt": "2026-08-22T12:25:03.504Z",
     "updatedAt": "2026-08-22T12:25:03.504Z"
+  },
+  {
+    "_id": "MEM_1793094279712_590",
+    "symbol": "INDIAMART",
+    "action": "BUY",
+    "entry": 1637.4,
+    "ltp": 1637.4,
+    "stopLoss": 1604.65,
+    "quantity": 30,
+    "status": "ANALYZED",
+    "createdAt": "2026-10-27T09:44:39.712Z",
+    "updatedAt": "2026-10-27T09:44:39.712Z"
+  },
+  {
+    "_id": "MEM_1793095129611_289",
+    "symbol": "KFINTECH",
+    "action": "BUY",
+    "entry": 867,
+    "ltp": 867,
+    "stopLoss": 849.66,
+    "quantity": 57,
+    "status": "ANALYZED",
+    "createdAt": "2026-10-27T09:58:49.611Z",
+    "updatedAt": "2026-10-27T09:58:56.618Z"
+  },
+  {
+    "_id": "MEM_1793096811200_162",
+    "symbol": "HONAUT",
+    "action": "BUY",
+    "entry": 31520,
+    "ltp": 31520,
+    "stopLoss": 30889.6,
+    "quantity": 1,
+    "status": "ANALYZED",
+    "createdAt": "2026-10-27T10:26:51.200Z",
+    "updatedAt": "2026-10-27T10:26:57.870Z"
+  },
+  {
+    "_id": "MEM_1793096938272_977",
+    "symbol": "LEAPIND",
+    "action": "BUY",
+    "entry": 123.75,
+    "ltp": 123.75,
+    "stopLoss": 121.28,
+    "quantity": 404,
+    "status": "ANALYZED",
+    "createdAt": "2026-10-27T10:28:58.272Z",
+    "updatedAt": "2026-10-27T10:29:19.425Z"
   }
 ]
