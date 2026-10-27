@@ -63,7 +63,7 @@ class AngelOneService {
             'X-MACAddress': '00-00-00-00-00-00',
             'X-PrivateKey': config.angelOne.apiKey,
           },
-          timeout: 10000,
+          timeout: 20000,
         }
       );
 

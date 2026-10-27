@@ -382,7 +382,14 @@ Return ONLY valid JSON matching this exact structure:
     ];
 
     const pdfSizeBytes = Buffer.isBuffer(pdfInput) ? pdfInput.length : 0;
-    const timeoutMs = pdfSizeBytes >= 500000 ? 22000 : 12000;
+    let timeoutMs = 15000;
+    if (pdfSizeBytes >= 4000000) {
+      timeoutMs = 45000;
+    } else if (pdfSizeBytes >= 1000000) {
+      timeoutMs = 30000;
+    } else if (pdfSizeBytes >= 500000) {
+      timeoutMs = 22000;
+    }
     if (pdfSizeBytes >= 500000) {
       console.log(`[GeminiAnalyzer] Large PDF detected (${(pdfSizeBytes / 1024).toFixed(0)}KB). Extended timeout: ${timeoutMs / 1000}s per model.`);
     }

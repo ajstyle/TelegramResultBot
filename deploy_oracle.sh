@@ -10,8 +10,9 @@ echo "[1/4] Pulling latest code from GitHub main branch..."
 git fetch origin main
 git reset --hard origin/main
 
-# 2. Install production dependencies
-echo "[2/4] Installing dependencies..."
+# 2. Install production dependencies & system fonts
+echo "[2/4] Installing dependencies & system fonts..."
+sudo apt-get update -y && sudo apt-get install -y fonts-dejavu-core fontconfig || true
 npm install --production
 
 # 3. Restart application with PM2 process manager

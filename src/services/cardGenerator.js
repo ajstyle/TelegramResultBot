@@ -1,4 +1,17 @@
 const { Resvg } = require('@resvg/resvg-js');
+const fs = require('fs');
+const path = require('path');
+
+// Preload bundled TrueType fonts for 100% reliable rendering on headless Linux (Ubuntu/Debian)
+const fontBuffers = [];
+try {
+  const regPath = path.join(__dirname, '../assets/fonts/Roboto-Regular.ttf');
+  const boldPath = path.join(__dirname, '../assets/fonts/Roboto-Bold.ttf');
+  if (fs.existsSync(regPath)) fontBuffers.push(fs.readFileSync(regPath));
+  if (fs.existsSync(boldPath)) fontBuffers.push(fs.readFileSync(boldPath));
+} catch (fontErr) {
+  console.warn('[CardGenerator] Bundled font loading notice:', fontErr.message);
+}
 
 /**
  * Visual PNG & SVG Report Card Generator Engine
@@ -34,7 +47,11 @@ class CardGenerator {
     try {
       const resvg = new Resvg(svgStr, {
         fitTo: { mode: 'width', value: 900 },
-        font: { loadSystemFonts: true, defaultFontFamily: 'DejaVu Sans' },
+        font: {
+          loadSystemFonts: true,
+          fontBuffers: fontBuffers.length > 0 ? fontBuffers : undefined,
+          defaultFontFamily: 'Roboto',
+        },
       });
       return resvg.render().asPng();
     } catch (e) {
@@ -42,7 +59,11 @@ class CardGenerator {
       try {
         const fallbackResvg = new Resvg(svgStr, {
           fitTo: { mode: 'width', value: 900 },
-          font: { loadSystemFonts: false, defaultFontFamily: 'DejaVu Sans' },
+          font: {
+            loadSystemFonts: false,
+            fontBuffers: fontBuffers.length > 0 ? fontBuffers : undefined,
+            defaultFontFamily: 'Roboto',
+          },
         });
         return fallbackResvg.render().asPng();
       } catch (err2) {
