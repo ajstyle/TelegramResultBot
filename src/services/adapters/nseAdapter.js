@@ -1,4 +1,12 @@
 const axios = require('axios');
+const https = require('https');
+
+const persistentHttpsAgent = new https.Agent({
+  keepAlive: true,
+  keepAliveMsecs: 30000,
+  maxSockets: 20,
+  maxFreeSockets: 10,
+});
 
 /**
  * Pluggable Modular NSE Announcement Adapter
@@ -31,6 +39,7 @@ class NseAdapter {
           'User-Agent': this.getRandomUserAgent(),
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
         },
+        httpsAgent: persistentHttpsAgent,
         timeout: 4000,
       });
       if (res.headers['set-cookie']) {
@@ -54,7 +63,8 @@ class NseAdapter {
 
         const response = await axios.get(`https://www.nseindia.com/api/corporate-announcements?index=equities&_t=${Date.now()}`, {
           headers,
-          timeout: 5000,
+          httpsAgent: persistentHttpsAgent,
+          timeout: 4000,
         });
 
         if (Array.isArray(response.data)) {

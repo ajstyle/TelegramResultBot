@@ -182,8 +182,10 @@ class BseNseMonitorService {
           }
           console.log(`[BseNseMonitor] Live earnings announcement detected: [${item.source}] ${item.symbol} - ${item.title}`);
           this.lastPollTimestamp = Date.now();
-          await this.processAnnouncement(item);
-          this.lastPollTimestamp = Date.now();
+          // Asynchronous non-blocking dispatch: guarantees 500ms real-time polling loop is NEVER delayed!
+          this.processAnnouncement(item).catch((err) => {
+            console.error(`[BseNseMonitor] Background processing error for ${item.symbol}: ${err.message}`);
+          });
         }
       }
     } catch (error) {
@@ -222,6 +224,9 @@ class BseNseMonitorService {
 
         (async () => {
           try {
+            if (angelOne.circuitBreakerUntil && Date.now() < angelOne.circuitBreakerUntil) {
+              return { scripInfo: { exchange: 'NSE', tradingsymbol: item.symbol, symboltoken: '0' }, ltp: null };
+            }
             const scripInfo = await angelOne.searchScrip(item.symbol, 'NSE');
             const ltp = await angelOne.getLTP(scripInfo.exchange, scripInfo.tradingsymbol, scripInfo.symboltoken);
             return { scripInfo, ltp };
@@ -287,7 +292,7 @@ class BseNseMonitorService {
         try {
           if (pdfAnalysis.pdfBuffer) {
             console.log(`[BseNseMonitor] 🔍 ${item.symbol}: Vision-First analysis (PDF buffer → Gemini)...`);
-            geminiResult = await geminiAnalyzer.analyzeResultPdf(pdfAnalysis.pdfBuffer, item.symbol, { isLiveBroadcast: true });
+            geminiResult = await geminiAnalyzer.analyzeResultPdf(pdfAnalysis.pdfBuffer, item.symbol, { isLiveBroadcast: true, rawText: pdfAnalysis.rawText });
           }
         } catch (visionErr) {
           console.warn(`[BseNseMonitor] Vision Route failed for ${item.symbol} (${visionErr.message}). Proceeding to Text Fallback...`);

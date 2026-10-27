@@ -125,15 +125,9 @@ class PdfParserEngine {
       // PDF parse notice handled silently
     }
 
-    // Fallback to OCR if text is minimal (< 50 chars)
+    // For scanned/image PDFs (< 50 chars), mark as scanned so Gemini Vision processes directly in seconds without heavy CPU OCR
     if (!rawText || rawText.length < 50) {
       isScanned = true;
-      try {
-        const ocrResult = await ocrEngine.processImage(pdfBuffer);
-        rawText = ocrResult.text;
-      } catch (ocrErr) {
-        // OCR fallback handled silently
-      }
     }
 
     const metrics = this.extractFinancialMetrics(rawText);

@@ -342,10 +342,12 @@ Return ONLY valid JSON matching this exact structure:
 }
 `;
 
-    // Tier 0: Fast Instant Local Parser (<100ms)
+    // Tier 0: Fast Instant Local Parser (<10ms)
     try {
       let localResult = null;
-      if (Buffer.isBuffer(pdfInput)) {
+      if (opts.rawText && typeof opts.rawText === 'string' && opts.rawText.length > 200) {
+        localResult = localFinancialParser.analyzeFromText(opts.rawText, symbolName);
+      } else if (Buffer.isBuffer(pdfInput)) {
         localResult = await localFinancialParser.analyzeFromBuffer(pdfInput, symbolName);
       } else if (typeof pdfInput === 'string' && pdfInput.length > 200) {
         localResult = localFinancialParser.analyzeFromText(pdfInput, symbolName);
@@ -432,6 +434,7 @@ Return ONLY valid JSON matching this exact structure:
             config: {
               responseMimeType: 'application/json',
               temperature: 0.1,
+              thinkingConfig: { thinkingBudget: 0 },
             },
           });
 

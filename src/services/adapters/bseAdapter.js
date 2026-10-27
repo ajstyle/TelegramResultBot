@@ -1,5 +1,12 @@
 const https = require('https');
 
+const persistentHttpsAgent = new https.Agent({
+  keepAlive: true,
+  keepAliveMsecs: 30000,
+  maxSockets: 20,
+  maxFreeSockets: 10,
+});
+
 /**
  * Pluggable Modular BSE Announcement Adapter
  * Filters corporate announcements for tradable equity scrips, resolves company stock names, and handles PDF URLs.
@@ -42,6 +49,7 @@ class BseAdapter {
         path: `/BseIndiaAPI/api/CorpAnnouncementDTNewDataBeta/w?newsid=${guid}`,
         method: 'GET',
         insecureHTTPParser: true,
+        agent: persistentHttpsAgent,
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
           'Accept': 'application/json, text/plain, */*',
@@ -155,6 +163,7 @@ class BseAdapter {
         path: `/BseIndiaAPI/api/CorpAnn/w?scripcode=&cat=&subcat=&_t=${Date.now()}`,
         method: 'GET',
         insecureHTTPParser: true,
+        agent: persistentHttpsAgent,
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
           'Accept': 'application/json, text/plain, */*',
