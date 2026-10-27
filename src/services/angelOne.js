@@ -9,6 +9,8 @@ class AngelOneService {
     this.feedToken = null;
     this.tokenExpiry = 0;
     this.scripCache = new Map();
+    this.consecutiveFailures = 0;
+    this.circuitBreakerUntil = 0;
   }
 
   /**
@@ -32,6 +34,10 @@ class AngelOneService {
    * Login to Angel One SmartAPI to generate JWT session
    */
   async login() {
+    if (this.circuitBreakerUntil && Date.now() < this.circuitBreakerUntil) {
+      return false;
+    }
+
     if (config.tradingMode === 'PAPER' && !config.angelOne.apiKey) {
       console.log('[AngelOne] PAPER Mode: Operating without active Angel One API connection.');
       return true;
@@ -63,7 +69,7 @@ class AngelOneService {
             'X-MACAddress': '00-00-00-00-00-00',
             'X-PrivateKey': config.angelOne.apiKey,
           },
-          timeout: 20000,
+          timeout: 4000,
         }
       );
 
@@ -73,13 +79,20 @@ class AngelOneService {
         this.feedToken = response.data.data.feedToken;
         // Token valid for ~24 hours, set expiry to 20 hours
         this.tokenExpiry = Date.now() + 20 * 60 * 60 * 1000;
+        this.consecutiveFailures = 0;
+        this.circuitBreakerUntil = 0;
         console.log('[AngelOne] Successfully authenticated session.');
         return true;
       } else {
         throw new Error(response.data?.message || 'Login failed');
       }
     } catch (error) {
+      this.consecutiveFailures++;
       console.error(`[AngelOne] Login error: ${error.response?.data?.message || error.message}`);
+      if (this.consecutiveFailures >= 2) {
+        this.circuitBreakerUntil = Date.now() + 10 * 60 * 1000;
+        console.warn('[AngelOne] Connectivity blocked or timing out. Enabling 10-minute circuit breaker to protect ingestion loop.');
+      }
       if (config.tradingMode === 'PAPER') {
         console.log('[AngelOne] Fallback to simulated PAPER session.');
         return true;

@@ -373,31 +373,38 @@ Return ONLY valid JSON matching this exact structure:
       console.warn(`[GeminiAnalyzer] Local parser instant pass notice for ${symbolName}: ${localErr.message}`);
     }
 
-    // Tier 1: Parallel Gemini AI Models Race
+    // Tier 1: High-Quota Gemini Flash-Lite Models Suite
     const candidateModels = [
       'gemini-3.1-flash-lite',
-      'gemini-3.5-flash',
-      'gemini-3.6-flash',
-      'gemini-flash-latest',
+      'gemini-3.5-flash-lite',
+      'gemini-flash-lite-latest',
+      'gemini-3.1-flash-lite-preview',
+      'gemini-3-flash-preview',
     ];
 
     const pdfSizeBytes = Buffer.isBuffer(pdfInput) ? pdfInput.length : 0;
-    let timeoutMs = 15000;
+    let timeoutMs = 20000;
     if (pdfSizeBytes >= 4000000) {
       timeoutMs = 45000;
     } else if (pdfSizeBytes >= 1000000) {
       timeoutMs = 30000;
     } else if (pdfSizeBytes >= 500000) {
-      timeoutMs = 22000;
+      timeoutMs = 25000;
     }
     if (pdfSizeBytes >= 500000) {
       console.log(`[GeminiAnalyzer] Large PDF detected (${(pdfSizeBytes / 1024).toFixed(0)}KB). Extended timeout: ${timeoutMs / 1000}s per model.`);
     }
 
-    const activeModels = candidateModels.filter(m => {
+    let activeModels = candidateModels.filter(m => {
       const quotaExpiry = this.exhaustedModels.get(m);
       return !quotaExpiry || Date.now() >= quotaExpiry;
     });
+
+    // Never allow lockout: if all models cooled down, reset cache to keep bot working
+    if (activeModels.length === 0) {
+      this.exhaustedModels.clear();
+      activeModels = candidateModels;
+    }
 
     if (activeModels.length > 0 && this.ai) {
       const contents = [];
@@ -413,9 +420,12 @@ Return ONLY valid JSON matching this exact structure:
       }
       contents.push({ text: masterPrompt });
 
-      const modelPromises = activeModels.map(async (modelName) => {
+      // Fast, Token-Efficient Sequential Cascading:
+      // Try primary model (gemini-3.1-flash-lite) first. If it succeeds, 1 request used, 0 quota wasted!
+      // If 429 or timeout occurs, immediately cascade to next lite fallback.
+      for (const modelName of activeModels) {
         try {
-          console.log(`[GeminiAnalyzer] Launching parallel AI task: ${modelName}...`);
+          console.log(`[GeminiAnalyzer] Launching AI task with ${modelName} for ${symbolName}...`);
           const generatePromise = this.ai.models.generateContent({
             model: modelName,
             contents,
@@ -455,6 +465,7 @@ Return ONLY valid JSON matching this exact structure:
             parsedData.is_financial_sector
           );
 
+          console.log(`[GeminiAnalyzer] ⚡ AI Analysis Success with ${modelName} for ${symbolName}! Pulse: ${scorecard.pulseRating}`);
           return {
             modelUsed: modelName,
             rawPayload: parsedData,
@@ -464,19 +475,14 @@ Return ONLY valid JSON matching this exact structure:
         } catch (err) {
           const isRateLimit = err.message && (err.message.includes('429') || err.message.includes('RESOURCE_EXHAUSTED') || err.message.includes('Quota exceeded'));
           if (isRateLimit) {
-            this.exhaustedModels.set(modelName, Date.now() + 60 * 1000);
+            this.exhaustedModels.set(modelName, Date.now() + 30 * 1000);
+            console.warn(`[GeminiAnalyzer] Rate limit (429) on ${modelName}. Cascading to next model...`);
+          } else {
+            console.warn(`[GeminiAnalyzer] Model ${modelName} notice for ${symbolName}: ${err.message}. Cascading to next model...`);
           }
-          throw err;
         }
-      });
-
-      try {
-        const winner = await Promise.any(modelPromises);
-        console.log(`[GeminiAnalyzer] ⚡ Parallel AI Race Winner: ${winner.modelUsed}! Pulse: ${winner.scorecard.pulseRating}`);
-        return winner;
-      } catch (raceErr) {
-        console.warn(`[GeminiAnalyzer] All parallel Gemini models failed or timed out for ${symbolName}.`);
       }
+      console.warn(`[GeminiAnalyzer] All candidate Gemini models failed or timed out for ${symbolName}.`);
     }
 
     // For both live and non-live broadcasts: try Screener fallback as last resort.

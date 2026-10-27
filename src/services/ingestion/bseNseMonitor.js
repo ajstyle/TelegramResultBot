@@ -24,6 +24,7 @@ class BseNseMonitorService {
     this.bot = null;
     this.recentAnnouncements = [];
     this.isInitialRun = true;
+    this.isProcessingAnnouncement = false;
   }
 
   setBotInstance(botInstance) {
@@ -104,18 +105,18 @@ class BseNseMonitorService {
     this.pollAnnouncements();
     this.intervalId = setInterval(() => this.pollAnnouncements(), pollingIntervalMs);
 
-    // Watchdog keep-alive timer to guarantee 24/7 continuous polling on Render Cloud
+    // Watchdog keep-alive timer to guarantee 24/7 continuous polling on Render/Oracle Cloud
     if (!this.watchdogId) {
       this.watchdogId = setInterval(() => {
         const timeSinceLastPoll = Date.now() - (this.lastPollTimestamp || Date.now());
-        if (timeSinceLastPoll > 15000 || !this.intervalId) {
+        if ((!this.isProcessingAnnouncement && timeSinceLastPoll > 60000) || !this.intervalId) {
           console.warn(`[BseNseMonitor Watchdog] Polling loop stalled (${Math.round(timeSinceLastPoll / 1000)}s since last poll). Auto-restarting ingestion loop...`);
           this.isPolling = false;
           if (this.intervalId) clearInterval(this.intervalId);
           this.intervalId = setInterval(() => this.pollAnnouncements(), pollingIntervalMs);
           this.pollAnnouncements();
         }
-      }, 5000);
+      }, 10000);
     }
   }
 
@@ -193,6 +194,8 @@ class BseNseMonitorService {
   }
 
   async processAnnouncement(item) {
+    this.isProcessingAnnouncement = true;
+    this.lastPollTimestamp = Date.now();
     try {
       const fundamentalsService = require('../fundamentals');
       const marketCapClassifier = require('../universe/marketCapClassifier');
@@ -690,6 +693,9 @@ class BseNseMonitorService {
       }
     } catch (error) {
       console.error(`[BseNseMonitor] Error processing announcement for ${item.symbol}: ${error.stack}`);
+    } finally {
+      this.isProcessingAnnouncement = false;
+      this.lastPollTimestamp = Date.now();
     }
   }
 
