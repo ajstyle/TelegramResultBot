@@ -138,14 +138,23 @@ class AngelOneService {
       exchange,
     };
 
+    if (this.circuitBreakerUntil && Date.now() < this.circuitBreakerUntil) {
+      return defaultScrip;
+    }
+
     if (config.tradingMode === 'PAPER' && !this.jwtToken) {
       return defaultScrip;
     }
 
-    try {
-      await this.login();
-    } catch (_) {
-      return defaultScrip;
+    if (!this.jwtToken) {
+      try {
+        await this.login();
+      } catch (_) {
+        return defaultScrip;
+      }
+      if (!this.jwtToken) {
+        return defaultScrip;
+      }
     }
 
     try {
@@ -155,7 +164,7 @@ class AngelOneService {
           exchange,
           searchscrip: formattedSymbol,
         },
-        { headers: this.getHeaders(), timeout: 5000 }
+        { headers: this.getHeaders(), timeout: 2000 }
       );
 
       if (response.data && response.data.status && Array.isArray(response.data.data) && response.data.data.length > 0) {
@@ -180,7 +189,7 @@ class AngelOneService {
 
     // Fallback: Fetch from Angel One Official Scrip Master File
     try {
-      const smRes = await axios.get('https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json', { timeout: 8000 });
+      const smRes = await axios.get('https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json', { timeout: 2500 });
       if (Array.isArray(smRes.data)) {
         const match = smRes.data.find(item => item.name === formattedSymbol && (item.exch_seg === exchange || item.exch_seg === 'NSE' || item.exch_seg === 'BSE'));
         if (match && match.token) {
@@ -230,17 +239,30 @@ class AngelOneService {
    * @returns {Promise<number>}
    */
   async getLTP(exchange, tradingsymbol, symboltoken) {
+    if (this.circuitBreakerUntil && Date.now() < this.circuitBreakerUntil) {
+      return null;
+    }
+
     if (config.tradingMode === 'PAPER' && !this.jwtToken) {
       return null; // Will fallback to entry price if null
     }
 
-    await this.login();
+    if (!this.jwtToken) {
+      try {
+        await this.login();
+      } catch (_) {
+        return null;
+      }
+      if (!this.jwtToken) {
+        return null;
+      }
+    }
 
     try {
       const response = await axios.post(
         `${config.angelOne.baseUrl}/rest/secure/angelbroking/order/v1/getLtpData`,
         { exchange, tradingsymbol, symboltoken },
-        { headers: this.getHeaders(), timeout: 15000 }
+        { headers: this.getHeaders(), timeout: 2000 }
       );
 
       if (response.data && response.data.status && response.data.data) {
@@ -248,6 +270,11 @@ class AngelOneService {
       }
       return null;
     } catch (error) {
+      this.consecutiveFailures = (this.consecutiveFailures || 0) + 1;
+      if (this.consecutiveFailures >= 2) {
+        this.circuitBreakerUntil = Date.now() + 10 * 60 * 1000;
+        console.warn('[AngelOne] Connectivity blocked or timing out. Enabling 10-minute circuit breaker to protect ingestion loop.');
+      }
       console.warn(`[AngelOne] LTP fetch failed for ${tradingsymbol}: ${error.message}`);
       return null;
     }
@@ -261,11 +288,24 @@ class AngelOneService {
    * @returns {Promise<Array<{ high: number, low: number, close: number }>>}
    */
   async getHistoricalCandles(exchange, symboltoken, days = 30) {
+    if (this.circuitBreakerUntil && Date.now() < this.circuitBreakerUntil) {
+      return [];
+    }
+
     if (config.tradingMode === 'PAPER' && !this.jwtToken) {
       return [];
     }
 
-    await this.login();
+    if (!this.jwtToken) {
+      try {
+        await this.login();
+      } catch (_) {
+        return [];
+      }
+      if (!this.jwtToken) {
+        return [];
+      }
+    }
 
     try {
       const toDate = new Date();
@@ -283,7 +323,7 @@ class AngelOneService {
           fromdate: formatDate(fromDate),
           todate: formatDate(toDate),
         },
-        { headers: this.getHeaders(), timeout: 15000 }
+        { headers: this.getHeaders(), timeout: 3000 }
       );
 
       if (response.data && response.data.status && Array.isArray(response.data.data)) {

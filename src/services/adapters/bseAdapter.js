@@ -82,7 +82,7 @@ class BseAdapter {
       });
 
       req.on('error', () => resolve(guid ? `https://www.bseindia.com/xml-data/corpfiling/AttachLive/${guid}.pdf` : null));
-      req.setTimeout(5000, () => {
+      req.setTimeout(3000, () => {
         req.destroy();
         resolve(guid ? `https://www.bseindia.com/xml-data/corpfiling/AttachLive/${guid}.pdf` : null);
       });
@@ -230,7 +230,7 @@ class BseAdapter {
       });
 
       req.on('error', () => resolve([]));
-      req.setTimeout(8000, () => {
+      req.setTimeout(3500, () => {
         req.destroy();
         resolve([]);
       });

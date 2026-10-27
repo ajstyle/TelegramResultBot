@@ -425,6 +425,7 @@ Return ONLY valid JSON matching this exact structure:
       // Fast, Token-Efficient Sequential Cascading:
       // Try primary model (gemini-3.1-flash-lite) first. If it succeeds, 1 request used, 0 quota wasted!
       // If 429 or timeout occurs, immediately cascade to next lite fallback.
+      let zeroNumberCount = 0;
       for (const modelName of activeModels) {
         try {
           console.log(`[GeminiAnalyzer] Launching AI task with ${modelName} for ${symbolName}...`);
@@ -482,6 +483,14 @@ Return ONLY valid JSON matching this exact structure:
             console.warn(`[GeminiAnalyzer] Rate limit (429) on ${modelName}. Cascading to next model...`);
           } else {
             console.warn(`[GeminiAnalyzer] Model ${modelName} notice for ${symbolName}: ${err.message}. Cascading to next model...`);
+          }
+
+          if (err.message && err.message.includes('returned 0s')) {
+            zeroNumberCount++;
+            if (zeroNumberCount >= 2) {
+              console.warn(`[GeminiAnalyzer] Confirmed no financial numbers in document for ${symbolName} (${zeroNumberCount} models returned 0s). Aborting model cascade.`);
+              break;
+            }
           }
         }
       }

@@ -1,12 +1,24 @@
 const axios = require('axios');
 const https = require('https');
 
+const persistentHttpsAgent = new https.Agent({
+  keepAlive: true,
+  keepAliveMsecs: 30000,
+  maxSockets: 20,
+  maxFreeSockets: 10,
+});
+
 /**
  * 100% Exact Live Fundamentals Provider via Screener.in & BSE APIs
  * Fetches exact real-world live financial ratios (P/E, ROCE, ROE, Market Cap, Book Value, CMP)
  * directly from Screener.in and BSE India Official API on every request.
  */
 class FundamentalsProvider {
+  constructor() {
+    this.cache = new Map();
+    this.cacheTtlMs = 30 * 60 * 1000; // 30 mins
+  }
+
   /**
    * Fetch 100% exact real live fundamentals directly from Screener.in
    */
@@ -29,7 +41,8 @@ class FundamentalsProvider {
         try {
           res = await axios.get(url, {
             headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-            timeout: 5000,
+            httpsAgent: persistentHttpsAgent,
+            timeout: 2500,
           });
           if (res.data && res.data.includes('Market Cap')) break;
         } catch (_) {}
@@ -91,6 +104,7 @@ class FundamentalsProvider {
         path: `/BseIndiaAPI/api/ComHeader/w?scripcode=${cleanCode}`,
         method: 'GET',
         insecureHTTPParser: true,
+        agent: persistentHttpsAgent,
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
           'Accept': 'application/json, text/plain, */*',
@@ -111,7 +125,7 @@ class FundamentalsProvider {
         });
       });
       req.on('error', () => resolve(null));
-      req.setTimeout(4000, () => {
+      req.setTimeout(2500, () => {
         req.destroy();
         resolve(null);
       });
@@ -128,6 +142,12 @@ class FundamentalsProvider {
   async getFundamentals(symbol, scripCode = null) {
     if (!symbol) return this.getEmptyFundamentals();
     const formattedSymbol = symbol.toUpperCase().trim().replace(/[^A-Z0-9.&-]/g, '');
+
+    const cacheKey = `${formattedSymbol}:${scripCode || ''}`;
+    const cached = this.cache.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp < this.cacheTtlMs)) {
+      return cached.data;
+    }
 
     const bseScripMap = {
       AVANTEL: '532407',
@@ -238,6 +258,9 @@ class FundamentalsProvider {
       companyCategory: categoryMap[classification.capCategory] || 'Listed Stock',
       sector,
     };
+
+    this.cache.set(cacheKey, { timestamp: Date.now(), data: result });
+    return result;
   }
 
   getEmptyFundamentals() {

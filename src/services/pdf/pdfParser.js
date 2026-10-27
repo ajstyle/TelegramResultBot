@@ -1,6 +1,14 @@
 const axios = require('axios');
+const https = require('https');
 const pdfParse = require('pdf-parse');
 const ocrEngine = require('../../ocr/tesseract');
+
+const persistentHttpsAgent = new https.Agent({
+  keepAlive: true,
+  keepAliveMsecs: 30000,
+  maxSockets: 20,
+  maxFreeSockets: 10,
+});
 
 /**
  * High-Precision Financial PDF Table & Statement Extractor Engine
@@ -47,7 +55,8 @@ class PdfParserEngine {
         try {
           const res = await axios.get(targetUrl, {
             responseType: 'arraybuffer',
-            timeout: 15000,
+            timeout: 8000,
+            httpsAgent: persistentHttpsAgent,
             headers: {
               'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
               'Accept': 'application/pdf,application/octet-stream,*/*',

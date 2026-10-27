@@ -227,9 +227,15 @@ class BseNseMonitorService {
             if (angelOne.circuitBreakerUntil && Date.now() < angelOne.circuitBreakerUntil) {
               return { scripInfo: { exchange: 'NSE', tradingsymbol: item.symbol, symboltoken: '0' }, ltp: null };
             }
-            const scripInfo = await angelOne.searchScrip(item.symbol, 'NSE');
-            const ltp = await angelOne.getLTP(scripInfo.exchange, scripInfo.tradingsymbol, scripInfo.symboltoken);
-            return { scripInfo, ltp };
+            const angelTask = (async () => {
+              const scripInfo = await angelOne.searchScrip(item.symbol, 'NSE');
+              const ltp = await angelOne.getLTP(scripInfo.exchange, scripInfo.tradingsymbol, scripInfo.symboltoken);
+              return { scripInfo, ltp };
+            })();
+            const timeoutTask = new Promise(resolve =>
+              setTimeout(() => resolve({ scripInfo: { exchange: 'NSE', tradingsymbol: item.symbol, symboltoken: '0' }, ltp: null }), 1500)
+            );
+            return await Promise.race([angelTask, timeoutTask]);
           } catch (err) {
             return { scripInfo: { exchange: 'NSE', tradingsymbol: item.symbol, symboltoken: '0' }, ltp: null };
           }
