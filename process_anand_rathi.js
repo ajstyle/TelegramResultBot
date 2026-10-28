@@ -96,7 +96,51 @@ const symbolName = 'ANAND RATHI WEALTH LTD';
       process.exit(1);
     }
 
-    console.log('6. Sending photo card to Telegram...');
+    console.log('5.5 Creating trade record for 1-click execution...');
+    const tradeStore = require('./src/services/tradeStore');
+    const riskEngine = require('./src/services/riskEngine');
+    const decisionEngine = require('./src/services/decisionEngine');
+
+    const entryPrice = cmp || 4120;
+    const atr = (entryPrice * 0.02) / (config.risk.atrMultiplier || 2);
+    const { stopLoss, atrUsed } = riskEngine.calculateStopLoss('BUY', entryPrice, null, atr);
+    const { quantity } = riskEngine.calculatePositionSize(
+      entryPrice,
+      stopLoss,
+      config.risk.accountCapital,
+      config.risk.riskPerTrade
+    );
+
+    const decision = decisionEngine.evaluate({
+      action: 'BUY',
+      symbol,
+      entry: entryPrice,
+      stopLoss,
+      target: null,
+      quantity,
+      ltp: entryPrice,
+      ocrConfidence: 100,
+      fundamentals,
+      atr: atrUsed,
+    });
+
+    const tradeRecord = await tradeStore.createTrade({
+      symbol,
+      action: 'BUY',
+      entry: entryPrice,
+      ltp: entryPrice,
+      stopLoss,
+      target: null,
+      quantity,
+      atr: atrUsed,
+      fundamentals: fundamentals.metrics || {},
+      decision,
+      status: 'ANALYZED',
+    }).catch(() => null);
+
+    const tradeId = (tradeRecord && tradeRecord._id) ? tradeRecord._id.toString() : `MEM_${Date.now()}`;
+
+    console.log('6. Sending photo card to Telegram with 1-Click Buy & Cancel buttons...');
     const captionText = 
 `📈 <b>ANAND RATHI WEALTH LTD (ANANDRATHI)</b>
 🏷️ <b>NSE:</b> ANANDRATHI | <b>BSE:</b> 543415
@@ -111,8 +155,24 @@ const symbolName = 'ANAND RATHI WEALTH LTD';
 
     const sentMsg = await bot.sendPhoto(targetChatId, cardPngBuf, {
       caption: captionText,
-      parse_mode: 'HTML'
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: `⚡ 1-CLICK BUY (${symbol})`, callback_data: `CONFIRM_KITE_${tradeId}` },
+          ],
+          [
+            { text: `❌ CANCEL`, callback_data: `CANCEL_${tradeId}` },
+          ]
+        ]
+      }
     }, { filename: 'ANANDRATHI_Q2_Result.png', contentType: 'image/png' });
+
+    if (tradeRecord && sentMsg) {
+      tradeRecord.telegramMessageId = sentMsg.message_id.toString();
+      tradeRecord.telegramChatId = targetChatId.toString();
+      await tradeRecord.save().catch(() => {});
+    }
 
     console.log(`\n✅ SUCCESS! ANANDRATHI Result Card sent to Telegram (Message ID: ${sentMsg.message_id})\n`);
 

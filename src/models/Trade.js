@@ -15,7 +15,8 @@ const tradeSchema = new mongoose.Schema(
     },
     entry: {
       type: Number,
-      required: true,
+      required: false,
+      default: 0,
     },
     ltp: {
       type: Number,
@@ -23,7 +24,8 @@ const tradeSchema = new mongoose.Schema(
     },
     stopLoss: {
       type: Number,
-      required: true,
+      required: false,
+      default: 0,
     },
     target: {
       type: Number,
@@ -31,7 +33,8 @@ const tradeSchema = new mongoose.Schema(
     },
     quantity: {
       type: Number,
-      required: true,
+      required: false,
+      default: 1,
       min: 0,
     },
     atr: {

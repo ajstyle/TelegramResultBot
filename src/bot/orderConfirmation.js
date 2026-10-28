@@ -92,7 +92,12 @@ async function handleOrderConfirmation(bot, callbackQuery) {
         await trade.save();
       }
       await safeAnswerCallback(bot, callbackId, { text: 'Trade cancelled.' });
-      await safeEditMessage(bot, message, `❌ *TRADE CANCELLED*\n\nTrade ID \`${tradeId}\` was cancelled by user.`);
+      await safeEditMessage(
+        bot,
+        message,
+        `❌ *TRADE CANCELLED*\n\nOrder for ${trade?.symbol || 'earnings signal'} was cancelled by user.`,
+        { reply_markup: { inline_keyboard: [] } }
+      );
     } catch (err) {
       await safeAnswerCallback(bot, callbackId, { text: `Error: ${err.message}`, show_alert: true });
     }
@@ -103,7 +108,7 @@ async function handleOrderConfirmation(bot, callbackQuery) {
     return;
   }
 
-  const isKiteOrder = data.startsWith('CONFIRM_KITE_');
+  const isKiteOrder = data.startsWith('CONFIRM_KITE_') || (!config.angelOne.apiKey && config.kite.apiKey);
   const tradeId = data.replace('CONFIRM_KITE_', '').replace('CONFIRM_ANGEL_', '').replace('CONFIRM_', '');
 
   try {
@@ -115,9 +120,9 @@ async function handleOrderConfirmation(bot, callbackQuery) {
       const btnTexts = message.reply_markup?.inline_keyboard?.flat().map(b => b.text).join(' ') || '';
       const msgText = `${message.caption || ''} ${message.text || ''} ${btnTexts}`;
       
-      // 1. Extract Symbol from Hashtag (#PURVA), Button Text (ZERODHA KITE (PURVA)), or Caption
+      // 1. Extract Symbol from Hashtag (#PURVA), Button Text (1-CLICK BUY (PURVA)), or Caption
       const symbolFromTag = msgText.match(/#([A-Z0-9_-]+)/i);
-      const symbolFromBtn = msgText.match(/(?:ANGEL ONE|ZERODHA KITE)\s*\(([^)]+)\)/i);
+      const symbolFromBtn = msgText.match(/(?:ANGEL ONE|ZERODHA KITE|1-CLICK BUY|BUY)\s*\(([^)]+)\)/i);
       let symbol = symbolFromTag ? symbolFromTag[1].toUpperCase() : (symbolFromBtn ? symbolFromBtn[1].toUpperCase().split(' ')[0] : null);
 
       if (symbol) {
