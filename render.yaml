@@ -13,9 +13,9 @@ services:
       - key: TRADING_MODE
         value: LIVE
       - key: TELEGRAM_BOT_TOKEN
-        value: 8774502052:AAFX6-wEXf558Y8XkE0TdeZ2QDQhxlu6sLA
+        sync: false
       - key: AUTHORIZED_TELEGRAM_CHAT_IDS
-        value: "1015884436"
+        sync: false
       - key: TARGET_TELEGRAM_CHANNEL
         value: earnings_pulse
       - key: AUTO_EXECUTE_ORDER
@@ -23,13 +23,13 @@ services:
       - key: POLLING_INTERVAL_MS
         value: 5000
       - key: ANGEL_API_KEY
-        value: FnjqYiUZ
+        sync: false
       - key: ANGEL_CLIENT_CODE
-        value: R704779
+        sync: false
       - key: ANGEL_PIN
-        value: "0812"
+        sync: false
       - key: ANGEL_TOTP_SECRET
-        value: HSLCI45Y7YK6MQVSODG3253DDY
+        sync: false
       - key: ACCOUNT_CAPITAL
         value: 100000
       - key: RISK_PER_TRADE
