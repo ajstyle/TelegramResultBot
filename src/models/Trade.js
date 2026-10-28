@@ -72,6 +72,16 @@ const tradeSchema = new mongoose.Schema(
       default: 'ANALYZED',
     },
 
+    orderId: {
+      type: String,
+      default: null,
+    },
+
+    broker: {
+      type: String,
+      default: 'Zerodha Kite',
+    },
+
     angelOrderId: {
       type: String,
       default: null,

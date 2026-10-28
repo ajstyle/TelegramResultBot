@@ -137,7 +137,7 @@ class DecisionEngine {
     }
 
     // Format Reasoned Decision Summary
-    const reasonedSummary = `${action} ${symbol} @ ${entry}, Fundamental Score ${fScoreText}, Valuation ${valuationText}, Risk ${riskLevel}, Suggested SL ${stopLoss}, Qty ${quantity || 'N/A'}, Proceed to Angel One.`;
+    const reasonedSummary = `${action} ${symbol} @ ${entry}, Fundamental Score ${fScoreText}, Valuation ${valuationText}, Risk ${riskLevel}, Suggested SL ${stopLoss}, Qty ${quantity || 'N/A'}, Proceed to Zerodha Kite.`;
 
     return {
       recommendation,

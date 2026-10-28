@@ -85,7 +85,7 @@ function initTelegramBot() {
         `*Features:*\n` +
         `⚡ *BSE/NSE 24/7 Live Earnings Broadcasting*\n` +
         `📊 *Gemini Flash Quantitative Scorecards*\n` +
-        `⚡ *1-Click Direct Order Execution on Angel One*`;
+        `⚡ *1-Click Direct Order Execution on Zerodha Kite*`;
       await bot.sendMessage(chatId, helpMsg, { parse_mode: 'Markdown' });
     } catch (err) {
       console.error(`[TelegramBot] Error handling /start or /help command: ${err.message}`);

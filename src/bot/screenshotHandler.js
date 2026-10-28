@@ -1,6 +1,6 @@
 const ocrEngine = require('../ocr/tesseract');
 const signalParser = require('../parser/signalParser');
-const angelOne = require('../services/angelOne');
+const zerodhaKite = require('../services/zerodhaKite');
 const fundamentalsService = require('../services/fundamentals');
 const riskEngine = require('../services/riskEngine');
 const tradeStore = require('../services/tradeStore');
@@ -95,34 +95,16 @@ async function handleScreenshot(bot, msg) {
       return;
     }
 
-    // 6. Look up Scrip Info & Dynamic Stock Fundamentals
-    let scripInfo = null;
+    // 6. Look up Dynamic Stock Fundamentals & LTP
     let ltp = null;
     try {
-      scripInfo = await angelOne.searchScrip(signal.symbol, 'NSE');
-      ltp = signal.entry || await angelOne.getLTP(scripInfo.exchange, scripInfo.tradingsymbol, scripInfo.symboltoken);
-    } catch (err) {
-      scripInfo = { exchange: 'NSE', tradingsymbol: signal.symbol, symboltoken: '0' };
+      ltp = signal.entry || await zerodhaKite.getLTP(signal.symbol, 'NSE');
+    } catch (_) {
+      ltp = signal.entry || null;
     }
 
     // Fetch 100% Dynamic Fundamentals for Symbol
     const fundamentals = await fundamentalsService.analyze(signal.symbol);
-
-    // FIRST STEP: Check Cautionary List (GSM/ASM/Trade-for-Trade)
-    if (angelOne.isCautionaryStock(signal.symbol, scripInfo)) {
-      const cautionaryNotice =
-        `⚠️ *CAUTIONARY LISTING DETECTED - TRADE ABORTED*\n\n` +
-        `*Stock:* ${signal.symbol}\n` +
-        `⛔ *Order stopped immediately. Stock is under exchange surveillance (GSM/ASM).*\n` +
-        `💡 Please place the order manually in your Angel One app if desired.`;
-
-      for (const { targetId, messageId } of processingMsgs) {
-        try {
-          await bot.editMessageText(cautionaryNotice, { chat_id: targetId, message_id: messageId, parse_mode: 'Markdown' });
-        } catch (_) {}
-      }
-      return;
-    }
 
     const effectiveEntry = signal.entry || ltp || 100;
 
@@ -174,16 +156,14 @@ async function handleScreenshot(bot, msg) {
     let orderResult = null;
 
     if (isExcellent) {
-      // Direct Instant Auto-Purchase on Angel One
-      orderResult = await angelOne.placeOrder({
-        tradingsymbol: scripInfo.tradingsymbol,
-        symboltoken: scripInfo.symboltoken,
-        transactiontype: 'BUY',
+      // Direct Instant Auto-Purchase on Zerodha Kite
+      orderResult = await zerodhaKite.placeOrder({
+        symbol: signal.symbol,
+        action: 'BUY',
         quantity: position.quantity,
         price: effectiveEntry,
-        orderType: 'LIMIT',
-        productType: 'INTRADAY',
-        exchange: 'NSE',
+        product: 'MIS',
+        orderType: 'MARKET',
       });
     }
 
@@ -201,7 +181,8 @@ async function handleScreenshot(bot, msg) {
       target: signal.target,
       quantity: position.quantity,
       status: tradeStatus,
-      angelOrderId: orderResult?.orderId || null,
+      orderId: orderResult?.orderId || null,
+      broker: 'Zerodha Kite',
       telegramMessageId: processingMsgs[0]?.messageId || null,
       telegramChatId: targetRecipientIds[0] || chatId,
     });
@@ -251,9 +232,9 @@ async function handleScreenshot(bot, msg) {
           `📢 *OFFICIAL EARNINGS REPORT CARD* ${modeBadge}\n\n` +
           `⚡ *Pulse Rating :* \`${pulseRatingStr}\` | 💎 *Valuation:* \`${valuationDisplay}\`\n\n` +
           `*CMP : ${cmpDisplay}* | *${capCategory} (${mcapDisplay})* | *P/E : ${peDisplay}*\n\n` +
-          `⚡ *INSTANT AUTO-PURCHASE EXECUTED (INTRADAY)*\n` +
+          `⚡ *INSTANT AUTO-PURCHASE EXECUTED (ZERODHA KITE)*\n` +
           `*Price:* ₹${effectiveEntry} | *Qty:* ${position.quantity} shares | *SL:* ₹${stopLoss}\n` +
-          `*Angel Order ID:* \`${orderResult.orderId}\``;
+          `*Zerodha Order ID:* \`${orderResult.orderId}\``;
       } else {
         outputMessage =
           `❌ *AUTO-EXECUTION REJECTED* ${modeBadge}\n\n` +
@@ -268,12 +249,12 @@ async function handleScreenshot(bot, msg) {
         `*CMP : ${cmpDisplay}* | *${capCategory} (${mcapDisplay})* | *P/E : ${peDisplay}*\n\n` +
         `⚡ *Intraday Trade Details:*\n` +
         `*Price:* ₹${effectiveEntry} | *Qty:* ${position.quantity} shares | *SL:* ₹${stopLoss}\n\n` +
-        `👇 *Click below to confirm INTRADAY Buy Order on Angel One:*`;
+        `👇 *Click below to confirm INTRADAY Buy Order on Zerodha Kite:*`;
 
       replyMarkup = {
         inline_keyboard: [
           [
-            { text: `⚡ 1-CLICK BUY ON ANGEL ONE (INTRADAY)`, callback_data: `CONFIRM_${tradeRecord._id}` },
+            { text: `⚡ 1-CLICK BUY ON ZERODHA KITE`, callback_data: `CONFIRM_KITE_${tradeRecord._id}` },
           ],
           [
             { text: `❌ CANCEL`, callback_data: `CANCEL_${tradeRecord._id}` },

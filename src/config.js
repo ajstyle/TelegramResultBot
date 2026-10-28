@@ -23,14 +23,6 @@ const config = {
     autoExecute: process.env.AUTO_EXECUTE_ORDER === 'true',
   },
 
-  angelOne: {
-    apiKey: process.env.ANGEL_API_KEY || '',
-    clientCode: process.env.ANGEL_CLIENT_CODE || '',
-    pin: process.env.ANGEL_PIN || '',
-    totpSecret: process.env.ANGEL_TOTP_SECRET || '',
-    baseUrl: 'https://apiconnect.angelone.in',
-  },
-
   kite: {
     userId: process.env.KITE_USER_ID || '',
     password: process.env.KITE_PASSWORD || '',
@@ -68,8 +60,8 @@ const config = {
 config.validate = function () {
   const warnings = [];
   if (config.tradingMode === 'LIVE') {
-    if (!config.angelOne.apiKey || !config.angelOne.clientCode || !config.angelOne.pin || !config.angelOne.totpSecret) {
-      warnings.push('LIVE trading mode is enabled, but Angel One credentials are incomplete!');
+    if (!config.kite.apiKey || (!config.kite.accessToken && !config.kite.password)) {
+      warnings.push('LIVE trading mode is enabled, but Zerodha Kite credentials are incomplete!');
     }
   }
 

@@ -1,6 +1,6 @@
 /**
  * Base Abstract Broker Adapter Interface
- * All broker adapters (Angel One, Zerodha, Dhan, Upstox, Paper) must implement this interface.
+ * All broker adapters (Zerodha Kite, Dhan, Upstox, Paper) must implement this interface.
  */
 class BaseBrokerAdapter {
   constructor(name) {

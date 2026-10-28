@@ -1,19 +1,19 @@
 # Telegram Stock Trading Assistant 🚀
 
-A modular, production-ready Telegram Stock Trading Assistant built with **Node.js**, **Express**, **MongoDB**, **Telegram Bot API**, **Tesseract OCR**, **Angel One SmartAPI** (supporting PAPER and LIVE trading modes), **Pluggable Fundamentals Engine**, **ATR Risk Engine**, and **Decision Engine**.
+A modular, production-ready Telegram Stock Trading Assistant built with **Node.js**, **Express**, **MongoDB**, **Telegram Bot API**, **Tesseract OCR**, **Zerodha Kite Connect** (supporting PAPER and LIVE trading modes), **Pluggable Fundamentals Engine**, **ATR Risk Engine**, and **Decision Engine**.
 
 ---
 
 ## 📌 Architecture & Features
 
 ```
-Telegram Screenshot → Listener → OCR → Signal Parser → Angel One Scrip Lookup → Market Data → Fundamentals Analysis → Risk Engine (ATR SL & Sizing) → Decision Engine → MongoDB Record → Telegram Interactive Confirmation → Angel One Order Placement
+Telegram Screenshot → Listener → OCR → Signal Parser → Instrument Lookup → Market Data → Fundamentals Analysis → Risk Engine (ATR SL & Sizing) → Decision Engine → MongoDB Record → Telegram Interactive Confirmation → Zerodha Kite Order Placement
 ```
 
 - **Telegram Listener**: Ingests high-resolution screenshots & text recommendations. Abstracted for easy migration to user-session listeners (Pyrogram/Telethon).
 - **Pluggable OCR**: Default implementation powered by `tesseract.js`. Easily swappable with AWS Textract or Google Vision.
 - **Signal Parser**: Independent regex parser supporting variations like `BUY TCS @ 3520`, `BUY TCS ENTRY 3520`, `BUY: TCS 3520`, `SELL RELIANCE 1450`.
-- **Angel One SmartAPI**: TOTP authentication, dynamic scrip lookup (`TCS` → `TCS-EQ` → `symboltoken`), LTP fetching, historical candle data, order placement, and order status tracking.
+- **Zerodha Kite Connect**: Automated Kite Connect integration, instrument mapping, LTP fetching, and order placement.
 - **Pluggable Fundamentals Engine**: Modular adapter returning PE, PB, ROE, ROCE, Debt-to-Equity, Sales/Profit Growth, and a 0–100 scoring system (Strong, Good, Neutral, Weak). Never fabricates missing data.
 - **Risk Engine**: 14-period ATR calculation, ATR-based Stop Loss (`Entry ± ATR × Multiplier`), risk-per-trade position sizing (`Quantity = floor((Capital × RiskPerTrade) / RiskPerShare)`).
 - **Decision Engine**: Combines OCR confidence, fundamental score, valuation, risk/reward, and ATR into a unified recommendation (`BUY`/`SELL`/`REJECT`) with warning flags.
@@ -50,11 +50,12 @@ MONGODB_URI=mongodb://localhost:27017/telegram_trading_bot
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
 AUTHORIZED_TELEGRAM_CHAT_IDS=123456789
 
-# Angel One SmartAPI
-ANGEL_API_KEY=your_angel_api_key
-ANGEL_CLIENT_CODE=your_angel_client_code
-ANGEL_PIN=your_angel_pin
-ANGEL_TOTP_SECRET=your_angel_totp_secret
+# Zerodha Kite Connect
+KITE_USER_ID=your_kite_user_id
+KITE_PASSWORD=your_kite_password
+KITE_TOTP_SECRET=your_kite_totp_secret
+KITE_API_KEY=your_kite_api_key
+KITE_API_SECRET=your_kite_api_secret
 
 # Risk Engine
 ACCOUNT_CAPITAL=100000

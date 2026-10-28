@@ -1,5 +1,4 @@
 const tradeStore = require('../services/tradeStore');
-const angelOne = require('../services/angelOne');
 const zerodhaKite = require('../services/zerodhaKite');
 const config = require('../config');
 
@@ -104,12 +103,11 @@ async function handleOrderConfirmation(bot, callbackQuery) {
     return;
   }
 
-  if (!data.startsWith('CONFIRM_') && !data.startsWith('CONFIRM_ANGEL_') && !data.startsWith('CONFIRM_KITE_')) {
+  if (!data.startsWith('CONFIRM_') && !data.startsWith('CONFIRM_KITE_')) {
     return;
   }
 
-  const isKiteOrder = data.startsWith('CONFIRM_KITE_') || (!config.angelOne.apiKey && config.kite.apiKey);
-  const tradeId = data.replace('CONFIRM_KITE_', '').replace('CONFIRM_ANGEL_', '').replace('CONFIRM_', '');
+  const tradeId = data.replace('CONFIRM_KITE_', '').replace('CONFIRM_', '');
 
   try {
     // 2. Validation & Status check with Dynamic Fallback
@@ -122,7 +120,7 @@ async function handleOrderConfirmation(bot, callbackQuery) {
       
       // 1. Extract Symbol from Hashtag (#PURVA), Button Text (1-CLICK BUY (PURVA)), or Caption
       const symbolFromTag = msgText.match(/#([A-Z0-9_-]+)/i);
-      const symbolFromBtn = msgText.match(/(?:ANGEL ONE|ZERODHA KITE|1-CLICK BUY|BUY)\s*\(([^)]+)\)/i);
+      const symbolFromBtn = msgText.match(/(?:ZERODHA KITE|1-CLICK BUY|BUY)\s*\(([^)]+)\)/i);
       let symbol = symbolFromTag ? symbolFromTag[1].toUpperCase() : (symbolFromBtn ? symbolFromBtn[1].toUpperCase().split(' ')[0] : null);
 
       if (symbol) {
@@ -233,41 +231,20 @@ async function handleOrderConfirmation(bot, callbackQuery) {
     }
 
     let orderResult;
-    let brokerName = 'Angel One';
+    const brokerName = 'Zerodha Kite';
 
-    if (isKiteOrder) {
-      brokerName = 'Zerodha Kite';
-      console.log(`[OrderConfirmation] Submitting ${trade.action} order for ${trade.symbol} on Zerodha Kite...`);
-      try {
-        orderResult = await zerodhaKite.placeOrder({
-          symbol: trade.symbol,
-          action: trade.action,
-          quantity: trade.quantity,
-          price: trade.entry,
-          product: 'MIS',
-          orderType: 'MARKET',
-        });
-      } catch (err) {
-        orderResult = { success: false, message: err.message };
-      }
-    } else {
-      // Angel One Execution
-      const scripInfo = await angelOne.searchScrip(trade.symbol, 'NSE');
-      const isCautionary = angelOne.isCautionaryStock(trade.symbol, scripInfo);
-      const productType = isCautionary ? 'DELIVERY' : 'INTRADAY';
-
-      console.log(`[OrderConfirmation] Submitting ${trade.action} order for ${trade.symbol} on Angel One (Product: ${productType})...`);
-
-      orderResult = await angelOne.placeOrder({
-        tradingsymbol: scripInfo.tradingsymbol,
-        symboltoken: scripInfo.symboltoken,
-        transactiontype: trade.action,
+    console.log(`[OrderConfirmation] Submitting ${trade.action} order for ${trade.symbol} on Zerodha Kite...`);
+    try {
+      orderResult = await zerodhaKite.placeOrder({
+        symbol: trade.symbol,
+        action: trade.action,
         quantity: trade.quantity,
         price: trade.entry,
-        orderType: 'LIMIT',
-        productType,
-        exchange: 'NSE',
+        product: 'MIS',
+        orderType: 'MARKET',
       });
+    } catch (err) {
+      orderResult = { success: false, message: err.message };
     }
 
     if (orderResult.success) {

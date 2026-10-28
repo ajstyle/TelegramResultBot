@@ -1,45 +1,33 @@
-const angelOne = require('../angelOne');
+const zerodhaKite = require('../zerodhaKite');
 const config = require('../../config');
 
 class BrokerManager {
   constructor() {
-    this.activeBroker = 'ANGEL_ONE';
+    this.activeBroker = 'ZERODHA_KITE';
   }
 
   /**
    * Get Active Broker Adapter instance
    */
   getAdapter() {
-    // Easily extendable for Zerodha, Dhan, Upstox
-    return angelOne;
+    return zerodhaKite;
   }
 
   async login() {
-    return this.getAdapter().login();
+    // Kite handles session via accessToken or headless auto-login
+    return true;
   }
 
   async searchScrip(symbol, exchange = 'NSE') {
-    return this.getAdapter().searchScrip(symbol, exchange);
+    return this.getAdapter().resolveInstrument(symbol, exchange);
   }
 
-  async getLTP(exchange, tradingsymbol, symboltoken) {
-    return this.getAdapter().getLTP(exchange, tradingsymbol, symboltoken);
-  }
-
-  async getHistoricalCandles(exchange, symboltoken, days = 30) {
-    return this.getAdapter().getHistoricalCandles(exchange, symboltoken, days);
+  async getLTP(symbol, exchange = 'NSE') {
+    return this.getAdapter().getLTP(symbol, exchange);
   }
 
   async placeOrder(orderParams) {
     return this.getAdapter().placeOrder(orderParams);
-  }
-
-  async getOrderStatus(orderId) {
-    return this.getAdapter().getOrderStatus(orderId);
-  }
-
-  async cancelOrder(orderId) {
-    return this.getAdapter().cancelOrder(orderId);
   }
 }
 

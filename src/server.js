@@ -6,7 +6,7 @@ const config = require('./config');
 const { connectDB } = require('./db');
 const tradeStore = require('./services/tradeStore');
 const { initTelegramBot } = require('./bot/telegram');
-const angelOne = require('./services/angelOne');
+const zerodhaKite = require('./services/zerodhaKite');
 const bseNseMonitor = require('./services/ingestion/bseNseMonitor');
 
 const valuationRouter = require('./api/valuationRouter');
@@ -189,24 +189,22 @@ app.post('/api/trades/:id/confirm', async (req, res) => {
       });
     }
 
-    // Resolve scrip & place order
-    const scripInfo = await angelOne.searchScrip(trade.symbol, 'NSE');
-    const orderResult = await angelOne.placeOrder({
-      tradingsymbol: scripInfo.tradingsymbol,
-      symboltoken: scripInfo.symboltoken,
-      transactiontype: trade.action,
+    // Place order via Zerodha Kite
+    const orderResult = await zerodhaKite.placeOrder({
+      symbol: trade.symbol,
+      action: trade.action,
       quantity: trade.quantity,
       price: trade.entry,
-      orderType: 'LIMIT',
-      productType: 'DELIVERY',
-      exchange: 'NSE',
+      product: 'MIS',
+      orderType: 'MARKET',
     });
 
     if (orderResult.success) {
       trade.status = 'ORDER_PLACED';
-      trade.angelOrderId = orderResult.orderId;
+      trade.orderId = orderResult.orderId;
+      trade.broker = 'Zerodha Kite';
       await trade.save();
-      return res.json({ success: true, message: 'Order placed successfully', data: trade });
+      return res.json({ success: true, message: 'Order placed successfully on Zerodha Kite', data: trade });
     } else {
       trade.status = 'REJECTED';
       await trade.save();

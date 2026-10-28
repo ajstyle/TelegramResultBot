@@ -354,5 +354,17 @@
     "status": "ANALYZED",
     "createdAt": "2026-10-27T10:28:58.272Z",
     "updatedAt": "2026-10-27T10:29:19.425Z"
+  },
+  {
+    "_id": "MEM_1793159250215_49",
+    "symbol": "ANANDRATHI",
+    "action": "BUY",
+    "entry": 2261,
+    "ltp": 2261,
+    "stopLoss": 2215.78,
+    "quantity": 22,
+    "status": "ANALYZED",
+    "createdAt": "2026-10-28T03:47:30.215Z",
+    "updatedAt": "2026-10-28T03:47:32.590Z"
   }
 ]

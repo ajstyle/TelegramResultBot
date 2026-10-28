@@ -43,7 +43,9 @@ function saveDiskCache() {
       stopLoss: t.stopLoss,
       quantity: t.quantity,
       status: t.status,
-      angelOrderId: t.angelOrderId,
+      orderId: t.orderId || t.angelOrderId,
+      broker: t.broker || 'Zerodha Kite',
+      angelOrderId: t.angelOrderId || t.orderId,
       createdAt: t.createdAt,
       updatedAt: t.updatedAt,
     }));

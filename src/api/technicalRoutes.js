@@ -1,27 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const technicalAnalysisService = require('../services/technical/technicalAnalysisService');
-const angelOne = require('../services/angelOne');
 
 const axios = require('axios');
 
 /**
  * Fetch 100% Real Live Market OHLCV Candles for Indian Stocks (NSE/BSE)
- * 1. Primary Source: Angel One SmartAPI Historical Candles
- * 2. Secondary Source: Yahoo Finance Live Market Feed (.NS / .BO)
+ * Primary Source: Yahoo Finance Live Market Feed (.NS / .BO)
  * Returns empty array if data is unavailable (yielding ⚪ DATA UNAVAILABLE per user spec).
  */
 async function fetchCandlesForSymbol(symbol, periodDays = 250) {
-  // 1. Primary: Angel One SmartAPI Live Historical Candles
-  try {
-    const scripInfo = await angelOne.searchScrip(symbol, 'NSE');
-    if (scripInfo && scripInfo.symboltoken) {
-      const candles = await angelOne.getHistoricalCandles(scripInfo.symboltoken, periodDays);
-      if (Array.isArray(candles) && candles.length >= 20) {
-        return candles;
-      }
-    }
-  } catch (_) {}
 
   // 2. Secondary: Yahoo Finance Real Live Market Feed (.NS / .BO)
   const cleanSym = symbol.toUpperCase().replace(/\.NS$|\.BO$/g, '').trim();

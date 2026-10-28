@@ -7,8 +7,7 @@ const geminiAnalyzer = require('../ai/geminiAnalyzer');
 const fundamentalsService = require('../fundamentals');
 const riskEngine = require('../riskEngine');
 const decisionEngine = require('../decisionEngine');
-const tradeStore = require('../tradeStore');
-const angelOne = require('../angelOne');
+const zerodhaKite = require('../zerodhaKite');
 const cardGenerator = require('../cardGenerator');
 const config = require('../../config');
 
@@ -202,8 +201,8 @@ class BseNseMonitorService {
       const fundamentalsService = require('../fundamentals');
       const marketCapClassifier = require('../universe/marketCapClassifier');
 
-      // Ultra-Low Latency: Run Fundamentals, PDF Parsing, and Angel One LTP fetch in PARALLEL
-      const [fundamentals, pdfAnalysis, angelResult] = await Promise.all([
+      // Ultra-Low Latency: Run Fundamentals, PDF Parsing, and Zerodha Kite LTP fetch in PARALLEL
+      const [fundamentals, pdfAnalysis, kiteLtp] = await Promise.all([
         fundamentalsService.analyze(item.symbol, item.scripCode).catch(() => ({ metrics: {}, companyCategory: 'Listed Stock', marketCapCr: 0 })),
         
         (async () => {
@@ -224,20 +223,11 @@ class BseNseMonitorService {
 
         (async () => {
           try {
-            if (angelOne.circuitBreakerUntil && Date.now() < angelOne.circuitBreakerUntil) {
-              return { scripInfo: { exchange: 'NSE', tradingsymbol: item.symbol, symboltoken: '0' }, ltp: null };
-            }
-            const angelTask = (async () => {
-              const scripInfo = await angelOne.searchScrip(item.symbol, 'NSE');
-              const ltp = await angelOne.getLTP(scripInfo.exchange, scripInfo.tradingsymbol, scripInfo.symboltoken);
-              return { scripInfo, ltp };
-            })();
-            const timeoutTask = new Promise(resolve =>
-              setTimeout(() => resolve({ scripInfo: { exchange: 'NSE', tradingsymbol: item.symbol, symboltoken: '0' }, ltp: null }), 1500)
-            );
-            return await Promise.race([angelTask, timeoutTask]);
+            const kiteTask = zerodhaKite.getLTP(item.symbol, 'NSE');
+            const timeoutTask = new Promise(resolve => setTimeout(() => resolve(null), 1500));
+            return await Promise.race([kiteTask, timeoutTask]);
           } catch (err) {
-            return { scripInfo: { exchange: 'NSE', tradingsymbol: item.symbol, symboltoken: '0' }, ltp: null };
+            return null;
           }
         })()
       ]);
@@ -344,8 +334,7 @@ class BseNseMonitorService {
       const combinedMetrics = { ...(fundamentals.metrics || {}), ...(pdfAnalysis.metrics || {}) };
       const aiSummary = aiSummaryEngine.generateSummary(item.symbol, pdfAnalysis.rawText, combinedMetrics);
 
-      let scripInfo = angelResult.scripInfo;
-      let ltp = angelResult.ltp;
+      let ltp = kiteLtp;
 
       let liveCmp = ltp || fundamentals.cmp || fundamentals.metrics?.cmp;
       if (!liveCmp) {
