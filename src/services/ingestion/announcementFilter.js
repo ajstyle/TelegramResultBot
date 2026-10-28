@@ -146,18 +146,27 @@ class AnnouncementFilter {
       'consolidated financial results',
       'unaudited results',
       'audited results',
-       'outcome of board meeting',
+      'outcome of board meeting',
       'outcome of board',
+      'outcome of bm',
+      'outcomeofbm',
+      'bm outcome',
+      'board meeting outcome',
       'regulation 33',
       'reg 33',
       'reg. 33',
-      'regulation33'
+      'regulation33',
     ];
 
     for (const keyword of primaryInclusions) {
       if (textToMatch.includes(keyword)) {
         return true;
       }
+    }
+
+    // Corporate Actions / Dividend filings that bundle board meeting financial results
+    if (textToMatch.includes('dividend') && (textToMatch.includes('outcome') || textToMatch.includes('results') || textToMatch.includes('bm') || textToMatch.includes('financial'))) {
+      return true;
     }
 
     // 3. Default to false for anything else (noise)
